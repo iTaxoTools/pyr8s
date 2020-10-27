@@ -2,12 +2,15 @@
 # -*- coding: utf-8 -*-
 
 ##############################################################################
-## pyr8s: Divergence time and rate estimation
+## pyr8s: Divergence Time and Rate Estimation
 ##
 ## Copyright 2020 Stefanos Patmanidis.
 ## All rights reserved.
-##
 ##############################################################################
+
+"""
+Extend dendropy trees with utility functions and attributes.
+"""
 
 import dendropy
 import random
@@ -17,6 +20,9 @@ from math import log
 
 import extensions
 
+
+##############################################################################
+### Objective functions
 
 def barrier_penalty(x, analysis):
     """
@@ -109,8 +115,8 @@ def objective_nprs(x, analysis):
 
 
 
-###############################################################################
-# Helper function
+##############################################################################
+### Helper function
 
 
 def apply_fun_to_list(function, lista):
@@ -127,8 +133,8 @@ def apply_fun_to_list(function, lista):
     return (function)(clean) if len(clean) else None
 
 
-###############################################################################
-# Analysis
+##############################################################################
+### Analysis
 
 
 class Analysis:
@@ -601,5 +607,26 @@ if __name__ == '__main__':
     a.param.persite = True
     a.param.nsites = 100
     a.array_make()
+
+    file = open('../SAMPLE_SIMPLE','r')
+    tokenizer = dendropy.dataio.nexusprocessing.NexusTokenizer(file)
+    token = tokenizer.next_token_ucase()
+    if not token == '#NEXUS':
+        raise ValueError('Not nexus file!')
+
+    while not tokenizer.is_eof():
+        token = tokenizer.next_token_ucase()
+        while token != None and token != 'BEGIN' and not tokenizer.is_eof():
+            token = tokenizer.next_token_ucase()
+        token = tokenizer.next_token_ucase()
+        if token == 'RATES':
+            print('RATES FOUND!')
+        else:
+            while not (token == 'END' or token == 'ENDBLOCK') \
+                and not tokenizer.is_eof() \
+                and not token==None:
+                tokenizer.skip_to_semicolon()
+                token = tokenizer.next_token_ucase()
+
 
 print('Import end.')

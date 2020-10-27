@@ -1,1 +1,732 @@
-from . import extensions
+# from . import extensions
+
+
+import dendropy
+import random
+
+from scipy import optimize
+from math import log
+
+
+def barrier_penalty(x, analysis):
+    """
+    Keep variables away from bounds
+    """
+
+    largeval = analysis.param.largeval
+
+    def barrier_term(x):
+        if x > 0:
+            return 1/x
+        else:
+            return largeval
+
+    array = analysis.array
+
+    sum = 0
+    for i in array.map:
+        j = array.unmap[i]
+        if array.high[i] is not None:
+            sum += barrier_term(array.high[i] - array.variable[j])
+        if array.low[i] is not None:
+            sum += barrier_term(array.variable[j] - array.low[i])
+
+    # print('Barrier penalty: {0}'.format(sum))
+
+    return sum
+
+def objective_nprs(x, analysis):
+    """
+    Ref Sanderson, Minimize neighbouring rates
+    """
+
+    # print('Objective: x = {0}'.format(x))
+
+    logarithmic = analysis.param.nprs_logarithmic #bool
+    exponent = analysis.param.nprs_exponent #2
+    largeval = analysis.param.largeval
+
+    analysis.array.variable = x
+    analysis._array_solution_merge()
+
+    array = analysis.array
+
+    def local_rate(i):
+        parent = array.parent[i]
+        dt = array.solution[parent] - array.solution[i]
+        if dt <= 0:
+            # raise ValueError('Parent younger than child while calculating rate! {0} < {1}'.
+            # format(array.solution[parent], array.solution[i]))
+            print('Parent younger than child while calculating rate! {0} < {1}'.
+                format(array.solution[parent], array.solution[i]))
+            return largeval
+        dx = array.length[i]
+        rate = dx/dt
+        if logarithmic:
+            rate = log(rate)
+        return rate
+
+        #! Have to merge solution before checking local_rates
+
+    # Calculate all rates first
+    for i in range(1,array.n):
+        array.rate[i] = local_rate(i)
+
+    # Sum of terms that don't involve root
+    wk = 0
+
+    # Sums and count of terms that involve root
+    sr = 0
+    srr = 0
+    n0 = 0
+
+    # Ignore root
+    for i in range(1,array.n):
+        parent = array.parent[i]
+        if parent == 0:
+            n0 += 1
+            sr += array.rate[i]
+            srr += array.rate[i] ** 2
+        else:
+            wk += abs(array.rate[parent] - array.rate[i]) ** exponent
+
+    w0 = (srr - (sr*sr)/n0) / n0
+
+    # print('Objective: {0}'.format(w0 + wk))
+
+    return w0 + wk
+
+
+###############################################################################
+# Extend dendropy datamodel
+
+# Extend Node attributes
+#? is there a better way to do this?
+dendropy.Node.index = None
+dendropy.Node.order = None
+dendropy.Node.fix = None
+dendropy.Node.min = None
+dendropy.Node.max = None
+
+# Extend Tree with flag attributes
+dendropy.Tree._indexed = None
+dendropy.Tree._ordered = None
+
+def _collapse(self):
+    """
+    Remove edges with zero length
+    """
+
+    # Collect nodes for deletion
+    remove = []
+
+    # Children before parent, ensures removal is done in proper order
+    for node in self.postorder_node_iter_noroot():
+        print(node.taxon)
+        print(node.label)
+        print(node.edge_length)
+        print('***')
+        #? Maybe consider a minimum length too
+        if node.edge_length == None:
+            remove.append(node)
+
+    # Get rid of the node, parent inherits children
+    for node in remove:
+        parent = node.parent_node
+        for child in node.child_node_iter():
+            parent.add_child(child)
+        parent.remove_child(node)
+
+def _index(self):
+    """
+    Assign node indexes according to BF traversal order
+    Nodes without named taxa will be given a new taxon named with their index
+    Also label nodes with their taxon name
+    """
+
+    # Start from root and branch out
+    for count, node in enumerate(self.preorder_node_iter()):
+        print('traversing node: {0}'.format(count))
+        node.index = count
+        if node.taxon == None:
+            node.taxon = self.taxon_namespace.new_taxon(str(count))
+        print(node.taxon.label)
+        node.label = node.taxon.label
+    self._indexed = True
+
+def _order(self):
+    """
+    Assign order to each node of tree
+    where order is the max distance from the leaves
+    """
+
+    def _order_recurse(node):
+        """For each node, get max order of children + 1"""
+
+        if node.is_leaf():
+            node.order = 0
+            return 0
+
+        max_child_order = 0
+        for child in node.child_node_iter():
+            some_order = _order_recurse(child)
+            max_child_order = max(max_child_order, some_order)
+        max_child_order += 1
+        node.order = max_child_order
+        return max_child_order
+
+    _order_recurse(self.seed_node)
+    self._ordered = True
+
+def _label_mrca(self,mrca,labels):
+    """
+    Rename most recent common ancestor of given nodes
+    Nodes are given with their label
+    If a single node is given, it is renamed
+    """
+    nm = self.mrca(taxon_labels=labels)
+    nm.taxon.label=mrca
+
+def _persite(self, nsites, round_flag=False):
+    """
+    DEPRECATED
+    Use this when branch lengths are in units of numbers of substitutions per site
+    This will multiply each branch length, rounding by default
+    """
+    for node in self.preorder_node_iter():
+        if node.edge_length != None:
+            node.edge_length *= nsites
+        if round_flag == True:
+            node.edge_length = round(node.edge_length)
+
+def _preorder_node_iter_noroot(self):
+    """
+    See Tree.preorder_node_iter, except this takes no filter and excludes root
+    """
+    stack = [n for n in reversed(a.tree.seed_node._child_nodes)]
+    while stack:
+        node = stack.pop()
+        yield node
+        stack.extend(n for n in reversed(node._child_nodes))
+
+def _postorder_node_iter_noroot(self):
+    """
+    See Tree.postorder_node_iter, except this takes no filter and excludes root
+    """
+    stack = [(n, False) for n in reversed(self.seed_node._child_nodes)]
+    while stack:
+        node, state = stack.pop()
+        if state:
+            yield node
+        else:
+            stack.append((node, True))
+            stack.extend([(n, False) for n in reversed(node._child_nodes)])
+
+
+# Extend Tree class
+setattr(dendropy.Tree, 'collapse', _collapse)
+setattr(dendropy.Tree, 'index', _index)
+setattr(dendropy.Tree, 'order', _order)
+setattr(dendropy.Tree, 'label_mrca', _label_mrca)
+setattr(dendropy.Tree, 'persite', _persite)
+setattr(dendropy.Tree, 'preorder_node_iter_noroot', _preorder_node_iter_noroot)
+setattr(dendropy.Tree, 'postorder_node_iter_noroot', _postorder_node_iter_noroot)
+
+
+
+
+###############################################################################
+# Helper function
+
+
+def apply_fun_to_list(function, lista):
+    """
+    Used together with min and max to avoid comparing with None.
+    If lista only has Nones, return None.
+    """
+
+    # Previous solution also trimmed 0s, which we want to keep
+    # clean = list(filter(None, lista))
+    # return (function)(clean) if any(clean) else None
+
+    clean = list(i for i in filter(lambda x: x is not None, lista))
+    return (function)(clean) if len(clean) else None
+
+
+###############################################################################
+# Analysis
+
+
+class Analysis:
+    """
+    All the work happens here
+    """
+    #? Consider locking attributes with __slots__ or @dataclass
+
+    class Param:
+
+        def __init__(self):
+            # These affect effective branch lengths
+            self.persite = False
+            self.nsites = 1
+            self.round = False
+
+            # Perturbation
+            self.perturb_factor = 0.01
+
+            #! not used right now, should force root age at 1.0
+            self.scalar = False
+
+            # Method and Algorithm to use
+            self.algorithm = 'nprs'
+            self.method = 'powell'
+
+            # How many times to solve the problem
+            self.number_of_guesses = 10
+
+            # Define the behaviour of manual barrier penalty
+            self.barrier_manual = True
+            self.barrier_max_iterations = 10
+            self.barrier_initial_factor = 0.25
+            self.barrier_multiplier = 0.10
+            self.barrier_tolerance = 0.0001
+
+            # NPRS params
+            self.nprs_logarithmic = False
+            self.nprs_exponent = 2
+
+            # For clamping
+            self.largeval = 1e30
+
+    class Array:
+        pass
+
+    def __init__(self):
+
+        random.seed()
+
+        self.param = self.Param()
+        self.array = None
+        self.tree = None
+
+        #! Somehow read tree here, dummy in place
+        # Make sure the tree has at least one root and one node
+
+        s = "(A:10,(B:9,(C:8,(D:7,E:6))H):4)V:3;"
+        s = "(A:10,(B:9,(C:8,(D:7,:6))H):4):3;"
+        # Force internal nodes as taxa, would have been labels otherwise
+        t = dendropy.Tree.get_from_string(s, "newick", suppress_internal_node_taxa=False)
+        t.is_rooted = True
+        t.collapse()
+        t.index()
+        t.order()
+        t.seed_node.max = 510
+        t.seed_node.min = 490
+        t.nodes()[2].min = 90
+        t.nodes()[2].max = 400
+        t.nodes()[5].fix = 200
+        self.tree = t
+        self.param.barrier_max_iterations = 1
+
+
+
+
+    def _array_solution_merge(self):
+        """Merge fixed ages and variables into array.solution"""
+
+        array = self.array
+
+        array.solution = []
+        for i in range(0,array.n):
+            if array.age[i] is not None:
+                array.solution.append(array.age[i])
+            else:
+                array.solution.append(array.variable[array.unmap[i]])
+
+    def print(self):
+        """Quick method to print the tree"""
+        self.tree.print_plot(show_internal_node_labels=True)
+
+    def array_make(self):
+        """
+        Convert the tree into arrays, preparing them for analysis.
+        The nodes are listed in preorder sequence.
+        """
+
+        # Demand that tree.index() and tree.order() were previously called
+        if not self.tree._indexed: raise RuntimeError(
+            'You must prepare tree with Tree.index() before calling array_make().')
+        if not self.tree._ordered: raise RuntimeError(
+            'You must prepare tree with Tree.order() before calling array_make().')
+
+        # Work locally, return result to class array when done.
+        array = self.Array()
+
+        array.node = []
+        array.label = []
+        array.order = []
+        for node in self.tree.preorder_node_iter():
+            array.node.append(node)
+            array.label.append(node.label)
+            array.order.append(node.order)
+        array.n = len(array.node)
+
+        # This will be used by the optimization function
+        array.parent = [0]
+        for node in self.tree.preorder_node_iter_noroot():
+            array.parent.append(node.parent_node.index)
+
+        array.length = []
+        for node in self.tree.preorder_node_iter():
+            length = node.edge_length
+            if length <= 0:
+                raise ValueError('Non-positive length for node {0}'.
+                    format(node.label))
+            if self.param.persite == True:
+                length *= self.param.nsites
+            if self.param.round == True:
+                length = round(length)
+            array.length.append(length)
+
+        # Get fixed ages, leaves are fixed to 0 if no constraints are given
+        array.age = []
+        for node in self.tree.preorder_node_iter():
+            fix = node.fix
+            if node.is_leaf() and not any([node.fix, node.min, node.max]): fix = 0
+            array.age.append(fix)
+
+        # Calculate high boundary for each node (top down).
+        high = apply_fun_to_list(min,
+            [self.tree.seed_node.max, self.tree.seed_node.fix])
+        array.high = [high]
+        for node in self.tree.preorder_node_iter_noroot():
+            high = apply_fun_to_list(min,
+                [node.max, node.fix,
+                array.high[node.parent_node.index]])
+            array.high.append(high)
+
+        # Calculate low boundary for each node (bottom up).
+        # Each node first calculates its own boundary,
+        # then it passes it up the tree, so the parent can consider all children.
+        #? This can definitely be done by comparing and keeping
+        #? the max instead of pushing it up into a list of lists,
+        #? but is it really better that way?
+        # array.low = [[None] for x in range(array.n)]
+        # for node in self.tree.postorder_node_iter_noroot():
+        #     low = apply_fun_to_list(max,
+        #         [0, node.min, node.fix] + array.low[node.index])
+        #     array.low[node.index] = low
+        #     array.low[node.parent_node.index].append(low)
+        # array.low[0] = apply_fun_to_list(max,
+        #     [self.tree.seed_node.min, self.tree.seed_node.fix] + array.low[0])
+
+        array.low = [None] * array.n
+        for node in self.tree.postorder_node_iter_noroot():
+            low = apply_fun_to_list(max,
+                [0, node.min, node.fix, array.low[node.index]])
+            array.low[node.index] = low
+            parent = node.parent_node.index
+            array.low[parent] = apply_fun_to_list(max, [array.low[parent], low])
+        array.low[0] = apply_fun_to_list(max,
+            [self.tree.seed_node.min, self.tree.seed_node.fix, array.low[0]])
+
+        # Boundary check
+        for i in range(array.n):
+
+            # These must be in ascending order:
+            # low boundary < fixed age < high boundary
+            order = [array.low[i], array.age[i], array.high[i]]
+            order = [i for i in filter(lambda x: x is not None, order)]
+            if sorted(order) != order:
+                raise ValueError('Impossible boundaries for node {0}: {1}]'.
+                    format(array.label[i],order))
+
+            # If (existing) boundaries collide, make sure node age is a fixed value
+            if all([array.low[i], array.high[i]]):
+                if array.high[i] == array.low[i]:
+                    array.age[i] = array.high[i]
+
+        # Nodes without value are declared variables for finding
+        array.variable = []
+        array.map = []
+        array.unmap = []
+        array.v = 0
+        for i, a in enumerate(array.age):
+            if a is None:
+                array.variable.append(None)
+                array.map.append(i)
+                array.unmap.append(array.v)
+                array.v += 1
+            else:
+                array.unmap.append(None)
+
+        # Check if the problem even exists
+        if array.v < 0:
+            raise ValueError('Solution defined by constraints: {0}'.
+                format(array.age))
+
+        # Get bounds for variables only
+        array.bounds = []
+        for j in array.map:
+            array.bounds.append((array.low[j],array.high[j]))
+
+        # Keep rates here
+        array.rate = [None] * array.n
+
+        # According to original code, either must be true for divergence:
+        # - Root has fixed age
+        # - An internal node has fixed age
+        # - Some node has max age
+        # - Tips have different ages
+        # I tested the last point and it doesn't seem to hold
+        # Equivalent condition: a high boundary exists
+
+        if not any(array.high):
+            raise ValueError('Not enough constraints to ensure divergence!')
+
+
+        #! A range of solutions might exist if root is not fixed!
+        #! Might be a good idea to point that out.
+
+        self.array = array
+
+    def guess(self):
+        """
+        Assign variables between low and high bounds.
+        The guess will never touch the boundaries (at least 2% away).
+        """
+
+        if self.array is None: raise RuntimeError(
+            'You must prepare with array_make() before calling guess().')
+
+        # Reference array here for short.
+        array = self.array
+
+        # We will be modifying children high boundaries according to parent guess.
+        # Copy array.high to keep these changes temporary
+        window = array.high.copy()
+
+        # Gather guesses here:
+        variable = []
+
+        # Start with the root if not fixed
+        if array.age[0] is None:
+            if all((array.low[0], array.high[0])):
+                # Both boundaries exist, get a random point within
+                high = array.high[0]
+                low = array.low[0]
+                diff = high - low
+                shift = diff * random.uniform(0.02,0.98)
+                age = high - shift
+            elif array.low[0] is not None:
+                #? Static percentages were used in original program...
+                age = array.low[0] * 1.25
+            elif array.high[0] is not None:
+                #? Should we randomise all 3 cases?
+                age = array.high[0] * 0.75
+            else:
+                # This could still diverge as long as there is an internal high boundary.
+                # Find that and go higher still.
+                age = apply_fun_to_list(max, array.high)
+                if age is None: raise RuntimeError(
+                    'This will never diverge, should have been caught by make_array()!')
+                #? Even this might need to be randomised
+                age *= 1.25
+            # Window gets narrower for children and root age is saved
+            window[0] = age
+            variable.append(age)
+
+        # Keep guessing from the top, restricting children as we go.
+        for i in range(1,array.n):
+            # Child is never older than parent
+            window[i] = apply_fun_to_list(min,
+                [window[i], window[array.parent[i]]])
+            if array.age[i] == None:
+                # This node is not fixed, assign a random valid age
+                high = window[i]
+                low = array.low[i]
+                order = array.order[i]
+                diff = high - low
+                # As per the original code:
+                # The term log(order+3) is always greater than 1
+                # and gets larger the closer we get to the root.
+                # Diving with it makes internal nodes close to root
+                # keep away from their lower boundary, thus giving
+                # more room for big basal clades to exist.
+                shift = diff * random.uniform(0.02,0.98) / log(order+3)
+                age = high - shift
+                # Window gets narrowed down, age is saved
+                window[i] = age
+                variable.append(age)
+
+        # Return new guess.
+        array.variable = variable
+
+        self._array_solution_merge()
+
+    def perturb(self):
+        """
+        Shake up the values for a given guess, while maintaining feasibility
+        """
+
+        if self.array is None: raise RuntimeError(
+            'You must prepare with array_make() before calling perturb().')
+
+        #! Make sure a guess exists in variable
+        if not all(self.array.variable):
+            raise RuntimeError('There is no complete guess to perturb!')
+
+        # Fetch for ease of use
+        array = self.array
+        perturb_factor = self.param.perturb_factor
+
+        # Keep lower bound window for each variable
+        window = [None] * array.v
+
+        # Start iterating variables only from the bottom up
+        # making sure the parent never gets younger than their children
+        for j in reversed(range(0,array.v)):
+
+            # j counts variables, i counts everything
+            i = array.map[j]
+            parent_position = array.parent[i]
+
+            # Determine perturbation window first
+            perturb_high = array.variable[j] * (1 + perturb_factor)
+            perturb_low = array.variable[j] * (1 - perturb_factor)
+
+            # Catch root, it has no parent so ignore this from upper boundary
+            #? Can possibly move this outside
+            if array.parent[i] != i:
+                parent_age = array.solution[parent_position]
+            else:
+                parent_age = None
+
+            high = apply_fun_to_list(min,
+                [perturb_high, array.high[i], parent_age])
+
+            low = apply_fun_to_list(max,
+                [perturb_low, array.low[i], window[j]])
+
+            age = random.uniform(low,high)
+
+            array.variable[j] = age
+
+            # If parent is a variable, adjust its window
+            if array.age[parent_position] is None:
+                parent_variable = array.unmap[parent_position]
+                window_current = window[parent_variable]
+                window_new = apply_fun_to_list(max, [age,window_current])
+                window[parent_variable] = window_new
+
+        self._array_solution_merge()
+
+
+    def method_powell(self):
+        """
+        Repeat method as necessary while relaxing barrier
+        """
+
+        result = None
+
+        if self.param.barrier_manual == True:\
+
+            # Adds a barrier_penalty to the objective function
+            # to keep solution variables away from their boundaries.
+            # We are interested in the pure objective function value.
+            # Relax the barrier penalty factor with each iteration,
+            # while also perturbing the variables
+
+            factor = self.param.barrier_initial_factor
+            kept_value = objective_nprs(self.array.variable, self)
+
+            for b in range(self.param.barrier_max_iterations):
+
+
+                print('Barrier iteration: {0}'.format(b))
+
+                result = optimize.minimize(
+                    lambda x,a: objective_nprs(x,a) + factor*barrier_penalty(x,a),
+                    self.array.variable, method='Powell',args=(self))
+
+                self.result = result
+                self.array.variable = list(result.x)
+
+                new_value = objective_nprs(self.array.variable, self)
+
+                if new_value == 0:
+                    break
+
+                tolerance = abs((new_value - kept_value)/new_value)
+
+                if tolerance < self.param.barrier_tolerance:
+                    break
+                else:
+                    kept_value = new_value
+                    factor *= self.param.barrier_multiplier
+                    self.perturb()
+
+        else:
+                result = optimize.minimize(objective_nprs, self.array.variable,
+                    method='Powell', args=(self),bounds=self.array.bounds)
+
+                self.array.variable = list(result.x)
+
+        return result.fun
+
+
+
+    def optimize(self):
+        """
+        Applies the selected algorithm to the given array
+        over multiple guesses, keeping the best
+        """
+
+        #! This is a good place to output warnings etc
+        #! Also to make_array
+
+        kept_min = None
+
+        for g in range(self.param.number_of_guesses):
+
+            self.guess()
+
+            print('Guess {0}: {1}'.format(g, self.array.variable))
+
+            # Call the appropriate optimization method
+            if hasattr(self, 'method_' + self.param.method):
+                new_min = getattr(self, 'method_' + self.param.method)()
+            else:
+                raise ValueError('No such method: {0}'.format(self.param.method))
+
+            # merge not needed?? just wanted to print
+            self._array_solution_merge()
+            print('Local solution: {0}'.format(self.array.solution))
+
+            kept_min = apply_fun_to_list(min, [kept_min, new_min])
+            if kept_min == new_min:
+                kept_variable = self.array.variable
+
+        self.array.variable = kept_variable
+        self._array_solution_merge()
+        print('Best solution: {0}'.format(self.array.solution))
+        return kept_variable
+
+
+
+
+
+    def array_take(self):
+        """
+        Recover tree from arrays after analysis.
+        """
+        pass
+
+if __name__ == '__main__':
+    print('in main')
+    a = Analysis()
+    a.param.persite = True
+    a.param.nsites = 100
+    a.array_make()
+
+print('Import end.')

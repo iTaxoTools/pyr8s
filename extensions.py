@@ -1,13 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-##############################################################################
-## pyr8s: Divergence Time Estimation
-##
-## Copyright 2020 Stefanos Patmanidis.
-## All rights reserved.
-##############################################################################
-
 """
 Extend dendropy trees with utility functions and attributes.
 """

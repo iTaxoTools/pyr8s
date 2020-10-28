@@ -1,13 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-##############################################################################
-## pyr8s: Divergence Time Estimation
-##
-## Copyright 2020 Stefanos Patmanidis.
-## All rights reserved.
-##############################################################################
-
 """
 Parameter defaults for use by core.Analysis class.
 To be extended with helpstrings and ranges.

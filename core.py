@@ -1,13 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-##############################################################################
-## pyr8s: Divergence Time Estimation
-##
-## Copyright 2020 Stefanos Patmanidis.
-## All rights reserved.
-##############################################################################
-
 """
 Extend dendropy trees with utility functions and attributes.
 """
@@ -39,6 +32,18 @@ def apply_fun_to_list(function, lista):
 
 
 ##############################################################################
+### Arrays
+
+class Array:
+    """
+    Initialise all arrays needed by the optimization methods.
+    To be defined using numpy arrays if needed.
+    """
+    pass
+
+
+
+##############################################################################
 ### Analysis
 
 class Analysis:
@@ -47,9 +52,6 @@ class Analysis:
     """
     #? Consider locking attributes with __slots__ or @dataclass
 
-
-    class Array:
-        pass
 
     def __init__(self):
 
@@ -198,7 +200,7 @@ class Analysis:
             'You must prepare tree with Tree.order() before calling array_make().')
 
         # Work locally, return result to class array when done.
-        array = self.Array()
+        array = Array()
 
         array.node = []
         array.label = []

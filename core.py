@@ -36,11 +36,155 @@ def apply_fun_to_list(function, lista):
 
 class Array:
     """
-    Initialise all arrays needed by the optimization methods.
+    Contains all arrays needed by the optimization methods.
     To be defined using numpy arrays if needed.
     """
-    pass
+    def __init__(self, param):
+        # Bind new array options to caller
+        self._branch_length = param.branch_length
+        #! also init all arrays
 
+    def make(self, tree):
+        """
+        Convert the give tree into arrays, preparing them for analysis.
+        The nodes are listed in preorder sequence.
+        """
+
+        persite = self._branch_length['persite']
+        nsites = self._branch_length['nsites']
+        round = self._branch_length['round']
+
+        # Demand that tree.index() and tree.order() were previously called
+        if not tree._indexed: raise RuntimeError(
+            'You must prepare tree with Tree.index() before calling make().')
+        if not tree._ordered: raise RuntimeError(
+            'You must prepare tree with Tree.order() before calling make().')
+
+        self.node = []
+        self.label = []
+        self.order = []
+        for node in tree.preorder_node_iter():
+            self.node.append(node)
+            self.label.append(node.label)
+            self.order.append(node.order)
+        self.n = len(self.node)
+
+        # This will be used by the optimization function
+        self.parent = [0]
+        for node in tree.preorder_node_iter_noroot():
+            self.parent.append(node.parent_node.index)
+
+        self.length = []
+        for node in tree.preorder_node_iter():
+            length = node.edge_length
+            if length <= 0:
+                raise ValueError('Non-positive length for node {0}'.
+                    format(node.label))
+            if persite == True:
+                length *= nsites
+            if round == True:
+                length = round(length)
+            self.length.append(length)
+
+        # Get fixed ages, leaves are fixed to 0 if no constraints are given
+        self.age = []
+        for node in tree.preorder_node_iter():
+            fix = node.fix
+            if node.is_leaf() and not any([node.fix, node.min, node.max]): fix = 0
+            self.age.append(fix)
+
+        # Calculate high boundary for each node (top down).
+        high = apply_fun_to_list(min,
+            [tree.seed_node.max, tree.seed_node.fix])
+        self.high = [high]
+        for node in tree.preorder_node_iter_noroot():
+            high = apply_fun_to_list(min,
+                [node.max, node.fix,
+                self.high[node.parent_node.index]])
+            self.high.append(high)
+
+        # Calculate low boundary for each node (bottom up).
+        # Each node first calculates its own boundary,
+        # then it passes it up the tree, so the parent can consider all children.
+        #? This can definitely be done by comparing and keeping
+        #? the max instead of pushing it up into a list of lists,
+        #? but is it really better that way?
+        # self.low = [[None] for x in range(self.n)]
+        # for node in self.tree.postorder_node_iter_noroot():
+        #     low = apply_fun_to_list(max,
+        #         [0, node.min, node.fix] + self.low[node.index])
+        #     self.low[node.index] = low
+        #     self.low[node.parent_node.index].append(low)
+        # self.low[0] = apply_fun_to_list(max,
+        #     [self.tree.seed_node.min, self.tree.seed_node.fix] + self.low[0])
+
+        self.low = [None] * self.n
+        for node in tree.postorder_node_iter_noroot():
+            low = apply_fun_to_list(max,
+                [0, node.min, node.fix, self.low[node.index]])
+            self.low[node.index] = low
+            parent = node.parent_node.index
+            self.low[parent] = apply_fun_to_list(max, [self.low[parent], low])
+        self.low[0] = apply_fun_to_list(max,
+            [tree.seed_node.min, tree.seed_node.fix, self.low[0]])
+
+        # Boundary check
+        for i in range(self.n):
+
+            # These must be in ascending order:
+            # low boundary < fixed age < high boundary
+            order = [self.low[i], self.age[i], self.high[i]]
+            order = [i for i in filter(lambda x: x is not None, order)]
+            if sorted(order) != order:
+                raise ValueError('Impossible boundaries for node {0}: {1}]'.
+                    format(self.label[i],order))
+
+            # If (existing) boundaries collide, make sure node age is a fixed value
+            if all([self.low[i], self.high[i]]):
+                if self.high[i] == self.low[i]:
+                    self.age[i] = self.high[i]
+
+        # Nodes without value are declared variables for finding
+        self.variable = []
+        self.map = []
+        self.unmap = []
+        self.v = 0
+        for i, a in enumerate(self.age):
+            if a is None:
+                self.variable.append(None)
+                self.map.append(i)
+                self.unmap.append(self.v)
+                self.v += 1
+            else:
+                self.unmap.append(None)
+
+        # Check if the problem even exists
+        if self.v < 0:
+            raise ValueError('Solution defined by constraints: {0}'.
+                format(self.age))
+
+        # Get bounds for variables only
+        self.bounds = []
+        for j in self.map:
+            self.bounds.append((self.low[j],self.high[j]))
+
+        # Keep rates here
+        self.rate = [None] * self.n
+
+        # According to original code, either must be true for divergence:
+        # - Root has fixed age
+        # - An internal node has fixed age
+        # - Some node has max age
+        # - Tips have different ages
+        # I tested the last point and it doesn't seem to hold
+        # Equivalent condition: a high boundary exists
+
+        if not any(self.high):
+            raise ValueError('Not enough constraints to ensure divergence!')
+
+
+        #! A range of solutions might exist if root is not fixed!
+        #! Might be a good idea to point that out.
 
 
 ##############################################################################
@@ -58,7 +202,7 @@ class Analysis:
         random.seed()
 
         self.param = params.Param()
-        self.array = None
+        self.array = Array(self.param)
         self.tree = None
 
         #! Somehow read tree here, dummy in place
@@ -187,149 +331,6 @@ class Analysis:
         """Quick method to print the tree"""
         self.tree.print_plot(show_internal_node_labels=True)
 
-    def array_make(self):
-        """
-        Convert the tree into arrays, preparing them for analysis.
-        The nodes are listed in preorder sequence.
-        """
-
-        # Demand that tree.index() and tree.order() were previously called
-        if not self.tree._indexed: raise RuntimeError(
-            'You must prepare tree with Tree.index() before calling array_make().')
-        if not self.tree._ordered: raise RuntimeError(
-            'You must prepare tree with Tree.order() before calling array_make().')
-
-        # Work locally, return result to class array when done.
-        array = Array()
-
-        array.node = []
-        array.label = []
-        array.order = []
-        for node in self.tree.preorder_node_iter():
-            array.node.append(node)
-            array.label.append(node.label)
-            array.order.append(node.order)
-        array.n = len(array.node)
-
-        # This will be used by the optimization function
-        array.parent = [0]
-        for node in self.tree.preorder_node_iter_noroot():
-            array.parent.append(node.parent_node.index)
-
-        array.length = []
-        for node in self.tree.preorder_node_iter():
-            length = node.edge_length
-            if length <= 0:
-                raise ValueError('Non-positive length for node {0}'.
-                    format(node.label))
-            if self.param.general['persite'] == True:
-                length *= self.param.general['nsites']
-            if self.param.general['round'] == True:
-                length = round(length)
-            array.length.append(length)
-
-        # Get fixed ages, leaves are fixed to 0 if no constraints are given
-        array.age = []
-        for node in self.tree.preorder_node_iter():
-            fix = node.fix
-            if node.is_leaf() and not any([node.fix, node.min, node.max]): fix = 0
-            array.age.append(fix)
-
-        # Calculate high boundary for each node (top down).
-        high = apply_fun_to_list(min,
-            [self.tree.seed_node.max, self.tree.seed_node.fix])
-        array.high = [high]
-        for node in self.tree.preorder_node_iter_noroot():
-            high = apply_fun_to_list(min,
-                [node.max, node.fix,
-                array.high[node.parent_node.index]])
-            array.high.append(high)
-
-        # Calculate low boundary for each node (bottom up).
-        # Each node first calculates its own boundary,
-        # then it passes it up the tree, so the parent can consider all children.
-        #? This can definitely be done by comparing and keeping
-        #? the max instead of pushing it up into a list of lists,
-        #? but is it really better that way?
-        # array.low = [[None] for x in range(array.n)]
-        # for node in self.tree.postorder_node_iter_noroot():
-        #     low = apply_fun_to_list(max,
-        #         [0, node.min, node.fix] + array.low[node.index])
-        #     array.low[node.index] = low
-        #     array.low[node.parent_node.index].append(low)
-        # array.low[0] = apply_fun_to_list(max,
-        #     [self.tree.seed_node.min, self.tree.seed_node.fix] + array.low[0])
-
-        array.low = [None] * array.n
-        for node in self.tree.postorder_node_iter_noroot():
-            low = apply_fun_to_list(max,
-                [0, node.min, node.fix, array.low[node.index]])
-            array.low[node.index] = low
-            parent = node.parent_node.index
-            array.low[parent] = apply_fun_to_list(max, [array.low[parent], low])
-        array.low[0] = apply_fun_to_list(max,
-            [self.tree.seed_node.min, self.tree.seed_node.fix, array.low[0]])
-
-        # Boundary check
-        for i in range(array.n):
-
-            # These must be in ascending order:
-            # low boundary < fixed age < high boundary
-            order = [array.low[i], array.age[i], array.high[i]]
-            order = [i for i in filter(lambda x: x is not None, order)]
-            if sorted(order) != order:
-                raise ValueError('Impossible boundaries for node {0}: {1}]'.
-                    format(array.label[i],order))
-
-            # If (existing) boundaries collide, make sure node age is a fixed value
-            if all([array.low[i], array.high[i]]):
-                if array.high[i] == array.low[i]:
-                    array.age[i] = array.high[i]
-
-        # Nodes without value are declared variables for finding
-        array.variable = []
-        array.map = []
-        array.unmap = []
-        array.v = 0
-        for i, a in enumerate(array.age):
-            if a is None:
-                array.variable.append(None)
-                array.map.append(i)
-                array.unmap.append(array.v)
-                array.v += 1
-            else:
-                array.unmap.append(None)
-
-        # Check if the problem even exists
-        if array.v < 0:
-            raise ValueError('Solution defined by constraints: {0}'.
-                format(array.age))
-
-        # Get bounds for variables only
-        array.bounds = []
-        for j in array.map:
-            array.bounds.append((array.low[j],array.high[j]))
-
-        # Keep rates here
-        array.rate = [None] * array.n
-
-        # According to original code, either must be true for divergence:
-        # - Root has fixed age
-        # - An internal node has fixed age
-        # - Some node has max age
-        # - Tips have different ages
-        # I tested the last point and it doesn't seem to hold
-        # Equivalent condition: a high boundary exists
-
-        if not any(array.high):
-            raise ValueError('Not enough constraints to ensure divergence!')
-
-
-        #! A range of solutions might exist if root is not fixed!
-        #! Might be a good idea to point that out.
-
-        self.array = array
-
     def guess(self):
         """
         Assign variables between low and high bounds.
@@ -337,7 +338,7 @@ class Analysis:
         """
 
         if self.array is None: raise RuntimeError(
-            'You must prepare with array_make() before calling guess().')
+            'You must prepare with array.make() before calling guess().')
 
         # Reference array here for short.
         array = self.array
@@ -410,7 +411,7 @@ class Analysis:
         """
 
         if self.array is None: raise RuntimeError(
-            'You must prepare with array_make() before calling perturb().')
+            'You must prepare with array.make() before calling perturb().')
 
         #! Make sure a guess exists in variable
         if not all(self.array.variable):
@@ -556,21 +557,12 @@ class Analysis:
         return kept_variable
 
 
-
-
-
-    def array_take(self):
-        """
-        Recover tree from arrays after analysis.
-        """
-        pass
-
 if __name__ == '__main__':
     print('in main')
     a = Analysis()
-    a.param.general['persite'] = True
-    a.param.general['nsites'] = 100
-    a.array_make()
+    a.param.branch_length['persite'] = True
+    a.param.branch_length['nsites'] = 100
+    a.array.make(a.tree)
 
     file = open('../SAMPLE_SIMPLE','r')
     tokenizer = dendropy.dataio.nexusprocessing.NexusTokenizer(file)

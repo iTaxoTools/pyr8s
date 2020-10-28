@@ -16,13 +16,16 @@ class Param:
 
         # General options
         self.general = {
-            'persite': False, # These affect effective branch lengths
-            'nsites': 1, # These affect effective branch lengths
-            'round': False, # These affect effective branch lengths
             'perturb_factor': 0.01,
             'scalar': False, #! not used right now, should force root age at 1.0
             'number_of_guesses': 10, # How many times to solve the problem
             'largeval': 1e30, # For clamping
+            }
+        # Branch length formatting
+        self.branch_length = {
+            'persite': False,
+            'nsites': 1,
+            'round': False,
             }
         # Define the behaviour of manual barrier penalty
         self.barrier = {

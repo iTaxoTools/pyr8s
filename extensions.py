@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 ##############################################################################
-## pyr8s: Divergence Time and Rate Estimation
+## pyr8s: Divergence Time Estimation
 ##
 ## Copyright 2020 Stefanos Patmanidis.
 ## All rights reserved.

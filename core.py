@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 ##############################################################################
-## pyr8s: Divergence Time and Rate Estimation
+## pyr8s: Divergence Time Estimation
 ##
 ## Copyright 2020 Stefanos Patmanidis.
 ## All rights reserved.
@@ -22,102 +22,7 @@ import extensions
 
 
 ##############################################################################
-### Objective functions
-
-def barrier_penalty(x, analysis):
-    """
-    Keep variables away from bounds
-    """
-
-    largeval = analysis.param.largeval
-
-    def barrier_term(x):
-        if x > 0:
-            return 1/x
-        else:
-            return largeval
-
-    array = analysis.array
-
-    sum = 0
-    for i in array.map:
-        j = array.unmap[i]
-        if array.high[i] is not None:
-            sum += barrier_term(array.high[i] - array.variable[j])
-        if array.low[i] is not None:
-            sum += barrier_term(array.variable[j] - array.low[i])
-
-    # print('Barrier penalty: {0}'.format(sum))
-
-    return sum
-
-def objective_nprs(x, analysis):
-    """
-    Ref Sanderson, Minimize neighbouring rates
-    """
-
-    # print('Objective: x = {0}'.format(x))
-
-    logarithmic = analysis.param.nprs_logarithmic #bool
-    exponent = analysis.param.nprs_exponent #2
-    largeval = analysis.param.largeval
-
-    analysis.array.variable = x
-    analysis._array_solution_merge()
-
-    array = analysis.array
-
-    def local_rate(i):
-        parent = array.parent[i]
-        dt = array.solution[parent] - array.solution[i]
-        if dt <= 0:
-            # raise ValueError('Parent younger than child while calculating rate! {0} < {1}'.
-            # format(array.solution[parent], array.solution[i]))
-            print('Parent younger than child while calculating rate! {0} < {1}'.
-                format(array.solution[parent], array.solution[i]))
-            return largeval
-        dx = array.length[i]
-        rate = dx/dt
-        if logarithmic:
-            rate = log(rate)
-        return rate
-
-        #! Have to merge solution before checking local_rates
-
-    # Calculate all rates first
-    for i in range(1,array.n):
-        array.rate[i] = local_rate(i)
-
-    # Sum of terms that don't involve root
-    wk = 0
-
-    # Sums and count of terms that involve root
-    sr = 0
-    srr = 0
-    n0 = 0
-
-    # Ignore root
-    for i in range(1,array.n):
-        parent = array.parent[i]
-        if parent == 0:
-            n0 += 1
-            sr += array.rate[i]
-            srr += array.rate[i] ** 2
-        else:
-            wk += abs(array.rate[parent] - array.rate[i]) ** exponent
-
-    w0 = (srr - (sr*sr)/n0) / n0
-
-    # print('Objective: {0}'.format(w0 + wk))
-
-    return w0 + wk
-
-
-
-
-##############################################################################
 ### Helper function
-
 
 def apply_fun_to_list(function, lista):
     """
@@ -136,7 +41,6 @@ def apply_fun_to_list(function, lista):
 ##############################################################################
 ### Analysis
 
-
 class Analysis:
     """
     All the work happens here
@@ -146,6 +50,11 @@ class Analysis:
     class Param:
 
         def __init__(self):
+
+            # Method and Algorithm to use
+            self.algorithm = 'nprs'
+            self.method = 'powell'
+
             # These affect effective branch lengths
             self.persite = False
             self.nsites = 1
@@ -157,9 +66,8 @@ class Analysis:
             #! not used right now, should force root age at 1.0
             self.scalar = False
 
-            # Method and Algorithm to use
-            self.algorithm = 'nprs'
-            self.method = 'powell'
+            # For clamping
+            self.largeval = 1e30
 
             # How many times to solve the problem
             self.number_of_guesses = 10
@@ -175,8 +83,6 @@ class Analysis:
             self.nprs_logarithmic = False
             self.nprs_exponent = 2
 
-            # For clamping
-            self.largeval = 1e30
 
     class Array:
         pass
@@ -221,6 +127,95 @@ class Analysis:
                 array.solution.append(array.age[i])
             else:
                 array.solution.append(array.variable[array.unmap[i]])
+
+
+##############################################################################
+### Function generators
+
+    def _build_barrier_penalty(self):
+        """Generate penalty function"""
+
+        largeval = self.param.largeval
+        array = self.array
+
+        def barrier_penalty(x):
+            """
+            Keep variables away from bounds
+            """
+
+            def barrier_term(x):
+                if x > 0:
+                    return 1/x
+                else:
+                    return largeval
+
+            sum = 0
+            for i in array.map:
+                j = array.unmap[i]
+                if array.high[i] is not None:
+                    sum += barrier_term(array.high[i] - array.variable[j])
+                if array.low[i] is not None:
+                    sum += barrier_term(array.variable[j] - array.low[i])
+            # print('Barrier penalty: {0}'.format(sum))
+            return sum
+
+        return barrier_penalty
+
+
+    def _build_objective_nprs(self):
+        """Generate the objective function"""
+
+        logarithmic = self.param.nprs_logarithmic #bool
+        exponent = self.param.nprs_exponent #2
+        largeval = self.param.largeval
+        array = self.array
+
+        def local_rate(i):
+            parent = array.parent[i]
+            dt = array.solution[parent] - array.solution[i]
+            if dt <= 0:
+                print('Parent younger than child while calculating rate! {0} < {1}'.
+                    format(array.solution[parent], array.solution[i]))
+                return largeval
+            dx = array.length[i]
+            rate = dx/dt
+            if logarithmic:
+                rate = log(rate)
+            return rate
+
+        def objective_nprs(x):
+            """
+            Ref Sanderson, Minimize neighbouring rates
+            """
+            # print('Objective: x = {0}'.format(x))
+
+            array.variable = x
+            self._array_solution_merge()
+
+            # Calculate all rates first
+            for i in range(1,array.n):
+                array.rate[i] = local_rate(i)
+
+            # Sum of terms that don't involve root
+            wk = 0
+            # Sums and count of terms that involve root
+            sr, srr, n0 = 0, 0, 0
+            # Ignore root
+            for i in range(1,array.n):
+                parent = array.parent[i]
+                if parent == 0:
+                    n0 += 1
+                    sr += array.rate[i]
+                    srr += array.rate[i] ** 2
+                else:
+                    wk += abs(array.rate[parent] - array.rate[i]) ** exponent
+            w0 = (srr - (sr*sr)/n0) / n0
+            # print('Objective: {0}'.format(w0 + wk))
+            return w0 + wk
+
+
+        return objective_nprs
+
 
     def print(self):
         """Quick method to print the tree"""
@@ -505,10 +500,11 @@ class Analysis:
         """
         Repeat method as necessary while relaxing barrier
         """
+        objective_nprs = self._build_objective_nprs()
 
         result = None
 
-        if self.param.barrier_manual == True:\
+        if self.param.barrier_manual == True:
 
             # Adds a barrier_penalty to the objective function
             # to keep solution variables away from their boundaries.
@@ -516,8 +512,10 @@ class Analysis:
             # Relax the barrier penalty factor with each iteration,
             # while also perturbing the variables
 
+            barrier_penalty = self._build_barrier_penalty()
+
             factor = self.param.barrier_initial_factor
-            kept_value = objective_nprs(self.array.variable, self)
+            kept_value = objective_nprs(self.array.variable)
 
             for b in range(self.param.barrier_max_iterations):
 
@@ -525,13 +523,13 @@ class Analysis:
                 print('Barrier iteration: {0}'.format(b))
 
                 result = optimize.minimize(
-                    lambda x,a: objective_nprs(x,a) + factor*barrier_penalty(x,a),
-                    self.array.variable, method='Powell',args=(self))
+                    lambda x: objective_nprs(x) + factor*barrier_penalty(x),
+                    self.array.variable, method='Powell')
 
                 self.result = result
                 self.array.variable = list(result.x)
 
-                new_value = objective_nprs(self.array.variable, self)
+                new_value = objective_nprs(self.array.variable)
 
                 if new_value == 0:
                     break
@@ -547,7 +545,7 @@ class Analysis:
 
         else:
                 result = optimize.minimize(objective_nprs, self.array.variable,
-                    method='Powell', args=(self),bounds=self.array.bounds)
+                    method='Powell', bounds=self.array.bounds)
 
                 self.array.variable = list(result.x)
 

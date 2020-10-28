@@ -55,34 +55,28 @@ class Analysis:
             self.algorithm = 'nprs'
             self.method = 'powell'
 
-            # These affect effective branch lengths
-            self.persite = False
-            self.nsites = 1
-            self.round = False
-
-            # Perturbation
-            self.perturb_factor = 0.01
-
-            #! not used right now, should force root age at 1.0
-            self.scalar = False
-
-            # For clamping
-            self.largeval = 1e30
-
-            # How many times to solve the problem
-            self.number_of_guesses = 10
-
+            # General options
+            self.general = {
+                'persite': False, # These affect effective branch lengths
+                'nsites': 1, # These affect effective branch lengths
+                'round': False, # These affect effective branch lengths
+                'perturb_factor': 0.01,
+                'scalar': False, #! not used right now, should force root age at 1.0
+                'number_of_guesses': 10, # How many times to solve the problem
+                'largeval': 1e30, # For clamping
+                }
             # Define the behaviour of manual barrier penalty
-            self.barrier_manual = True
-            self.barrier_max_iterations = 10
-            self.barrier_initial_factor = 0.25
-            self.barrier_multiplier = 0.10
-            self.barrier_tolerance = 0.0001
-
-            # NPRS params
-            self.nprs_logarithmic = False
-            self.nprs_exponent = 2
-
+            self.barrier = {
+                'manual': True,
+                'max_iterations': 10,
+                'initial_factor':0.25,
+                'multiplier': 0.10,
+                'tolerance': 0.0001,
+                }
+            self.nprs = {
+                'logarithmic': False,
+                'exponent': 2,
+                }
 
     class Array:
         pass
@@ -135,7 +129,7 @@ class Analysis:
     def _build_barrier_penalty(self):
         """Generate penalty function"""
 
-        largeval = self.param.largeval
+        largeval = self.param.general['largeval']
         array = self.array
 
         def barrier_penalty(x):
@@ -165,9 +159,9 @@ class Analysis:
     def _build_objective_nprs(self):
         """Generate the objective function"""
 
-        logarithmic = self.param.nprs_logarithmic #bool
-        exponent = self.param.nprs_exponent #2
-        largeval = self.param.largeval
+        logarithmic = self.param.nprs['logarithmic'] #bool
+        exponent = self.param.nprs['exponent'] #2
+        largeval = self.param.general['largeval']
         array = self.array
 
         def local_rate(i):
@@ -256,9 +250,9 @@ class Analysis:
             if length <= 0:
                 raise ValueError('Non-positive length for node {0}'.
                     format(node.label))
-            if self.param.persite == True:
-                length *= self.param.nsites
-            if self.param.round == True:
+            if self.param.general['persite'] == True:
+                length *= self.param.general['nsites']
+            if self.param.general['round'] == True:
                 length = round(length)
             array.length.append(length)
 
@@ -452,7 +446,7 @@ class Analysis:
 
         # Fetch for ease of use
         array = self.array
-        perturb_factor = self.param.perturb_factor
+        perturb_factor = self.param.general['perturb_factor']
 
         # Keep lower bound window for each variable
         window = [None] * array.v
@@ -504,7 +498,7 @@ class Analysis:
 
         result = None
 
-        if self.param.barrier_manual == True:
+        if self.param.barrier['manual'] == True:
 
             # Adds a barrier_penalty to the objective function
             # to keep solution variables away from their boundaries.
@@ -514,10 +508,10 @@ class Analysis:
 
             barrier_penalty = self._build_barrier_penalty()
 
-            factor = self.param.barrier_initial_factor
+            factor = self.param.barrier['initial_factor']
             kept_value = objective_nprs(self.array.variable)
 
-            for b in range(self.param.barrier_max_iterations):
+            for b in range(self.param.barrier['max_iterations']):
 
 
                 print('Barrier iteration: {0}'.format(b))
@@ -536,11 +530,11 @@ class Analysis:
 
                 tolerance = abs((new_value - kept_value)/new_value)
 
-                if tolerance < self.param.barrier_tolerance:
+                if tolerance < self.param.barrier['tolerance']:
                     break
                 else:
                     kept_value = new_value
-                    factor *= self.param.barrier_multiplier
+                    factor *= self.param.barrier['multiplier']
                     self.perturb()
 
         else:
@@ -564,7 +558,7 @@ class Analysis:
 
         kept_min = None
 
-        for g in range(self.param.number_of_guesses):
+        for g in range(self.param.general['number_of_guesses']):
 
             self.guess()
 
@@ -602,8 +596,8 @@ class Analysis:
 if __name__ == '__main__':
     print('in main')
     a = Analysis()
-    a.param.persite = True
-    a.param.nsites = 100
+    a.param.general['persite'] = True
+    a.param.general['nsites'] = 100
     a.array_make()
 
     file = open('../SAMPLE_SIMPLE','r')

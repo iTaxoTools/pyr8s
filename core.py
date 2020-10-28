@@ -14,6 +14,7 @@ from math import log
 import extensions
 import params
 
+
 ##############################################################################
 ### Helper function
 
@@ -42,6 +43,7 @@ class Array:
     def __init__(self, param):
         # Bind new array options to caller
         self._branch_length = param.branch_length
+        self._tree = None
 
         self.n = 0
         self.v = 0
@@ -57,7 +59,7 @@ class Array:
         self.map = []
         self.unmap = []
         self.bounds = []
-        self.rate = []]
+        self.rate = []
 
 
     def solution_merge(self):
@@ -75,21 +77,24 @@ class Array:
         Convert the give tree into arrays, preparing them for analysis.
         The nodes are listed in preorder sequence.
         """
-
-        persite = self._branch_length['persite']
-        nsites = self._branch_length['nsites']
-        round = self._branch_length['round']
-
         # Demand that tree.index() and tree.order() were previously called
         if not tree._indexed: raise RuntimeError(
             'You must prepare tree with Tree.index() before calling make().')
         if not tree._ordered: raise RuntimeError(
             'You must prepare tree with Tree.order() before calling make().')
 
+        # Keep a copy of given tree to return later
+        self._tree = tree.clone(depth=1)
+        _tree = self._tree
+
+        persite = self._branch_length['persite']
+        nsites = self._branch_length['nsites']
+        round = self._branch_length['round']
+
         self.node = []
         self.label = []
         self.order = []
-        for node in tree.preorder_node_iter():
+        for node in _tree.preorder_node_iter():
             self.node.append(node)
             self.label.append(node.label)
             self.order.append(node.order)
@@ -97,11 +102,11 @@ class Array:
 
         # This will be used by the optimization function
         self.parent = [0]
-        for node in tree.preorder_node_iter_noroot():
+        for node in _tree.preorder_node_iter_noroot():
             self.parent.append(node.parent_node.index)
 
         self.length = []
-        for node in tree.preorder_node_iter():
+        for node in _tree.preorder_node_iter():
             length = node.edge_length
             if length <= 0:
                 raise ValueError('Non-positive length for node {0}'.
@@ -114,45 +119,30 @@ class Array:
 
         # Get fixed ages, leaves are fixed to 0 if no constraints are given
         self.age = []
-        for node in tree.preorder_node_iter():
+        for node in _tree.preorder_node_iter():
             fix = node.fix
             if node.is_leaf() and not any([node.fix, node.min, node.max]): fix = 0
             self.age.append(fix)
 
         # Calculate high boundary for each node (top down).
         high = apply_fun_to_list(min,
-            [tree.seed_node.max, tree.seed_node.fix])
+            [_tree.seed_node.max, _tree.seed_node.fix])
         self.high = [high]
-        for node in tree.preorder_node_iter_noroot():
+        for node in _tree.preorder_node_iter_noroot():
             high = apply_fun_to_list(min,
                 [node.max, node.fix,
                 self.high[node.parent_node.index]])
             self.high.append(high)
 
-        # Calculate low boundary for each node (bottom up).
-        # Each node first calculates its own boundary,
-        # then it passes it up the tree, so the parent can consider all children.
-        #? This can definitely be done by comparing and keeping
-        #? the max instead of pushing it up into a list of lists,
-        #? but is it really better that way?
-        # self.low = [[None] for x in range(self.n)]
-        # for node in self.tree.postorder_node_iter_noroot():
-        #     low = apply_fun_to_list(max,
-        #         [0, node.min, node.fix] + self.low[node.index])
-        #     self.low[node.index] = low
-        #     self.low[node.parent_node.index].append(low)
-        # self.low[0] = apply_fun_to_list(max,
-        #     [self.tree.seed_node.min, self.tree.seed_node.fix] + self.low[0])
-
         self.low = [None] * self.n
-        for node in tree.postorder_node_iter_noroot():
+        for node in _tree.postorder_node_iter_noroot():
             low = apply_fun_to_list(max,
                 [0, node.min, node.fix, self.low[node.index]])
             self.low[node.index] = low
             parent = node.parent_node.index
             self.low[parent] = apply_fun_to_list(max, [self.low[parent], low])
         self.low[0] = apply_fun_to_list(max,
-            [tree.seed_node.min, tree.seed_node.fix, self.low[0]])
+            [_tree.seed_node.min, _tree.seed_node.fix, self.low[0]])
 
         # Boundary check
         for i in range(self.n):
@@ -208,9 +198,20 @@ class Array:
         if not any(self.high):
             raise ValueError('Not enough constraints to ensure divergence!')
 
-
         #! A range of solutions might exist if root is not fixed!
         #! Might be a good idea to point that out.
+
+    def take(self):
+        """
+        Return ultrametric tree with ages and local rates
+        """
+        for i in range(self.n):
+            self.node[i].age = self.solution[i]
+            self.node[i].rate = self.rate[i]
+        for i in range(1,self.n):
+            self.node[i].edge_length = self.solution[self.parent[i]] - self.solution[i]
+        self.node[0].edge_length = None
+        return self._tree
 
 
 ##############################################################################
@@ -331,11 +332,11 @@ class Analysis:
                     wk += abs(array.rate[parent] - array.rate[i]) ** exponent
             w0 = (srr - (sr*sr)/n0) / n0
             # print('Objective: {0}'.format(w0 + wk))
+            # Root rate was assumed to be the mean of its children rates
+            array.rate[0] = sr/n0
             return w0 + wk
 
-
         return objective_nprs
-
 
     def print_tree(self):
         """Quick method to print the tree"""
@@ -538,6 +539,8 @@ class Analysis:
         #! Also to make_array
 
         kept_min = None
+        kept_variable = None
+        kept_rate = None
 
         for g in range(self.param.general['number_of_guesses']):
 
@@ -558,8 +561,10 @@ class Analysis:
             kept_min = apply_fun_to_list(min, [kept_min, new_min])
             if kept_min == new_min:
                 kept_variable = self.array.variable
+                kept_rate = self.array.rate
 
         self.array.variable = kept_variable
+        self.array.rate = kept_rate
         self.array.solution_merge()
         print('Best solution: {0}'.format(self.array.solution))
         return kept_variable

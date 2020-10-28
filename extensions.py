@@ -17,6 +17,7 @@ dendropy.Node.order = None
 dendropy.Node.fix = None
 dendropy.Node.min = None
 dendropy.Node.max = None
+dendropy.Node.rate = None
 
 # Extend Tree with flag attributes
 dendropy.Tree._indexed = None

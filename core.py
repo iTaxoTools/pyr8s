@@ -77,15 +77,20 @@ class Array:
         Convert the give tree into arrays, preparing them for analysis.
         The nodes are listed in preorder sequence.
         """
-        # Demand that tree.index() and tree.order() were previously called
-        if not tree._indexed: raise RuntimeError(
-            'You must prepare tree with Tree.index() before calling make().')
-        if not tree._ordered: raise RuntimeError(
-            'You must prepare tree with Tree.order() before calling make().')
 
         # Keep a copy of given tree to return later
         self._tree = tree.clone(depth=1)
         _tree = self._tree
+
+        _tree.collapse()
+        _tree.index()
+        _tree.order()
+
+        # # Demand that tree.index() and tree.order() were previously called
+        # if not tree._indexed: raise RuntimeError(
+        #     'You must prepare tree with Tree.index() before calling make().')
+        # if not tree._ordered: raise RuntimeError(
+        #     'You must prepare tree with Tree.order() before calling make().')
 
         persite = self._branch_length['persite']
         nsites = self._branch_length['nsites']
@@ -215,6 +220,22 @@ class Array:
 
 
 ##############################################################################
+### Results
+
+class AnalysisResults:
+    """
+    Bundle output here.
+    """
+    def __init__(self, tree):
+        self.tree = tree
+        self.rates = []
+        for n in tree.preorder_node_iter():
+            self.rates.append((n.label,n.rate))
+        self.ages = []
+        for n in tree.preorder_node_iter():
+            self.ages.append((n.label,n.age))
+
+##############################################################################
 ### Analysis
 
 class Analysis:
@@ -223,31 +244,11 @@ class Analysis:
     """
     #? Consider locking attributes with __slots__ or @dataclass
 
-    def __init__(self):
-
+    def __init__(self, tree=None):
         random.seed()
-
+        self.tree = tree
         self.param = params.Param()
-        self.array = Array(self.param)
-        self.tree = None
-
-        #! Somehow read tree here, dummy in place
-        # Make sure the tree has at least one root and one node
-
-        s = "(A:10,(B:9,(C:8,(D:7,E:6))H):4)V:3;"
-        s = "(A:10,(B:9,(C:8,(D:7,:6))H):4):3;"
-        # Force internal nodes as taxa, would have been labels otherwise
-        t = dendropy.Tree.get_from_string(s, "newick", suppress_internal_node_taxa=False)
-        t.is_rooted = True
-        t.collapse()
-        t.index()
-        t.order()
-        t.seed_node.max = 510
-        t.seed_node.min = 490
-        t.nodes()[2].min = 90
-        t.nodes()[2].max = 400
-        t.nodes()[5].fix = 200
-        self.tree = t
+        self._array = Array(self.param)
 
 
 ##############################################################################
@@ -257,7 +258,7 @@ class Analysis:
         """Generate penalty function"""
 
         largeval = self.param.general['largeval']
-        array = self.array
+        array = self._array
 
         def barrier_penalty(x):
             """
@@ -289,7 +290,7 @@ class Analysis:
         logarithmic = self.param.nprs['logarithmic'] #bool
         exponent = self.param.nprs['exponent'] #2
         largeval = self.param.general['largeval']
-        array = self.array
+        array = self._array
 
         def local_rate(i):
             parent = array.parent[i]
@@ -347,12 +348,8 @@ class Analysis:
         Assign variables between low and high bounds.
         The guess will never touch the boundaries (at least 2% away).
         """
-
-        # if self.array is None: raise RuntimeError(
-        #     'You must prepare with array.make() before calling _guess().')
-
         # Reference array here for short.
-        array = self.array
+        array = self._array
 
         # We will be modifying children high boundaries according to parent guess.
         # Copy array.high to keep these changes temporary
@@ -420,16 +417,10 @@ class Analysis:
         """
         Shake up the values for a given guess, while maintaining feasibility
         """
-
-        # if self.array is None: raise RuntimeError(
-        #     'You must prepare with array.make() before calling perturb().')
-
         #! Make sure a guess exists in variable
-        if not all(self.array.variable):
+        array = self._array
+        if not all(array.variable):
             raise RuntimeError('There is no complete guess to _perturb!')
-
-        # Fetch for ease of use
-        array = self.array
         perturb_factor = self.param.general['perturb_factor']
 
         # Keep lower bound window for each variable
@@ -479,7 +470,7 @@ class Analysis:
         Repeat method as necessary while relaxing barrier
         """
         objective_nprs = self._build_objective_nprs()
-
+        array = self._array
         result = None
 
         if self.param.barrier['manual'] == True:
@@ -493,7 +484,7 @@ class Analysis:
             barrier_penalty = self._build_barrier_penalty()
 
             factor = self.param.barrier['initial_factor']
-            kept_value = objective_nprs(self.array.variable)
+            kept_value = objective_nprs(array.variable)
 
             for b in range(self.param.barrier['max_iterations']):
 
@@ -501,11 +492,11 @@ class Analysis:
 
                 result = optimize.minimize(
                     lambda x: objective_nprs(x) + factor*barrier_penalty(x),
-                    self.array.variable, method='Powell')
+                    array.variable, method='Powell')
 
-                self.array.variable = list(result.x)
+                array.variable = list(result.x)
 
-                new_value = objective_nprs(self.array.variable)
+                new_value = objective_nprs(array.variable)
 
                 if new_value == 0:
                     break
@@ -520,16 +511,15 @@ class Analysis:
                     self._perturb()
 
         else:
-                result = optimize.minimize(objective_nprs, self.array.variable,
-                    method='Powell', bounds=self.array.bounds)
+                result = optimize.minimize(objective_nprs, array.variable,
+                    method='Powell', bounds=array.bounds)
 
-                self.array.variable = list(result.x)
+                array.variable = list(result.x)
 
         return result.fun
 
 
-
-    def optimize(self):
+    def _optimize(self):
         """
         Applies the selected algorithm to the given array
         over multiple guesses, keeping the best
@@ -537,7 +527,7 @@ class Analysis:
 
         #! This is a good place to output warnings etc
         #! Also to make_array
-
+        array = self._array
         kept_min = None
         kept_variable = None
         kept_rate = None
@@ -546,7 +536,7 @@ class Analysis:
 
             self._guess()
 
-            print('Guess {0}: {1}'.format(g, self.array.variable))
+            print('Guess {0}: {1}'.format(g, array.variable))
 
             # Call the appropriate optimization method
             if hasattr(self, '_method_' + self.param.method):
@@ -555,27 +545,56 @@ class Analysis:
                 raise ValueError('No such method: {0}'.format(self.param.method))
 
             # merge not needed?? just wanted to print
-            self.array.solution_merge()
-            print('Local solution: {0}'.format(self.array.solution))
+            array.solution_merge()
+            print('Local solution: {0}'.format(array.solution))
 
             kept_min = apply_fun_to_list(min, [kept_min, new_min])
             if kept_min == new_min:
-                kept_variable = self.array.variable
-                kept_rate = self.array.rate
+                kept_variable = array.variable
+                kept_rate = array.rate
 
-        self.array.variable = kept_variable
-        self.array.rate = kept_rate
-        self.array.solution_merge()
-        print('Best solution: {0}'.format(self.array.solution))
+        array.variable = kept_variable
+        array.rate = kept_rate
+        array.solution_merge()
+        print('Best solution: {0}'.format(array.solution))
         return kept_variable
+
+
+    def run(self):
+        """
+        This is the only thing the user needs to run.
+        """
+        if self.tree is None:
+            raise ValueError('No tree to optimize.')
+        if len(self.tree.nodes()) < 1:
+            raise ValueError('Tree must have at least one child.')
+        self._array.make(self.tree)
+        self._optimize()
+        tree = self._array.take()
+        return AnalysisResults(tree)
 
 
 if __name__ == '__main__':
     print('in main')
-    a = Analysis()
+
+    # Somehow get tree
+    s = "(A:10,(B:9,(C:8,(D:7,E:6))H):4)V:3;"
+    s = "(A:10,(B:9,(C:8,(D:7,:6))H):4):3;"
+    # Force internal nodes as taxa, would have been labels otherwise
+    t = dendropy.Tree.get_from_string(s, "newick", suppress_internal_node_taxa=False)
+    t.is_rooted = True
+    t.seed_node.max = 510
+    t.seed_node.min = 490
+    t.nodes()[2].min = 90
+    t.nodes()[2].max = 400
+    t.nodes()[5].fix = 200
+
+    # This is how to use Analysis
+    a = Analysis(t)
     a.param.branch_length['persite'] = True
     a.param.branch_length['nsites'] = 100
-    a.array.make(a.tree)
+    res = a.run()
+    print(res)
 
     file = open('../SAMPLE_SIMPLE','r')
     tokenizer = dendropy.dataio.nexusprocessing.NexusTokenizer(file)

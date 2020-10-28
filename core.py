@@ -44,6 +44,16 @@ class Array:
         self._branch_length = param.branch_length
         #! also init all arrays
 
+    def solution_merge(self):
+        """Merge fixed ages and variables into self.solution"""
+
+        self.solution = []
+        for i in range(0,self.n):
+            if self.age[i] is not None:
+                self.solution.append(self.age[i])
+            else:
+                self.solution.append(self.variable[self.unmap[i]])
+
     def make(self, tree):
         """
         Convert the give tree into arrays, preparing them for analysis.
@@ -196,7 +206,6 @@ class Analysis:
     """
     #? Consider locking attributes with __slots__ or @dataclass
 
-
     def __init__(self):
 
         random.seed()
@@ -222,21 +231,6 @@ class Analysis:
         t.nodes()[2].max = 400
         t.nodes()[5].fix = 200
         self.tree = t
-
-
-
-
-    def _array_solution_merge(self):
-        """Merge fixed ages and variables into array.solution"""
-
-        array = self.array
-
-        array.solution = []
-        for i in range(0,array.n):
-            if array.age[i] is not None:
-                array.solution.append(array.age[i])
-            else:
-                array.solution.append(array.variable[array.unmap[i]])
 
 
 ##############################################################################
@@ -300,7 +294,7 @@ class Analysis:
             # print('Objective: x = {0}'.format(x))
 
             array.variable = x
-            self._array_solution_merge()
+            array.solution_merge()
 
             # Calculate all rates first
             for i in range(1,array.n):
@@ -403,7 +397,7 @@ class Analysis:
         # Return new guess.
         array.variable = variable
 
-        self._array_solution_merge()
+        array.solution_merge()
 
     def _perturb(self):
         """
@@ -460,7 +454,7 @@ class Analysis:
                 window_new = apply_fun_to_list(max, [age,window_current])
                 window[parent_variable] = window_new
 
-        self._array_solution_merge()
+        array.solution_merge()
 
 
     def _method_powell(self):
@@ -542,7 +536,7 @@ class Analysis:
                 raise ValueError('No such method: {0}'.format(self.param.method))
 
             # merge not needed?? just wanted to print
-            self._array_solution_merge()
+            self.array.solution_merge()
             print('Local solution: {0}'.format(self.array.solution))
 
             kept_min = apply_fun_to_list(min, [kept_min, new_min])
@@ -550,7 +544,7 @@ class Analysis:
                 kept_variable = self.array.variable
 
         self.array.variable = kept_variable
-        self._array_solution_merge()
+        self.array.solution_merge()
         print('Best solution: {0}'.format(self.array.solution))
         return kept_variable
 

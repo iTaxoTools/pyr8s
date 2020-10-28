@@ -42,7 +42,23 @@ class Array:
     def __init__(self, param):
         # Bind new array options to caller
         self._branch_length = param.branch_length
-        #! also init all arrays
+
+        self.n = 0
+        self.v = 0
+        self.node = []
+        self.label = []
+        self.order = []
+        self.parent = []
+        self.length = []
+        self.age = []
+        self.high = []
+        self.low = []
+        self.variable = []
+        self.map = []
+        self.unmap = []
+        self.bounds = []
+        self.rate = []]
+
 
     def solution_merge(self):
         """Merge fixed ages and variables into self.solution"""

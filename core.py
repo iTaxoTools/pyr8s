@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Extend dendropy trees with utility functions and attributes.
+Estimate Divergence Times
 """
 
 import dendropy
@@ -327,18 +327,18 @@ class Analysis:
         return objective_nprs
 
 
-    def print(self):
+    def print_tree(self):
         """Quick method to print the tree"""
         self.tree.print_plot(show_internal_node_labels=True)
 
-    def guess(self):
+    def _guess(self):
         """
         Assign variables between low and high bounds.
         The guess will never touch the boundaries (at least 2% away).
         """
 
-        if self.array is None: raise RuntimeError(
-            'You must prepare with array.make() before calling guess().')
+        # if self.array is None: raise RuntimeError(
+        #     'You must prepare with array.make() before calling _guess().')
 
         # Reference array here for short.
         array = self.array
@@ -405,17 +405,17 @@ class Analysis:
 
         self._array_solution_merge()
 
-    def perturb(self):
+    def _perturb(self):
         """
         Shake up the values for a given guess, while maintaining feasibility
         """
 
-        if self.array is None: raise RuntimeError(
-            'You must prepare with array.make() before calling perturb().')
+        # if self.array is None: raise RuntimeError(
+        #     'You must prepare with array.make() before calling perturb().')
 
         #! Make sure a guess exists in variable
         if not all(self.array.variable):
-            raise RuntimeError('There is no complete guess to perturb!')
+            raise RuntimeError('There is no complete guess to _perturb!')
 
         # Fetch for ease of use
         array = self.array
@@ -463,7 +463,7 @@ class Analysis:
         self._array_solution_merge()
 
 
-    def method_powell(self):
+    def _method_powell(self):
         """
         Repeat method as necessary while relaxing barrier
         """
@@ -486,14 +486,12 @@ class Analysis:
 
             for b in range(self.param.barrier['max_iterations']):
 
-
                 print('Barrier iteration: {0}'.format(b))
 
                 result = optimize.minimize(
                     lambda x: objective_nprs(x) + factor*barrier_penalty(x),
                     self.array.variable, method='Powell')
 
-                self.result = result
                 self.array.variable = list(result.x)
 
                 new_value = objective_nprs(self.array.variable)
@@ -508,7 +506,7 @@ class Analysis:
                 else:
                     kept_value = new_value
                     factor *= self.param.barrier['multiplier']
-                    self.perturb()
+                    self._perturb()
 
         else:
                 result = optimize.minimize(objective_nprs, self.array.variable,
@@ -533,13 +531,13 @@ class Analysis:
 
         for g in range(self.param.general['number_of_guesses']):
 
-            self.guess()
+            self._guess()
 
             print('Guess {0}: {1}'.format(g, self.array.variable))
 
             # Call the appropriate optimization method
-            if hasattr(self, 'method_' + self.param.method):
-                new_min = getattr(self, 'method_' + self.param.method)()
+            if hasattr(self, '_method_' + self.param.method):
+                new_min = getattr(self, '_method_' + self.param.method)()
             else:
                 raise ValueError('No such method: {0}'.format(self.param.method))
 

@@ -137,7 +137,6 @@ def _postorder_node_iter_noroot(self):
             stack.extend([(n, False) for n in reversed(node._child_nodes)])
 
 
-
 ##############################################################################
 ### Class functions
 

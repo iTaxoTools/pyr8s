@@ -42,7 +42,7 @@ class Array:
     """
     def __init__(self, param):
         # Bind new array options to caller
-        self._branch_length = param.branch_length
+        self._param = param
         self._tree = None
 
         self.n = 0
@@ -92,9 +92,9 @@ class Array:
         # if not tree._ordered: raise RuntimeError(
         #     'You must prepare tree with Tree.order() before calling make().')
 
-        persite = self._branch_length['persite']
-        nsites = self._branch_length['nsites']
-        round = self._branch_length['round']
+        persite = self._param.branch_length['persite']
+        nsites = self._param.branch_length['nsites']
+        round = self._param.branch_length['round']
 
         self.node = []
         self.label = []
@@ -217,6 +217,123 @@ class Array:
             self.node[i].edge_length = self.solution[self.parent[i]] - self.solution[i]
         self.node[0].edge_length = None
         return self._tree
+
+    def guess(self):
+        """
+        Assign variables between low and high bounds.
+        The guess will never touch the boundaries (at least 2% away).
+        """
+        # We will be modifying children high boundaries according to parent guess.
+        # Copy array.high to keep these changes temporary
+        window = self.high.copy()
+
+        # Gather guesses here:
+        variable = []
+
+        # Start with the root if not fixed
+        if self.age[0] is None:
+            if all((self.low[0], self.high[0])):
+                # Both boundaries exist, get a random point within
+                high = self.high[0]
+                low = self.low[0]
+                diff = high - low
+                shift = diff * random.uniform(0.02,0.98)
+                age = high - shift
+            elif self.low[0] is not None:
+                #? Static percentages were used in original program...
+                age = self.low[0] * 1.25
+            elif self.high[0] is not None:
+                #? Should we randomise all 3 cases?
+                age = self.high[0] * 0.75
+            else:
+                # This could still diverge as long as there is an internal high boundary.
+                # Find that and go higher still.
+                age = apply_fun_to_list(max, self.high)
+                if age is None: raise RuntimeError(
+                    'This will never diverge, should have been caught by make_array()!')
+                #? Even this might need to be randomised
+                age *= 1.25
+            # Window gets narrower for children and root age is saved
+            window[0] = age
+            variable.append(age)
+
+        # Keep guessing from the top, restricting children as we go.
+        for i in range(1,self.n):
+            # Child is never older than parent
+            window[i] = apply_fun_to_list(min,
+                [window[i], window[self.parent[i]]])
+            if self.age[i] == None:
+                # This node is not fixed, assign a random valid age
+                high = window[i]
+                low = self.low[i]
+                order = self.order[i]
+                diff = high - low
+                # As per the original code:
+                # The term log(order+3) is always greater than 1
+                # and gets larger the closer we get to the root.
+                # Diving with it makes internal nodes close to root
+                # keep away from their lower boundary, thus giving
+                # more room for big basal clades to exist.
+                shift = diff * random.uniform(0.02,0.98) / log(order+3)
+                age = high - shift
+                # Window gets narrowed down, age is saved
+                window[i] = age
+                variable.append(age)
+
+        # Return new guess.
+        self.variable = variable
+
+        self.solution_merge()
+
+    def perturb(self):
+        """
+        Shake up the values for a given guess, while maintaining feasibility
+        """
+        #! Make sure a guess exists in variable
+        if not all(self.variable):
+            raise RuntimeError('There is no complete guess to _perturb!')
+        perturb_factor = self._param.general['perturb_factor']
+
+        # Keep lower bound window for each variable
+        window = [None] * self.v
+
+        # Start iterating variables only from the bottom up
+        # making sure the parent never gets younger than their children
+        for j in reversed(range(0,self.v)):
+
+            # j counts variables, i counts everything
+            i = self.map[j]
+            parent_position = self.parent[i]
+
+            # Determine perturbation window first
+            perturb_high = self.variable[j] * (1 + perturb_factor)
+            perturb_low = self.variable[j] * (1 - perturb_factor)
+
+            # Catch root, it has no parent so ignore this from upper boundary
+            #? Can possibly move this outside
+            if self.parent[i] != i:
+                parent_age = self.solution[parent_position]
+            else:
+                parent_age = None
+
+            high = apply_fun_to_list(min,
+                [perturb_high, self.high[i], parent_age])
+
+            low = apply_fun_to_list(max,
+                [perturb_low, self.low[i], window[j]])
+
+            age = random.uniform(low,high)
+
+            self.variable[j] = age
+
+            # If parent is a variable, adjust its window
+            if self.age[parent_position] is None:
+                parent_variable = self.unmap[parent_position]
+                window_current = window[parent_variable]
+                window_new = apply_fun_to_list(max, [age,window_current])
+                window[parent_variable] = window_new
+
+        self.solution_merge()
 
 
 ##############################################################################
@@ -343,128 +460,6 @@ class Analysis:
     ##########################################################################
     ### Optimization Algorithms
 
-    def _guess(self):
-        """
-        Assign variables between low and high bounds.
-        The guess will never touch the boundaries (at least 2% away).
-        """
-        # Reference array here for short.
-        array = self._array
-
-        # We will be modifying children high boundaries according to parent guess.
-        # Copy array.high to keep these changes temporary
-        window = array.high.copy()
-
-        # Gather guesses here:
-        variable = []
-
-        # Start with the root if not fixed
-        if array.age[0] is None:
-            if all((array.low[0], array.high[0])):
-                # Both boundaries exist, get a random point within
-                high = array.high[0]
-                low = array.low[0]
-                diff = high - low
-                shift = diff * random.uniform(0.02,0.98)
-                age = high - shift
-            elif array.low[0] is not None:
-                #? Static percentages were used in original program...
-                age = array.low[0] * 1.25
-            elif array.high[0] is not None:
-                #? Should we randomise all 3 cases?
-                age = array.high[0] * 0.75
-            else:
-                # This could still diverge as long as there is an internal high boundary.
-                # Find that and go higher still.
-                age = apply_fun_to_list(max, array.high)
-                if age is None: raise RuntimeError(
-                    'This will never diverge, should have been caught by make_array()!')
-                #? Even this might need to be randomised
-                age *= 1.25
-            # Window gets narrower for children and root age is saved
-            window[0] = age
-            variable.append(age)
-
-        # Keep guessing from the top, restricting children as we go.
-        for i in range(1,array.n):
-            # Child is never older than parent
-            window[i] = apply_fun_to_list(min,
-                [window[i], window[array.parent[i]]])
-            if array.age[i] == None:
-                # This node is not fixed, assign a random valid age
-                high = window[i]
-                low = array.low[i]
-                order = array.order[i]
-                diff = high - low
-                # As per the original code:
-                # The term log(order+3) is always greater than 1
-                # and gets larger the closer we get to the root.
-                # Diving with it makes internal nodes close to root
-                # keep away from their lower boundary, thus giving
-                # more room for big basal clades to exist.
-                shift = diff * random.uniform(0.02,0.98) / log(order+3)
-                age = high - shift
-                # Window gets narrowed down, age is saved
-                window[i] = age
-                variable.append(age)
-
-        # Return new guess.
-        array.variable = variable
-
-        array.solution_merge()
-
-    def _perturb(self):
-        """
-        Shake up the values for a given guess, while maintaining feasibility
-        """
-        #! Make sure a guess exists in variable
-        array = self._array
-        if not all(array.variable):
-            raise RuntimeError('There is no complete guess to _perturb!')
-        perturb_factor = self.param.general['perturb_factor']
-
-        # Keep lower bound window for each variable
-        window = [None] * array.v
-
-        # Start iterating variables only from the bottom up
-        # making sure the parent never gets younger than their children
-        for j in reversed(range(0,array.v)):
-
-            # j counts variables, i counts everything
-            i = array.map[j]
-            parent_position = array.parent[i]
-
-            # Determine perturbation window first
-            perturb_high = array.variable[j] * (1 + perturb_factor)
-            perturb_low = array.variable[j] * (1 - perturb_factor)
-
-            # Catch root, it has no parent so ignore this from upper boundary
-            #? Can possibly move this outside
-            if array.parent[i] != i:
-                parent_age = array.solution[parent_position]
-            else:
-                parent_age = None
-
-            high = apply_fun_to_list(min,
-                [perturb_high, array.high[i], parent_age])
-
-            low = apply_fun_to_list(max,
-                [perturb_low, array.low[i], window[j]])
-
-            age = random.uniform(low,high)
-
-            array.variable[j] = age
-
-            # If parent is a variable, adjust its window
-            if array.age[parent_position] is None:
-                parent_variable = array.unmap[parent_position]
-                window_current = window[parent_variable]
-                window_new = apply_fun_to_list(max, [age,window_current])
-                window[parent_variable] = window_new
-
-        array.solution_merge()
-
-
     def _method_powell(self):
         """
         Repeat method as necessary while relaxing barrier
@@ -508,7 +503,7 @@ class Analysis:
                 else:
                     kept_value = new_value
                     factor *= self.param.barrier['multiplier']
-                    self._perturb()
+                    self._array.perturb()
 
         else:
                 result = optimize.minimize(objective_nprs, array.variable,
@@ -534,7 +529,7 @@ class Analysis:
 
         for g in range(self.param.general['number_of_guesses']):
 
-            self._guess()
+            self._array.guess()
 
             print('Guess {0}: {1}'.format(g, array.variable))
 

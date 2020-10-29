@@ -251,41 +251,11 @@ class Analysis:
         self._array = Array(self.param)
 
 
-##############################################################################
-### Function generators
-
-    def _build_barrier_penalty(self):
-        """Generate penalty function"""
-
-        largeval = self.param.general['largeval']
-        array = self._array
-
-        def barrier_penalty(x):
-            """
-            Keep variables away from bounds
-            """
-
-            def barrier_term(x):
-                if x > 0:
-                    return 1/x
-                else:
-                    return largeval
-
-            sum = 0
-            for i in array.map:
-                j = array.unmap[i]
-                if array.high[i] is not None:
-                    sum += barrier_term(array.high[i] - array.variable[j])
-                if array.low[i] is not None:
-                    sum += barrier_term(array.variable[j] - array.low[i])
-            # print('Barrier penalty: {0}'.format(sum))
-            return sum
-
-        return barrier_penalty
-
+    ##########################################################################
+    ### Method function generators
 
     def _build_objective_nprs(self):
-        """Generate the objective function"""
+        """Generate NPRS objective function"""
 
         logarithmic = self.param.nprs['logarithmic'] #bool
         exponent = self.param.nprs['exponent'] #2
@@ -339,9 +309,39 @@ class Analysis:
 
         return objective_nprs
 
-    def print_tree(self):
-        """Quick method to print the tree"""
-        self.tree.print_plot(show_internal_node_labels=True)
+
+    def _build_barrier_penalty(self):
+        """Generate penalty function"""
+
+        largeval = self.param.general['largeval']
+        array = self._array
+
+        def barrier_penalty(x):
+            """
+            Keep variables away from bounds
+            """
+
+            def barrier_term(x):
+                if x > 0:
+                    return 1/x
+                else:
+                    return largeval
+
+            sum = 0
+            for i in array.map:
+                j = array.unmap[i]
+                if array.high[i] is not None:
+                    sum += barrier_term(array.high[i] - array.variable[j])
+                if array.low[i] is not None:
+                    sum += barrier_term(array.variable[j] - array.low[i])
+            # print('Barrier penalty: {0}'.format(sum))
+            return sum
+
+        return barrier_penalty
+
+
+    ##########################################################################
+    ### Optimization Algorithms
 
     def _guess(self):
         """
@@ -560,6 +560,11 @@ class Analysis:
         return kept_variable
 
 
+    def print_tree(self):
+        """Quick method to print the tree"""
+        self.tree.print_plot(show_internal_node_labels=True)
+
+
     def run(self):
         """
         This is the only thing the user needs to run.
@@ -572,49 +577,3 @@ class Analysis:
         self._optimize()
         tree = self._array.take()
         return AnalysisResults(tree)
-
-
-if __name__ == '__main__':
-    print('in main')
-
-    # Somehow get tree
-    s = "(A:10,(B:9,(C:8,(D:7,E:6))H):4)V:3;"
-    s = "(A:10,(B:9,(C:8,(D:7,:6))H):4):3;"
-    # Force internal nodes as taxa, would have been labels otherwise
-    t = dendropy.Tree.get_from_string(s, "newick", suppress_internal_node_taxa=False)
-    t.is_rooted = True
-    t.seed_node.max = 510
-    t.seed_node.min = 490
-    t.nodes()[2].min = 90
-    t.nodes()[2].max = 400
-    t.nodes()[5].fix = 200
-
-    # This is how to use Analysis
-    a = Analysis(t)
-    a.param.branch_length['persite'] = True
-    a.param.branch_length['nsites'] = 100
-    res = a.run()
-    print(res)
-
-    file = open('../SAMPLE_SIMPLE','r')
-    tokenizer = dendropy.dataio.nexusprocessing.NexusTokenizer(file)
-    token = tokenizer.next_token_ucase()
-    if not token == '#NEXUS':
-        raise ValueError('Not nexus file!')
-
-    while not tokenizer.is_eof():
-        token = tokenizer.next_token_ucase()
-        while token != None and token != 'BEGIN' and not tokenizer.is_eof():
-            token = tokenizer.next_token_ucase()
-        token = tokenizer.next_token_ucase()
-        if token == 'RATES':
-            print('RATES FOUND!')
-        else:
-            while not (token == 'END' or token == 'ENDBLOCK') \
-                and not tokenizer.is_eof() \
-                and not token==None:
-                tokenizer.skip_to_semicolon()
-                token = tokenizer.next_token_ucase()
-
-
-print('Import end.')

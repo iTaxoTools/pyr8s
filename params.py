@@ -11,14 +11,14 @@ class Param:
     def __init__(self):
 
         # Method and Algorithm to use
-        self.algorithm = 'nprs'
-        self.method = 'powell'
+        self.algorithm = 'powell'
+        self.method = 'nprs'
 
         # General options
         self.general = {
             'perturb_factor': 0.01,
             'scalar': False, # force root age at 1.0
-            'number_of_guesses': 10, # how many times to solve the problem
+            'number_of_guesses': 1, #! 10 how many times to solve the problem
             'largeval': 1e30, # For clamping
             }
         # Branch length formatting
@@ -30,7 +30,7 @@ class Param:
         # Define the behaviour of manual barrier penalty
         self.barrier = {
             'manual': True,
-            'max_iterations': 10,
+            'max_iterations': 2, #! 10
             'initial_factor':0.25,
             'multiplier': 0.10,
             'tolerance': 0.0001,

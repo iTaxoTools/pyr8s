@@ -98,9 +98,12 @@ def _label_mrca(self,mrca,labels):
     Rename most recent common ancestor of given nodes
     Nodes are given with their label
     If a single node is given, it is renamed
+    Create the taxon if needed.
     """
-    nm = self.mrca(taxon_labels=labels)
-    nm.taxon.label=mrca
+    ancestor = self.mrca(taxon_labels=labels)
+    if ancestor.taxon == None:
+        ancestor.taxon = self.taxon_namespace.new_taxon(str(mrca))
+    ancestor.taxon.label = mrca
 
 def _persite(self, nsites, round_flag=False):
     """

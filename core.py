@@ -116,9 +116,12 @@ class Array:
         for node in _tree.preorder_node_iter_noroot():
             self.parent.append(node.parent_node.index)
 
-        self.length = []
-        for node in _tree.preorder_node_iter():
+        self.length = [None]
+        for node in _tree.preorder_node_iter_noroot():
             length = node.edge_length
+            if length is None:
+                raise ValueError('Null length for node {0}'.
+                    format(node.label))
             if length <= 0:
                 raise ValueError('Non-positive length for node {0}'.
                     format(node.label))
@@ -389,8 +392,8 @@ class Analysis:
             parent = array.parent[i]
             dt = array.solution[parent] - array.solution[i]
             if dt <= 0:
-                print('Parent younger than child while calculating rate! {0} < {1}'.
-                    format(array.solution[parent], array.solution[i]))
+                # print('Parent younger than child while calculating rate! {0} < {1}'.
+                #     format(array.solution[parent], array.solution[i]))
                 return largeval
             dx = array.length[i]
             rate = dx/dt
@@ -466,13 +469,18 @@ class Analysis:
     ##########################################################################
     ### Algorithms
 
-    def _method_powell(self):
+    def _algorithm_powell(self):
         """
-        Repeat method as necessary while relaxing barrier
+        Repeat as necessary while relaxing barrier
         """
-        objective_nprs = self._build_objective_nprs()
+        objective = None
         array = self._array
         result = None
+        # Use the appropriate algorthm
+        if hasattr(self, '_build_objective_' + self.param.method):
+            objective = getattr(self, '_build_objective_' + self.param.method)()
+        else:
+            raise ValueError('No such algorithm: {0}'.format(self.param.method))
 
         if self.param.barrier['manual'] == True:
 
@@ -485,19 +493,19 @@ class Analysis:
             barrier_penalty = self._build_barrier_penalty()
 
             factor = self.param.barrier['initial_factor']
-            kept_value = objective_nprs(array.variable)
+            kept_value = objective(array.variable)
 
             for b in range(self.param.barrier['max_iterations']):
 
                 print('Barrier iteration: {0}'.format(b))
 
                 result = optimize.minimize(
-                    lambda x: objective_nprs(x) + factor*barrier_penalty(x),
+                    lambda x: objective(x) + factor*barrier_penalty(x),
                     array.variable, method='Powell')
 
                 array.variable = list(result.x)
 
-                new_value = objective_nprs(array.variable)
+                new_value = objective(array.variable)
 
                 if new_value == 0:
                     break
@@ -512,7 +520,7 @@ class Analysis:
                     self._array.perturb()
 
         else:
-                result = optimize.minimize(objective_nprs, array.variable,
+                result = optimize.minimize(objective, array.variable,
                     method='Powell', bounds=array.bounds)
 
                 array.variable = list(result.x)
@@ -543,10 +551,10 @@ class Analysis:
             print('Guess {0}: {1}'.format(g, array.variable))
 
             # Call the appropriate optimization method
-            if hasattr(self, '_method_' + self.param.method):
-                new_min = getattr(self, '_method_' + self.param.method)()
+            if hasattr(self, '_algorithm_' + self.param.algorithm):
+                new_min = getattr(self, '_algorithm_' + self.param.algorithm)()
             else:
-                raise ValueError('No such method: {0}'.format(self.param.method))
+                raise ValueError('No implementation for algorithm: {0}'.format(self.param.algorithm))
 
             # merge not needed?? just wanted to print
             array.solution_merge()

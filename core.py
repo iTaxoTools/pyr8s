@@ -33,7 +33,7 @@ def apply_fun_to_list(function, lista):
 
 
 ##############################################################################
-### Arrays
+### Data Arrays
 
 class Array:
     """
@@ -82,19 +82,25 @@ class Array:
         self._tree = tree.clone(depth=1)
         _tree = self._tree
 
+        scalar = self._param.general['scalar']
+        persite = self._param.branch_length['persite']
+        nsites = self._param.branch_length['nsites']
+        round = self._param.branch_length['round']
+
         _tree.collapse()
         _tree.index()
         _tree.order()
 
-        # # Demand that tree.index() and tree.order() were previously called
-        # if not tree._indexed: raise RuntimeError(
-        #     'You must prepare tree with Tree.index() before calling make().')
-        # if not tree._ordered: raise RuntimeError(
-        #     'You must prepare tree with Tree.order() before calling make().')
-
-        persite = self._param.branch_length['persite']
-        nsites = self._param.branch_length['nsites']
-        round = self._param.branch_length['round']
+        # Ignore all constraints if scalar
+        if scalar:
+            for node in _tree.preorder_node_iter():
+                node.max = None
+                node.min = None
+                if node.is_leaf():
+                    node.fix = 0
+                else:
+                    node.fix = None
+            _tree.seed_node.fix = 1.0
 
         self.node = []
         self.label = []
@@ -458,7 +464,7 @@ class Analysis:
 
 
     ##########################################################################
-    ### Optimization Algorithms
+    ### Algorithms
 
     def _method_powell(self):
         """
@@ -513,6 +519,9 @@ class Analysis:
 
         return result.fun
 
+
+    ##########################################################################
+    ### Optimization
 
     def _optimize(self):
         """
@@ -572,3 +581,14 @@ class Analysis:
         self._optimize()
         tree = self._array.take()
         return AnalysisResults(tree)
+
+    @classmethod
+    def quick(cls, tree, scalar=True):
+        """
+        Run analysis without setting constraints or params
+        ultrametric_tree = core.Analysis.quick(my_tree)
+        """
+        analysis = cls(tree)
+        analysis.param.general['scalar'] = scalar
+        res = analysis.run()
+        return res.tree

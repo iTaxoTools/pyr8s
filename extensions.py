@@ -37,10 +37,10 @@ def _collapse(self):
 
     # Children before parent, ensures removal is done in proper order
     for node in self.postorder_node_iter_noroot():
-        print(node.taxon)
-        print(node.label)
-        print(node.edge_length)
-        print('***')
+        # print(node.taxon)
+        # print(node.label)
+        # print(node.edge_length)
+        # print('***')
         #? Maybe consider a minimum length too
         if node.edge_length == None:
             remove.append(node)
@@ -61,11 +61,11 @@ def _index(self):
 
     # Start from root and branch out
     for count, node in enumerate(self.preorder_node_iter()):
-        print('traversing node: {0}'.format(count))
+        # print('traversing node: {0}'.format(count))
         node.index = count
         if node.taxon == None:
             node.taxon = self.taxon_namespace.new_taxon(str(count))
-        print(node.taxon.label)
+        # print(node.taxon.label)
         node.label = node.taxon.label
     self._indexed = True
 

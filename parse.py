@@ -156,17 +156,16 @@ def parse_rates(tokenizer, analysis):
             results = analysis.run()
         elif token == 'SET':
             token = tokenizer.require_next_token_ucase()
-            print(token)
             while not (token == ';'):
                 if token == 'NUM TIME GUESSES':
                     token = parse_value(tokenizer)
                     print('* NUM_TIME_GUESSES: {0}'.format(token))
                     analysis.param.general['number_of_guesses'] = int(token)
-                if token == 'NPEXP':
+                elif token == 'NPEXP':
                     token = parse_value(tokenizer)
                     print('* NPEXP: {0}'.format(token))
                     analysis.param.nprs['exponent'] = int(token)
-                if token == 'PENALTY':
+                elif token == 'PENALTY':
                     token = parse_value(tokenizer)
                     print('* PENALTY: {0}'.format(token))
                     if token == 'ADD':
@@ -175,22 +174,22 @@ def parse_rates(tokenizer, analysis):
                         analysis.param.nprs['logarithmic'] = True
                     else:
                         raise ValueError("PENALTY: Unrecognised option: '{}'".format(token))
-                if token == 'PERTURB_FACTOR':
+                elif token == 'PERTURB_FACTOR':
                     token = parse_value(tokenizer)
                     print('* PERTURB_FACTOR: {0}'.format(token))
                     analysis.param.general['perturb_factor'] = float(token)
-                if token == 'MAXITER':
+                elif token == 'MAXITER':
                     #! for minimize.powell
                     pass
-                if token == 'MAXBARRIERITER':
+                elif token == 'MAXBARRIERITER':
                     token = parse_value(tokenizer)
                     print('* MAXBARRIERITER: {0}'.format(token))
                     analysis.param.barrier['max_iterations'] = int(token)
-                if token == 'BARRIERMULTIPLIER':
+                elif token == 'BARRIERMULTIPLIER':
                     token = parse_value(tokenizer)
                     print('* BARRIERMULTIPLIER: {0}'.format(token))
                     analysis.param.barrier['multiplier'] = float(token)
-                if token == 'INITBARRIERFACTOR':
+                elif token == 'INITBARRIERFACTOR':
                     token = parse_value(tokenizer)
                     print('* INITBARRIERFACTOR: {0}'.format(token))
                     analysis.param.barrier['initial_factor'] = float(token)
@@ -199,6 +198,7 @@ def parse_rates(tokenizer, analysis):
                 token = tokenizer.require_next_token_ucase()
         elif token == 'SHOWAGE':
             #! print results
+            print('* {}'.format(token))
             tokenizer.skip_to_semicolon()
         elif token == 'DESCRIBE':
             token = tokenizer.require_next_token_ucase()
@@ -206,20 +206,28 @@ def parse_rates(tokenizer, analysis):
                 if token == 'PLOT':
                     token = parse_value(tokenizer)
                     if token == 'CLADOGRAM':
+                        print('* {}'.format(token))
                         pass
                     if token == 'PHYLOGRAM':
+                        print('* {}'.format(token))
                         pass
                     if token == 'CHRONOGRAM':
+                        print('* {}'.format(token))
                         pass
                     if token == 'RATOGRAM':
+                        print('* {}'.format(token))
                         pass
                     if token == 'TREE_DESCRIPTION':
+                        print('* {}'.format(token))
                         pass
                     if token == 'PHYLO_DESCRIPTION':
+                        print('* {}'.format(token))
                         pass
                     if token == 'RATO_DESCRIPTION':
+                        print('* {}'.format(token))
                         pass
                 elif token == 'PLOTWIDTH':
+                    print('* {}'.format(token))
                     pass
                 else:
                     raise ValueError("DESCRIBE: Unrecognised option: '{}'".format(token))

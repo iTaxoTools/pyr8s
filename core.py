@@ -7,6 +7,7 @@ Estimate Divergence Times
 
 import dendropy
 import random
+# import numpy
 
 from scipy import optimize
 from math import log
@@ -52,6 +53,7 @@ class Array:
         self.order = []
         self.parent = []
         self.length = []
+        self.subs = []
         self.age = []
         self.high = []
         self.low = []
@@ -106,10 +108,12 @@ class Array:
         _tree.order()
         _tree.print_plot()
 
-        # Set branch lengths and trim zero length branches afterwards
+        # Set branch lengths
         self.length = [None]
+        self.subs = [None]
         for node in _tree.preorder_node_iter_noroot():
-            self.length.append(node.subs)
+            self.length.append(node.edge_length)
+            self.subs.append(node.subs)
 
         self.node = []
         self.label = []
@@ -208,13 +212,30 @@ class Array:
         #! A range of solutions might exist if root is not fixed!
         #! Might be a good idea to point that out.
 
+        # self.node = numpy.array(self.node)
+        # self.label = numpy.array(self.label)
+        # self.order = numpy.array(self.order)
+        # self.parent = numpy.array(self.parent)
+        # self.length = numpy.array(self.length)
+        # self.subs = numpy.array(self.subs)
+        # self.age = numpy.array(self.age)
+        # self.high = numpy.array(self.high)
+        # self.low = numpy.array(self.low)
+        # self.variable = numpy.array(self.variable)
+        # self.map = numpy.array(self.map)
+        # self.unmap = numpy.array(self.unmap)
+        # self.bounds = numpy.array(self.bounds)
+        # self.rate = numpy.array(self.rate)
+
     def take(self):
         """
         Return ultrametric tree with ages and local rates
         """
+        nsites = self._param.branch_length['nsites']
         for i in range(self.n):
             self.node[i].age = self.solution[i]
-            self.node[i].rate = self.rate[i]
+            #! PRETTY SURE this is wrong but have to match original....
+            self.node[i].rate = self.rate[i]/nsites
         return self._tree
 
     def guess(self):
@@ -462,7 +483,7 @@ class Analysis:
                 # print('Parent younger than child while calculating rate! {0} < {1}'.
                 #     format(array.solution[parent], array.solution[i]))
                 return largeval
-            dx = array.length[i]
+            dx = array.subs[i]
             rate = dx/dt
             if logarithmic:
                 rate = log(rate)
@@ -549,6 +570,9 @@ class Analysis:
         else:
             raise ValueError('No such algorithm: {0}'.format(self.param.method))
 
+        variable_tolerance = self.param.powell['variable_tolerance']
+        function_tolerance = self.param.powell['function_tolerance']
+
         if self.param.barrier['manual'] == True:
 
             # Adds a barrier_penalty to the objective function
@@ -568,7 +592,8 @@ class Analysis:
 
                 result = optimize.minimize(
                     lambda x: objective(x) + factor*barrier_penalty(x),
-                    array.variable, method='Powell')
+                    array.variable, method='Powell',
+                    options={'xtol':variable_tolerance,'ftol':function_tolerance})
 
                 array.variable = list(result.x)
 
@@ -588,7 +613,8 @@ class Analysis:
 
         else:
                 result = optimize.minimize(objective, array.variable,
-                    method='Powell', bounds=array.bounds)
+                    method='Powell', bounds=array.bounds,
+                    options={'xtol':variable_tolerance,'ftol':function_tolerance})
 
                 array.variable = list(result.x)
 

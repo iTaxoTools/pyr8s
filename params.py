@@ -30,12 +30,16 @@ class Param:
         # Define the behaviour of manual barrier penalty
         self.barrier = {
             'manual': True,
-            'max_iterations': 2, #! 10
-            'initial_factor':0.25,
+            'max_iterations': 10,
+            'initial_factor': 0.25,
             'multiplier': 0.10,
             'tolerance': 0.0001,
             }
         self.nprs = {
             'logarithmic': False,
             'exponent': 2,
+            }
+        self.powell = {
+            'variable_tolerance': 1e-8,
+            'function_tolerance': 1e-8,
             }

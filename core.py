@@ -109,8 +109,6 @@ class Array:
         # Set branch lengths and trim zero length branches afterwards
         self.length = [None]
         for node in _tree.preorder_node_iter_noroot():
-            print(node)
-            print(node.subs)
             self.length.append(node.subs)
 
         self.node = []
@@ -368,19 +366,50 @@ class AnalysisResults(dict):
     def __init__(self, tree):
         self.tree = tree
 
-        self.rates = []
+        node = []
+        age = []
+        rate = []
         for n in tree.preorder_node_iter():
-            self.rates.append((n.label,n.rate))
-
-        self.ages = []
-        for n in tree.preorder_node_iter():
-            self.ages.append((n.label,n.age))
-
+            node.append(n.label)
+            age.append(n.age)
+            rate.append(n.rate)
+        self.table = {
+            'n': len(node),
+            'Node': node,
+            'Age': age,
+            'Rate': rate,
+            }
         self.chronogram = tree.clone(depth=1)
         for node in self.chronogram.preorder_node_iter_noroot():
             node.edge_length = node.parent_node.age - node.age
         self.chronogram.seed_node.edge_length = None
         extensions.strip(self.chronogram)
+
+    def print(self, columns=None):
+        if columns is None:
+            columns = ['Node', 'Age', 'Rate']
+        formats = {
+            'Node': '{:12.10}',
+            'Age': '{:>12.4f}',
+            'Rate': '{:>12.4e}',
+            }
+        headers = {
+            'Node': '{:12}',
+            'Age': '{:>9}   ',
+            'Rate': '   {:10}',
+            }
+        header = '\n\t'
+        for column in columns:
+            header += headers[column].format(column)
+        print(header)
+        print('-' * (len(header) + 12))
+        for index in range(self.table['n']):
+            row = '\t'
+            for column in columns:
+                value = self.table[column][index]
+                row += formats[column].format(value)
+            print('{}\t'.format(row))
+        print('\n')
 
 
 ##############################################################################
@@ -408,13 +437,11 @@ class Analysis:
 
     @tree.setter
     def tree(self, phylogram):
-        print('*** WE COPIED A TREE')
         self._tree = phylogram.clone(depth=1)
         extensions.extend(self._tree)
         self._tree.is_rooted = True
         self._tree.ground()
         self._tree.collapse()
-        self.print_tree()
 
 
     ##########################################################################
@@ -628,12 +655,11 @@ class Analysis:
             raise ValueError('No tree to optimize.')
         if len(self.tree.nodes()) < 1:
             raise ValueError('Tree must have at least one child.')
-        self.print_tree()
         self._array.make(self.tree)
         self._optimize()
         tree = self._array.take()
-        self._last_result = AnalysisResults(tree)
-        return self._last_result
+        self._results = AnalysisResults(tree)
+        return self._results
 
     @classmethod
     def quick(cls, tree, scalar=True):

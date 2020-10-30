@@ -25,7 +25,7 @@ class Param:
         self.branch_length = {
             'persite': False,
             'nsites': 1,
-            'round': False,
+            'round': True,
             }
         # Define the behaviour of manual barrier penalty
         self.barrier = {

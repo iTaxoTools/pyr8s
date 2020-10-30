@@ -22,12 +22,8 @@ class TreePlus(dendropy.Tree):
 
         # Children before parent, ensures removal is done in proper order
         for node in self.postorder_node_iter_noroot():
-            # print(node.taxon)
-            # print(node.label)
-            # print(node.edge_length)
-            # print('***')
             #? Maybe consider a minimum length too
-            if node.edge_length == None:
+            if node.edge_length is None or node.subs == 0:
                 remove.append(node)
 
         # Get rid of the node, parent inherits children
@@ -36,6 +32,24 @@ class TreePlus(dendropy.Tree):
             for child in node.child_node_iter():
                 parent.add_child(child)
             parent.remove_child(node)
+
+    def calc_subs(self, multiplier, doround):
+        """
+        Set substitutions for each node
+        """
+        for node in self.postorder_node_iter_noroot():
+            length = node.edge_length
+            if length is None:
+                raise ValueError('Null length for node {0}'.
+                    format(node.label))
+            if length <= 0:
+                raise ValueError('Non-positive length for node {0}'.
+                    format(node.label))
+            if multiplier is not None:
+                length *= multiplier
+            if doround == True:
+                length = round(length)
+            node.subs = length
 
     def ground(self):
         """

@@ -85,11 +85,7 @@ class Array:
         scalar = self._param.general['scalar']
         persite = self._param.branch_length['persite']
         nsites = self._param.branch_length['nsites']
-        round = self._param.branch_length['round']
-
-        _tree.collapse()
-        _tree.index()
-        _tree.order()
+        doround = self._param.branch_length['round']
 
         # Ignore all constraints if scalar
         if scalar:
@@ -101,6 +97,21 @@ class Array:
                 else:
                     node.fix = None
             _tree.seed_node.fix = 1.0
+
+        # Calculate substitutions and trim afterwards=
+        multiplier = nsites if persite == True else None
+        _tree.calc_subs(multiplier, doround)
+        _tree.collapse()
+        _tree.index()
+        _tree.order()
+        _tree.print_plot()
+
+        # Set branch lengths and trim zero length branches afterwards
+        self.length = [None]
+        for node in _tree.preorder_node_iter_noroot():
+            print(node)
+            print(node.subs)
+            self.length.append(node.subs)
 
         self.node = []
         self.label = []
@@ -115,21 +126,6 @@ class Array:
         self.parent = [0]
         for node in _tree.preorder_node_iter_noroot():
             self.parent.append(node.parent_node.index)
-
-        self.length = [None]
-        for node in _tree.preorder_node_iter_noroot():
-            length = node.edge_length
-            if length is None:
-                raise ValueError('Null length for node {0}'.
-                    format(node.label))
-            if length <= 0:
-                raise ValueError('Non-positive length for node {0}'.
-                    format(node.label))
-            if persite == True:
-                length *= nsites
-            if round == True:
-                length = round(length)
-            self.length.append(length)
 
         # Get fixed ages
         self.age = []
@@ -391,6 +387,7 @@ class Analysis:
         extensions.extend(self._tree)
         self._tree.is_rooted = True
         self._tree.ground()
+        self._tree.collapse()
         self.print_tree()
 
 

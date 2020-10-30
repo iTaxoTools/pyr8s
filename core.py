@@ -131,11 +131,10 @@ class Array:
                 length = round(length)
             self.length.append(length)
 
-        # Get fixed ages, leaves are fixed to 0 if no constraints are given
+        # Get fixed ages
         self.age = []
         for node in _tree.preorder_node_iter():
             fix = node.fix
-            if node.is_leaf() and not any([node.fix, node.min, node.max]): fix = 0
             self.age.append(fix)
 
         # Calculate high boundary for each node (top down).
@@ -389,7 +388,10 @@ class Analysis:
     def tree(self, phylogram):
         print('*** WE COPIED A TREE')
         self._tree = phylogram.clone(depth=1)
-        self._prepare_tree()
+        extensions.extend(self._tree)
+        self._tree.is_rooted = True
+        self._tree.ground()
+        self.print_tree()
 
 
     ##########################################################################
@@ -549,13 +551,6 @@ class Analysis:
     def print_tree(self):
         """Quick method to print the tree"""
         self.tree.print_plot(show_internal_node_labels=True)
-
-    def _prepare_tree(self):
-        """These must be done before we do anything else"""
-        #extend
-        #0leaf
-        self._tree.is_rooted = True
-        self.print_tree()
 
 
     ##########################################################################

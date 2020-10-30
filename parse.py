@@ -257,7 +257,7 @@ def parse(file):
             token = tokenizer.next_token_ucase()
         token = tokenizer.next_token_ucase()
         if token == 'RATES':
-            print('RATES FOUND!')
+            print('RATES BLOCK FOUND!')
             parse_rates(tokenizer, analysis)
         else:
             while not (token == 'END' or token == 'ENDBLOCK') \

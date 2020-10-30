@@ -361,6 +361,7 @@ class AnalysisResults:
         for n in tree.preorder_node_iter():
             self.ages.append((n.label,n.age))
 
+
 ##############################################################################
 ### Analysis
 
@@ -372,9 +373,23 @@ class Analysis:
 
     def __init__(self, tree=None):
         random.seed()
-        self.tree = tree
         self.param = params.Param()
         self._array = Array(self.param)
+        if tree is None:
+            self._tree = None
+        else:
+            self.tree = tree
+
+    @property
+    def tree(self):
+        """User can edit tree before run()"""
+        return self._tree
+
+    @tree.setter
+    def tree(self, phylogram):
+        print('*** WE COPIED A TREE')
+        self._tree = phylogram.clone(depth=1)
+        self._prepare_tree()
 
 
     ##########################################################################
@@ -529,6 +544,21 @@ class Analysis:
 
 
     ##########################################################################
+    ### Utility
+
+    def print_tree(self):
+        """Quick method to print the tree"""
+        self.tree.print_plot(show_internal_node_labels=True)
+
+    def _prepare_tree(self):
+        """These must be done before we do anything else"""
+        #extend
+        #0leaf
+        self._tree.is_rooted = True
+        self.print_tree()
+
+
+    ##########################################################################
     ### Optimization
 
     def _optimize(self):
@@ -572,11 +602,6 @@ class Analysis:
         return kept_variable
 
 
-    def print_tree(self):
-        """Quick method to print the tree"""
-        self.tree.print_plot(show_internal_node_labels=True)
-
-
     def run(self):
         """
         This is the only thing the user needs to run.
@@ -585,6 +610,7 @@ class Analysis:
             raise ValueError('No tree to optimize.')
         if len(self.tree.nodes()) < 1:
             raise ValueError('Tree must have at least one child.')
+        self.print_tree()
         self._array.make(self.tree)
         self._optimize()
         tree = self._array.take()

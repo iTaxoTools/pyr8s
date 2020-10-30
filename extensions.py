@@ -164,3 +164,17 @@ def extend(tree):
         node.max = None
         node.rate = None
         node.subs = None
+
+def strip(tree):
+    """
+    Remove extensions, reverting to pure dendropy.Tree
+    """
+    tree.__class__ = dendropy.Tree
+    for node in tree.nodes():
+        del node.index
+        del node.order
+        del node.fix
+        del node.min
+        del node.max
+        del node.rate
+        del node.subs

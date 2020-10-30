@@ -217,9 +217,6 @@ class Array:
         for i in range(self.n):
             self.node[i].age = self.solution[i]
             self.node[i].rate = self.rate[i]
-        for i in range(1,self.n):
-            self.node[i].edge_length = self.solution[self.parent[i]] - self.solution[i]
-        self.node[0].edge_length = None
         return self._tree
 
     def guess(self):
@@ -343,18 +340,47 @@ class Array:
 ##############################################################################
 ### Results
 
-class AnalysisResults:
+class AnalysisResults(dict):
     """
     Bundle output here.
     """
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+
     def __init__(self, tree):
         self.tree = tree
+
         self.rates = []
         for n in tree.preorder_node_iter():
             self.rates.append((n.label,n.rate))
+
         self.ages = []
         for n in tree.preorder_node_iter():
             self.ages.append((n.label,n.age))
+
+        self.chronogram = tree.clone(depth=1)
+        for node in self.chronogram.preorder_node_iter_noroot():
+            node.edge_length = node.parent_node.age - node.age
+        self.chronogram.seed_node.edge_length = None
+        extensions.strip(self.chronogram)
 
 
 ##############################################################################
@@ -606,7 +632,8 @@ class Analysis:
         self._array.make(self.tree)
         self._optimize()
         tree = self._array.take()
-        return AnalysisResults(tree)
+        self._last_result = AnalysisResults(tree)
+        return self._last_result
 
     @classmethod
     def quick(cls, tree, scalar=True):

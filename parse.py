@@ -107,12 +107,12 @@ def parse_rates(tokenizer, analysis):
                     token = parse_value(tokenizer)
                     print('* TAXON: {0}'.format(token))
                     node = analysis.tree.find_node_with_taxon_label(token)
-                elif token == 'MAX_AGE':
+                elif token == 'MAX_AGE' or token == 'MAXAGE':
                     token = parse_value(tokenizer)
                     print('* MAX_AGE: {0}'.format(token))
                     if token != 'NONE':
                         max = int(token)
-                elif token == 'MIN_AGE':
+                elif token == 'MIN_AGE' or token == 'MINAGE':
                     token = parse_value(tokenizer)
                     print('* MIN_AGE: {0}'.format(token))
                     if token != 'NONE':
@@ -274,6 +274,7 @@ if __name__ == '__main__':
     if len(sys.argv) >=2:
         print(str(sys.argv))
         a = parse(sys.argv[1])
+        a._results.print()
 
     if False:
         # Somehow get tree

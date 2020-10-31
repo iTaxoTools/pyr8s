@@ -443,7 +443,7 @@ class Analysis:
     #? Consider locking attributes with __slots__ or @dataclass
 
     def __init__(self, tree=None):
-        random.seed()
+        random.seed(1) #! remove the 1 later !!!!
         self.param = params.Param()
         self._array = Array(self.param)
         if tree is None:
@@ -476,19 +476,6 @@ class Analysis:
         largeval = self.param.general['largeval']
         array = self._array
 
-        def local_rate(i):
-            parent = array.parent[i]
-            dt = array.solution[parent] - array.solution[i]
-            if dt <= 0:
-                # print('Parent younger than child while calculating rate! {0} < {1}'.
-                #     format(array.solution[parent], array.solution[i]))
-                return largeval
-            dx = array.subs[i]
-            rate = dx/dt
-            if logarithmic:
-                rate = log(rate)
-            return rate
-
         def objective_nprs(x):
             """
             Ref Sanderson, Minimize neighbouring rates
@@ -500,7 +487,17 @@ class Analysis:
 
             # Calculate all rates first
             for i in range(1,array.n):
-                array.rate[i] = local_rate(i)
+                parent = array.parent[i]
+                dt = array.solution[parent] - array.solution[i]
+                if dt <= 0:
+                    # print('Parent younger than child while calculating rate! {0} < {1}'.
+                    #     format(array.solution[parent], array.solution[i]))
+                    return largeval
+                dx = array.subs[i]
+                rate = dx/dt
+                if logarithmic:
+                    rate = log(rate)
+                array.rate[i] = rate
 
             # Sum of terms that don't involve root
             wk = 0
@@ -551,7 +548,27 @@ class Analysis:
             # print('Barrier penalty: {0}'.format(sum))
             return sum
 
+            # Performance NOT improved
+            # sum = 0
+            # for i in array.map:
+            #     j = array.unmap[i]
+            #     if array.high[i] is not None:
+            #         term = array.high[i] - array.variable[j]
+            #         if term > 0:
+            #             sum += 1/term
+            #         else:
+            #             return largeval
+            #     if array.low[i] is not None:
+            #         term = array.variable[j] - array.low[i]
+            #         if term > 0:
+            #             sum += 1/term
+            #         else:
+            #             return largeval
+            # # print('Barrier penalty: {0}'.format(sum))
+            # return sum
+
         return barrier_penalty
+
 
 
     ##########################################################################
@@ -657,9 +674,7 @@ class Analysis:
             else:
                 raise ValueError('No implementation for algorithm: {0}'.format(self.param.algorithm))
 
-            # merge not needed?? just wanted to print
-            array.solution_merge()
-            print('Local solution: {0}'.format(array.solution))
+            print('Local solution:\t {0:>12.4e}\n{1}'.format(new_min,array.solution))
 
             kept_min = apply_fun_to_list(min, [kept_min, new_min])
             if kept_min == new_min:
@@ -669,7 +684,7 @@ class Analysis:
         array.variable = kept_variable
         array.rate = kept_rate
         array.solution_merge()
-        print('Best solution: {0}'.format(array.solution))
+        print('Best solution:\t {0:>12.4e}\n{1}'.format(new_min,array.solution))
         return kept_variable
 
 

@@ -49,11 +49,10 @@ class Array:
 
         self.n = 0
         self.v = 0
+        self.r = 0
         self.node = []
-        self.label = []
         self.order = []
-        self.parent = []
-        self.length = []
+        self.parent_index = []
         self.subs = []
         self.age = []
         self.high = []
@@ -110,25 +109,23 @@ class Array:
         _tree.print_plot()
 
         # Set branch lengths
-        self.length = [None]
         self.subs = [None]
         for node in _tree.preorder_node_iter_noroot():
-            self.length.append(node.edge_length)
             self.subs.append(node.subs)
+        self.subs = np.array(self.subs, dtype=float)
 
         self.node = []
-        self.label = []
         self.order = []
         for node in _tree.preorder_node_iter():
             self.node.append(node)
-            self.label.append(node.label)
             self.order.append(node.order)
         self.n = len(self.node)
 
         # This will be used by the optimization function
-        self.parent = [0]
+        self.parent_index = [0]
         for node in _tree.preorder_node_iter_noroot():
-            self.parent.append(node.parent_node.index)
+            self.parent_index.append(node.parent_node.index)
+        self.parent_index = np.array(self.parent_index, dtype=int)
 
         # Get fixed ages
         self.age = []
@@ -171,7 +168,7 @@ class Array:
             order = [i for i in filter(lambda x: x is not None, order)]
             if sorted(order) != order:
                 raise ValueError('Impossible boundaries for node {0}: {1}]'.
-                    format(self.label[i],order))
+                    format(self.node[i],order))
 
             # If (existing) boundaries collide, make sure node age is a fixed value
             if all([self.low[i], self.high[i]]):
@@ -219,12 +216,7 @@ class Array:
         #! A range of solutions might exist if root is not fixed!
         #! Might be a good idea to point that out.
 
-        # self.node = numpy.array(self.node)
-        # self.label = numpy.array(self.label)
         # self.order = numpy.array(self.order)
-        # self.parent = numpy.array(self.parent)
-        # self.length = numpy.array(self.length)
-        # self.subs = numpy.array(self.subs)
         # self.age = numpy.array(self.age)
         # self.high = numpy.array(self.high)
         # self.low = numpy.array(self.low)
@@ -245,7 +237,7 @@ class Array:
         root =[]
         noroot = []
         for i in range(1,self.n):
-            if self.parent[i] == 0:
+            if self.parent_index[i] == 0:
                 root.append(i)
             else:
                 noroot.append(i)
@@ -259,10 +251,6 @@ class Array:
         self.xvarid = np.array(self.map, dtype=int) #variable index
         self.xvar = self.xtime[self.xvarid] # vars only, send this to minimi
         self.xrate = np.zeros(self.n, dtype=float) # root rate stays zero forever
-        self.xparid = np.array(self.parent, dtype=int) # parent index
-        # self.r = len(self.xparid[self.xparid==0]) # how many children root has
-        self.xsubs = np.array(self.subs, dtype=float) # substitutions
-        # self.xrootmask = ma.masked_equal(self.xparid,0).mask # root children only
 
         # self.xconid = np.array(self.constrained, dtype=int) # only those directly cons'd
         self.xconid = np.array(self.map, dtype=int) # all the vars
@@ -324,7 +312,7 @@ class Array:
         for i in range(1,self.n):
             # Child is never older than parent
             window[i] = apply_fun_to_list(min,
-                [window[i], window[self.parent[i]]])
+                [window[i], window[self.parent_index[i]]])
             if self.age[i] == None:
                 # This node is not fixed, assign a random valid age
                 high = window[i]
@@ -370,7 +358,7 @@ class Array:
 
             # j counts variables, i counts everything
             i = self.map[j]
-            parent_position = self.parent[i]
+            parent_position = self.parent_index[i]
 
             # Determine perturbation window first
             perturb_high = self.variable[j] * (1 + perturb_factor)
@@ -378,7 +366,7 @@ class Array:
 
             # Catch root, it has no parent so ignore this from upper boundary
             #? Can possibly move this outside
-            if self.parent[i] != i:
+            if self.parent_index[i] != i:
                 parent_age = self.solution[parent_position]
             else:
                 parent_age = None
@@ -529,10 +517,10 @@ class Analysis:
 
         #? these can probably be moved downstairs? doesnt seem to make a diff
         xtime = array.xtime
-        xparid = array.xparid
+        parent_index = array.parent_index
         xvarid = array.xvarid
         xrate = array.xrate
-        xsubs = array.xsubs
+        subs = array.subs
         # xrootmask = array.xrootmask
         xrootid = array.xrootid
         xnorootid = array.xnorootid
@@ -545,12 +533,12 @@ class Analysis:
             # obj
             xtime[xvarid] = x # put new vars inside time
 
-            xpartime = xtime[xparid] # parent times
+            xpartime = xtime[parent_index] # parent times
             xdiftime = xpartime - xtime # time diff
             if xdiftime[xdiftime<=0][1:].size != 0: # ignore root
                 return largeval
-            xrate[1:] = xsubs[1:]/xdiftime[1:]
-            xparrate = xrate[xparid]
+            xrate[1:] = subs[1:]/xdiftime[1:]
+            xparrate = xrate[parent_index]
             xrateroot = xrate[xrootid]
             sumrootrate = xrateroot.sum()
             sumrootrate *= sumrootrate

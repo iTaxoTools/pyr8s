@@ -264,7 +264,8 @@ class Array:
         self.xsubs = np.array(self.subs, dtype=float) # substitutions
         # self.xrootmask = ma.masked_equal(self.xparid,0).mask # root children only
 
-        self.xconid = np.array(self.constrained, dtype=int) # only those directly cons'd
+        # self.xconid = np.array(self.constrained, dtype=int) # only those directly cons'd
+        self.xconid = np.array(self.map, dtype=int) # all the vars
         self.xlow = np.array(self.low, dtype=float)[self.xconid] # -"-
         self.xhigh = np.array(self.high, dtype=float)[self.xconid] # -"-
 
@@ -604,7 +605,7 @@ class Analysis:
         objective = None
         array = self._array
         result = None
-        # Use the appropriate algorthm
+        # Use the appropriate algorithm
         if hasattr(self, '_build_objective_' + self.param.method):
             objective = getattr(self, '_build_objective_' + self.param.method)()
         else:
@@ -636,7 +637,7 @@ class Analysis:
                     options={'xtol':variable_tolerance,'ftol':function_tolerance})
 
                 array.variable = list(result.x)
-                array.xvar = np.array(array.variable, dtype=float)
+                array.xvar = np.array(result.x, dtype=float)
 
                 new_value = objective(array.xvar)
 
@@ -690,7 +691,7 @@ class Analysis:
 
             self._array.guess()
 
-            print('Guess {0}: {1}'.format(g, array.variable))
+            print('Guess {0}: {1}\n'.format(g, array.variable))
 
             # Call the appropriate optimization method
             if hasattr(self, '_algorithm_' + self.param.algorithm):
@@ -698,17 +699,19 @@ class Analysis:
             else:
                 raise ValueError('No implementation for algorithm: {0}'.format(self.param.algorithm))
 
-            print('Local solution:\t {0:>12.4e}\n{1}'.format(new_min,array.solution))
+            print('\nLocal solution:\t {0:>12.4e}\n{1}\n'.format(new_min,array.solution))
 
             kept_min = apply_fun_to_list(min, [kept_min, new_min])
             if kept_min == new_min:
-                kept_variable = array.variable
-                kept_rate = array.rate
+                kept_variable = array.xvar
+                kept_rate = array.xrate
 
         array.variable = kept_variable
+        array.xvar = kept_variable
         array.rate = kept_rate
+        array.xrate = kept_rate
         array.solution_merge()
-        print('Best solution:\t {0:>12.4e}\n{1}'.format(new_min,array.solution))
+        print('\nBest solution:\t {0:>12.4e}\n{1}\n'.format(kept_min,array.solution))
         return kept_variable
 
 

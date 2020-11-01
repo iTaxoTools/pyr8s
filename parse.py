@@ -274,7 +274,17 @@ if __name__ == '__main__':
     if len(sys.argv) >=2:
         print(str(sys.argv))
         a = parse(sys.argv[1])
-        a._results.print()
+        if hasattr(a,'_results'):
+            a._results.print()
+
+    import timeit
+    a._array.make(a.tree)
+    a._array.guess()
+    f=a._build_objective_nprs()
+    p=a._build_barrier_penalty()
+    # timeit.timeit('f(a._array.xvar)',globals=globals(),number=10000)
+    # timeit.timeit('p(a._array.xvar)',globals=globals(),number=10000)
+    # timeit.timeit('a.run()',globals=globals(),number=1)
 
     if False:
         # Somehow get tree

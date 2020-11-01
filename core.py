@@ -7,7 +7,8 @@ Estimate Divergence Times
 
 import dendropy
 import random
-# import numpy
+import numpy as np
+import numpy.ma as ma
 
 from scipy import optimize
 from math import log
@@ -135,6 +136,12 @@ class Array:
             fix = node.fix
             self.age.append(fix)
 
+        # Get constrained indexes
+        self.constrained = []
+        for i, node in enumerate(_tree.preorder_node_iter()):
+            if node.max is not None or node.min is not None:
+                self.constrained.append(i)
+
         # Calculate high boundary for each node (top down).
         high = apply_fun_to_list(min,
             [_tree.seed_node.max, _tree.seed_node.fix])
@@ -227,6 +234,30 @@ class Array:
         # self.bounds = numpy.array(self.bounds)
         # self.rate = numpy.array(self.rate)
 
+        # self.xvariable = np.array(self.variable, dtype=float)
+        # self.xhigh = np.array(self.high, dtype=float)
+        # self.xlow = np.array(self.low, dtype=float)
+        # mask = [1]*len(self.xhigh)
+        # mask[0] = 0
+        # self.xhigh.mask = mask
+        # self.xlow.mask = mask
+
+        self.solution_merge()
+
+        self.xtime = np.array(self.solution, dtype=float) # vars+fixed times
+        self.xvarid = np.array(self.map, dtype=int) #variable index
+        self.xvar = self.xtime[self.xvarid] # vars only, send this to minimi
+        self.xrate = np.zeros(self.n, dtype=float) # root rate stays zero forever
+        self.xparid = np.array(self.parent, dtype=int) # parent index
+        self.r = len(self.xparid[self.xparid==0]) # how many children root has
+        self.xsubs = np.array(self.subs, dtype=float) # substitutions
+        self.xrootmask = ma.masked_equal(self.xparid,0).mask # root children only
+
+        self.xconid = np.array(self.constrained, dtype=int) # only those directly cons'd
+        self.xlow = np.array(self.low, dtype=float)[self.xconid] # -"-
+        self.xhigh = np.array(self.high, dtype=float)[self.xconid] # -"-
+
+
     def take(self):
         """
         Return ultrametric tree with ages and local rates
@@ -235,7 +266,7 @@ class Array:
         for i in range(self.n):
             self.node[i].age = self.solution[i]
             #! PRETTY SURE this is wrong but have to match original....
-            self.node[i].rate = self.rate[i]/nsites
+            self.node[i].rate = self.xrate[i]/nsites
         return self._tree
 
     def guess(self):
@@ -304,6 +335,10 @@ class Array:
         self.variable = variable
 
         self.solution_merge()
+        #upd
+        self.xvar = np.array(self.variable, dtype=float)
+        self.xtime[self.xvarid] = self.xvar
+
 
     def perturb(self):
         """
@@ -354,6 +389,10 @@ class Array:
                 window[parent_variable] = window_new
 
         self.solution_merge()
+        #upd
+        self.xvar = np.array(self.variable, dtype=float)
+        self.xtime[self.xvarid] = self.xvar
+
 
 
 ##############################################################################
@@ -471,52 +510,45 @@ class Analysis:
     def _build_objective_nprs(self):
         """Generate NPRS objective function"""
 
-        logarithmic = self.param.nprs['logarithmic'] #bool
-        exponent = self.param.nprs['exponent'] #2
+        logarithmic = self.param.nprs['logarithmic'] #! NOT USED
+        exponent = self.param.nprs['exponent'] #! NOT USED
         largeval = self.param.general['largeval']
         array = self._array
+
+        #? these can probably be moved downstairs? doesnt seem to make a diff
+        xtime = array.xtime
+        xparid = array.xparid
+        xvarid = array.xvarid
+        xrate = array.xrate
+        xrootmask = array.xrootmask
+        xsubs = array.xsubs
+        r = array.r
+
 
         def objective_nprs(x):
             """
             Ref Sanderson, Minimize neighbouring rates
             """
-            # print('Objective: x = {0}'.format(x))
+            # obj
+            xtime[xvarid] = x # put new vars inside time
 
-            array.variable = x
-            array.solution_merge()
-
-            # Calculate all rates first
-            for i in range(1,array.n):
-                parent = array.parent[i]
-                dt = array.solution[parent] - array.solution[i]
-                if dt <= 0:
-                    # print('Parent younger than child while calculating rate! {0} < {1}'.
-                    #     format(array.solution[parent], array.solution[i]))
-                    return largeval
-                dx = array.subs[i]
-                rate = dx/dt
-                if logarithmic:
-                    rate = log(rate)
-                array.rate[i] = rate
-
-            # Sum of terms that don't involve root
-            wk = 0
-            # Sums and count of terms that involve root
-            sr, srr, n0 = 0, 0, 0
-            # Ignore root
-            for i in range(1,array.n):
-                parent = array.parent[i]
-                if parent == 0:
-                    n0 += 1
-                    sr += array.rate[i]
-                    srr += array.rate[i] ** 2
-                else:
-                    wk += abs(array.rate[parent] - array.rate[i]) ** exponent
-            w0 = (srr - (sr*sr)/n0) / n0
-            # print('Objective: {0}'.format(w0 + wk))
-            # Root rate was assumed to be the mean of its children rates
-            array.rate[0] = sr/n0
-            return w0 + wk
+            xpartime = xtime[xparid] # parent times
+            xdiftime = xpartime - xtime # time diff
+            if xdiftime[xdiftime<=0][1:].any(): # ignore root
+                return largeval
+            xrate[1:] = xsubs[1:]/xdiftime[1:]
+            xparrate = xrate[xparid]
+            xdifrate = xrate-xparrate
+            xdifratemasked = ma.array(xdifrate,mask=~xrootmask)
+            sumrootrate = xdifratemasked.sum()
+            sumrootrate *= sumrootrate
+            xdifrate *= xdifrate
+            sumrootratesquared = xdifratemasked.sum()
+            xdifratemasked.mask = ~xdifratemasked.mask
+            sumratesquared = xdifratemasked.sum()
+            w = (sumrootrate - r*sumrootratesquared)/r + sumratesquared
+            return w
+            # return 0
 
         return objective_nprs
 
@@ -526,49 +558,28 @@ class Analysis:
 
         largeval = self.param.general['largeval']
         array = self._array
+        xtime = array.xtime
+        xconid = array.xconid
+        xhigh = array.xhigh
+        xlow = array.xlow
 
         def barrier_penalty(x):
             """
             Keep variables away from bounds
             """
+            # pen
 
-            def barrier_term(x):
-                if x > 0:
-                    return 1/x
-                else:
-                    return largeval
-
-            sum = 0
-            for i in array.map:
-                j = array.unmap[i]
-                if array.high[i] is not None:
-                    sum += barrier_term(array.high[i] - array.variable[j])
-                if array.low[i] is not None:
-                    sum += barrier_term(array.variable[j] - array.low[i])
-            # print('Barrier penalty: {0}'.format(sum))
-            return sum
-
-            # Performance NOT improved
-            # sum = 0
-            # for i in array.map:
-            #     j = array.unmap[i]
-            #     if array.high[i] is not None:
-            #         term = array.high[i] - array.variable[j]
-            #         if term > 0:
-            #             sum += 1/term
-            #         else:
-            #             return largeval
-            #     if array.low[i] is not None:
-            #         term = array.variable[j] - array.low[i]
-            #         if term > 0:
-            #             sum += 1/term
-            #         else:
-            #             return largeval
-            # # print('Barrier penalty: {0}'.format(sum))
-            # return sum
+            xcons = xtime[xconid]
+            xl = xcons - xlow
+            xh = xhigh - xcons
+            t = xh[(xl<0)|(xh<0)]
+            if t.size == 0:
+                return largeval
+            xa = 1/xl + 1/xh
+            return xa.sum()
+            return 0
 
         return barrier_penalty
-
 
 
     ##########################################################################
@@ -601,7 +612,7 @@ class Analysis:
             barrier_penalty = self._build_barrier_penalty()
 
             factor = self.param.barrier['initial_factor']
-            kept_value = objective(array.variable)
+            kept_value = objective(array.xvar)
 
             for b in range(self.param.barrier['max_iterations']):
 
@@ -609,12 +620,13 @@ class Analysis:
 
                 result = optimize.minimize(
                     lambda x: objective(x) + factor*barrier_penalty(x),
-                    array.variable, method='Powell',
+                    array.xvar, method='Powell',
                     options={'xtol':variable_tolerance,'ftol':function_tolerance})
 
                 array.variable = list(result.x)
+                array.xvar = np.array(array.variable, dtype=float)
 
-                new_value = objective(array.variable)
+                new_value = objective(array.xvar)
 
                 if new_value == 0:
                     break

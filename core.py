@@ -242,6 +242,17 @@ class Array:
         # self.xhigh.mask = mask
         # self.xlow.mask = mask
 
+        root =[]
+        noroot = []
+        for i in range(1,self.n):
+            if self.parent[i] == 0:
+                root.append(i)
+            else:
+                noroot.append(i)
+        self.xrootid = np.array(root, dtype=int)
+        self.xnorootid = np.array(noroot, dtype=int)
+        self.r = self.xrootid.size
+
         self.solution_merge()
 
         self.xtime = np.array(self.solution, dtype=float) # vars+fixed times
@@ -249,9 +260,9 @@ class Array:
         self.xvar = self.xtime[self.xvarid] # vars only, send this to minimi
         self.xrate = np.zeros(self.n, dtype=float) # root rate stays zero forever
         self.xparid = np.array(self.parent, dtype=int) # parent index
-        self.r = len(self.xparid[self.xparid==0]) # how many children root has
+        # self.r = len(self.xparid[self.xparid==0]) # how many children root has
         self.xsubs = np.array(self.subs, dtype=float) # substitutions
-        self.xrootmask = ma.masked_equal(self.xparid,0).mask # root children only
+        # self.xrootmask = ma.masked_equal(self.xparid,0).mask # root children only
 
         self.xconid = np.array(self.constrained, dtype=int) # only those directly cons'd
         self.xlow = np.array(self.low, dtype=float)[self.xconid] # -"-
@@ -520,10 +531,11 @@ class Analysis:
         xparid = array.xparid
         xvarid = array.xvarid
         xrate = array.xrate
-        xrootmask = array.xrootmask
         xsubs = array.xsubs
+        # xrootmask = array.xrootmask
+        xrootid = array.xrootid
+        xnorootid = array.xnorootid
         r = array.r
-
 
         def objective_nprs(x):
             """
@@ -534,17 +546,18 @@ class Analysis:
 
             xpartime = xtime[xparid] # parent times
             xdiftime = xpartime - xtime # time diff
-            if xdiftime[xdiftime<=0][1:].any(): # ignore root
+            if xdiftime[xdiftime<=0][1:].size != 0: # ignore root
                 return largeval
             xrate[1:] = xsubs[1:]/xdiftime[1:]
             xparrate = xrate[xparid]
-            xdifrate = xrate-xparrate
-            xdifratemasked = ma.array(xdifrate,mask=~xrootmask)
-            sumrootrate = xdifratemasked.sum()
+            xrateroot = xrate[xrootid]
+            sumrootrate = xrateroot.sum()
             sumrootrate *= sumrootrate
+            xrateroot *= xrateroot
+            sumrootratesquared = xrateroot.sum()
+            xdifrate = xrate-xparrate
             xdifrate *= xdifrate
-            sumrootratesquared = xdifratemasked.sum()
-            xdifratemasked.mask = ~xdifratemasked.mask
+            xdifratemasked = xdifrate[xnorootid]
             sumratesquared = xdifratemasked.sum()
             w = (sumrootrate - r*sumrootratesquared)/r + sumratesquared
             return w
@@ -573,11 +586,10 @@ class Analysis:
             xl = xcons - xlow
             xh = xhigh - xcons
             t = xh[(xl<0)|(xh<0)]
-            if t.size == 0:
+            if t.size != 0:
                 return largeval
             xa = 1/xl + 1/xh
             return xa.sum()
-            return 0
 
         return barrier_penalty
 

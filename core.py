@@ -76,7 +76,7 @@ class Array:
 
     def make(self, tree):
         """
-        Convert the give tree into arrays, preparing them for analysis.
+        Convert the given tree into arrays, preparing them for analysis.
         The nodes are listed in preorder sequence.
         """
 
@@ -100,7 +100,7 @@ class Array:
                     node.fix = None
             _tree.seed_node.fix = 1.0
 
-        # Calculate substitutions and trim afterwards=
+        # Calculate substitutions and trim afterwards
         multiplier = nsites if persite == True else None
         _tree.calc_subs(multiplier, doround)
         _tree.collapse()
@@ -108,38 +108,16 @@ class Array:
         _tree.order()
         _tree.print_plot()
 
-        # Set branch lengths
-        self.subs = [None]
-        for node in _tree.preorder_node_iter_noroot():
-            self.subs.append(node.subs)
-        self.subs = np.array(self.subs, dtype=float)
-
         self.node = []
         self.order = []
+        self.age = []
         for node in _tree.preorder_node_iter():
             self.node.append(node)
             self.order.append(node.order)
+            self.age.append(node.fix)
         self.n = len(self.node)
 
-        # This will be used by the optimization function
-        self.parent_index = [0]
-        for node in _tree.preorder_node_iter_noroot():
-            self.parent_index.append(node.parent_node.index)
-        self.parent_index = np.array(self.parent_index, dtype=int)
-
-        # Get fixed ages
-        self.age = []
-        for node in _tree.preorder_node_iter():
-            fix = node.fix
-            self.age.append(fix)
-
-        # Get constrained indexes
-        self.constrained = []
-        for i, node in enumerate(_tree.preorder_node_iter()):
-            if node.max is not None or node.min is not None:
-                self.constrained.append(i)
-
-        # Calculate high boundary for each node (top down).
+        # Calculate high and low boundary for each node (top down).
         high = apply_fun_to_list(min,
             [_tree.seed_node.max, _tree.seed_node.fix])
         self.high = [high]
@@ -148,7 +126,6 @@ class Array:
                 [node.max, node.fix,
                 self.high[node.parent_node.index]])
             self.high.append(high)
-
         self.low = [None] * self.n
         for node in _tree.postorder_node_iter_noroot():
             low = apply_fun_to_list(max,
@@ -161,7 +138,6 @@ class Array:
 
         # Boundary check
         for i in range(self.n):
-
             # These must be in ascending order:
             # low boundary < fixed age < high boundary
             order = [self.low[i], self.age[i], self.high[i]]
@@ -169,7 +145,6 @@ class Array:
             if sorted(order) != order:
                 raise ValueError('Impossible boundaries for node {0}: {1}]'.
                     format(self.node[i],order))
-
             # If (existing) boundaries collide, make sure node age is a fixed value
             if all([self.low[i], self.high[i]]):
                 if self.high[i] == self.low[i]:
@@ -216,34 +191,31 @@ class Array:
         #! A range of solutions might exist if root is not fixed!
         #! Might be a good idea to point that out.
 
-        # self.order = numpy.array(self.order)
-        # self.age = numpy.array(self.age)
-        # self.high = numpy.array(self.high)
-        # self.low = numpy.array(self.low)
-        # self.variable = numpy.array(self.variable)
-        # self.map = numpy.array(self.map)
-        # self.unmap = numpy.array(self.unmap)
-        # self.bounds = numpy.array(self.bounds)
-        # self.rate = numpy.array(self.rate)
+        # Numpy Arrays
 
-        # self.xvariable = np.array(self.variable, dtype=float)
-        # self.xhigh = np.array(self.high, dtype=float)
-        # self.xlow = np.array(self.low, dtype=float)
-        # mask = [1]*len(self.xhigh)
-        # mask[0] = 0
-        # self.xhigh.mask = mask
-        # self.xlow.mask = mask
+        # Set branch lengths
+        subs = [None]
+        for node in _tree.preorder_node_iter_noroot():
+            subs.append(node.subs)
+        self.subs = np.array(subs, dtype=float)
 
-        root =[]
+        # This will be used by the optimization function
+        self.parent_index = [0]
+        for node in _tree.preorder_node_iter_noroot():
+            self.parent_index.append(node.parent_node.index)
+        self.parent_index = np.array(self.parent_index, dtype=int)
+
+        # Root children indexes and complimentary
+        root = []
         noroot = []
         for i in range(1,self.n):
             if self.parent_index[i] == 0:
                 root.append(i)
             else:
                 noroot.append(i)
-        self.xrootid = np.array(root, dtype=int)
-        self.xnorootid = np.array(noroot, dtype=int)
-        self.r = self.xrootid.size
+        self.root_is_parent_index = np.array(root, dtype=int)
+        self.root_not_parent_index = np.array(noroot, dtype=int)
+        self.r = self.root_is_parent_index.size
 
         self.solution_merge()
 
@@ -252,10 +224,9 @@ class Array:
         self.xvar = self.xtime[self.xvarid] # vars only, send this to minimi
         self.xrate = np.zeros(self.n, dtype=float) # root rate stays zero forever
 
-        # self.xconid = np.array(self.constrained, dtype=int) # only those directly cons'd
-        self.xconid = np.array(self.map, dtype=int) # all the vars
-        self.xlow = np.array(self.low, dtype=float)[self.xconid] # -"-
-        self.xhigh = np.array(self.high, dtype=float)[self.xconid] # -"-
+        self.constrained_index = np.array(self.map, dtype=int) # all the vars
+        self.constrained_low = np.array(self.low, dtype=float)[self.constrained_index] # -"-
+        self.constrained_high = np.array(self.high, dtype=float)[self.constrained_index] # -"-
 
 
     def take(self):
@@ -522,8 +493,8 @@ class Analysis:
         xrate = array.xrate
         subs = array.subs
         # xrootmask = array.xrootmask
-        xrootid = array.xrootid
-        xnorootid = array.xnorootid
+        root_is_parent_index = array.root_is_parent_index
+        root_not_parent_index = array.root_not_parent_index
         r = array.r
 
         def objective_nprs(x):
@@ -539,14 +510,14 @@ class Analysis:
                 return largeval
             xrate[1:] = subs[1:]/xdiftime[1:]
             xparrate = xrate[parent_index]
-            xrateroot = xrate[xrootid]
+            xrateroot = xrate[root_is_parent_index]
             sumrootrate = xrateroot.sum()
             sumrootrate *= sumrootrate
             xrateroot *= xrateroot
             sumrootratesquared = xrateroot.sum()
             xdifrate = xrate-xparrate
             xdifrate *= xdifrate
-            xdifratemasked = xdifrate[xnorootid]
+            xdifratemasked = xdifrate[root_not_parent_index]
             sumratesquared = xdifratemasked.sum()
             w = (sumrootrate - r*sumrootratesquared)/r + sumratesquared
             return w
@@ -561,9 +532,9 @@ class Analysis:
         largeval = self.param.general['largeval']
         array = self._array
         xtime = array.xtime
-        xconid = array.xconid
-        xhigh = array.xhigh
-        xlow = array.xlow
+        constrained_index = array.constrained_index
+        constrained_high = array.constrained_high
+        constrained_low = array.constrained_low
 
         def barrier_penalty(x):
             """
@@ -571,9 +542,9 @@ class Analysis:
             """
             # pen
 
-            xcons = xtime[xconid]
-            xl = xcons - xlow
-            xh = xhigh - xcons
+            xcons = xtime[constrained_index]
+            xl = xcons - constrained_low
+            xh = constrained_high - xcons
             t = xh[(xl<0)|(xh<0)]
             if t.size != 0:
                 return largeval

@@ -47,33 +47,6 @@ class Array:
         self._param = param
         self._tree = None
 
-        self.n = 0
-        self.v = 0
-        self.r = 0
-        self.node = []
-        self.order = []
-        self.parent_index = []
-        self.subs = []
-        self.age = []
-        self.high = []
-        self.low = []
-        self.variable = []
-        self.map = []
-        self.unmap = []
-        self.bounds = []
-        self.rate = []
-
-
-    def solution_merge(self):
-        """Merge fixed ages and variables into self.solution"""
-
-        self.solution = []
-        for i in range(0,self.n):
-            if self.age[i] is not None:
-                self.solution.append(self.age[i])
-            else:
-                self.solution.append(self.variable[self.unmap[i]])
-
     def make(self, tree):
         """
         Convert the given tree into arrays, preparing them for analysis.
@@ -110,11 +83,11 @@ class Array:
 
         self.node = []
         self.order = []
-        self.age = []
+        self.fix = []
         for node in _tree.preorder_node_iter():
             self.node.append(node)
             self.order.append(node.order)
-            self.age.append(node.fix)
+            self.fix.append(node.fix)
         self.n = len(self.node)
 
         # Calculate high and low boundary for each node (top down).
@@ -140,7 +113,7 @@ class Array:
         for i in range(self.n):
             # These must be in ascending order:
             # low boundary < fixed age < high boundary
-            order = [self.low[i], self.age[i], self.high[i]]
+            order = [self.low[i], self.fix[i], self.high[i]]
             order = [i for i in filter(lambda x: x is not None, order)]
             if sorted(order) != order:
                 raise ValueError('Impossible boundaries for node {0}: {1}]'.
@@ -148,34 +121,26 @@ class Array:
             # If (existing) boundaries collide, make sure node age is a fixed value
             if all([self.low[i], self.high[i]]):
                 if self.high[i] == self.low[i]:
-                    self.age[i] = self.high[i]
+                    self.fix[i] = self.high[i]
+
 
         # Nodes without value are declared variables for finding
-        self.variable = []
-        self.map = []
-        self.unmap = []
-        self.v = 0
-        for i, a in enumerate(self.age):
-            if a is None:
-                self.variable.append(None)
-                self.map.append(i)
-                self.unmap.append(self.v)
-                self.v += 1
-            else:
-                self.unmap.append(None)
+        variable_index = [i for i, x in enumerate(self.fix) if x is None]
+        self.v = len(variable_index)
+        self.variable_index = np.array(variable_index, dtype=int)
+        self.variable = np.zeros(self.v, dtype=float)
+        self.time = np.array(self.fix, dtype=float)
+        self.time[self.variable_index] = self.variable
 
         # Check if the problem even exists
-        if self.v < 0:
+        if not self.v > 0:
             raise ValueError('Solution defined by constraints: {0}'.
-                format(self.age))
+                format(self.fix))
 
         # Get bounds for variables only
         self.bounds = []
-        for j in self.map:
+        for j in self.variable_index:
             self.bounds.append((self.low[j],self.high[j]))
-
-        # Keep rates here
-        self.rate = [None] * self.n
 
         # According to original code, either must be true for divergence:
         # - Root has fixed age
@@ -192,6 +157,9 @@ class Array:
         #! Might be a good idea to point that out.
 
         # Numpy Arrays
+
+        # Keep rates, root stays zero forever
+        self.rate = np.zeros(self.n, dtype=float)
 
         # Set branch lengths
         subs = [None]
@@ -217,16 +185,18 @@ class Array:
         self.root_not_parent_index = np.array(noroot, dtype=int)
         self.r = self.root_is_parent_index.size
 
-        self.solution_merge()
+        # Isolate indexes of low/high constrained nodes
+        constrained = []
+        for i, node in enumerate(_tree.preorder_node_iter()):
+            if node.max is not None or node.min is not None:
+                constrained.append(i)
+        self.constrained_index = np.array(constrained, dtype=int) # low/high
+        #! OR JUST TAKE ALL THE VARS
+        # self.constrained_index = np.array(self.map, dtype=int) # low/high/fixed
 
-        self.xtime = np.array(self.solution, dtype=float) # vars+fixed times
-        self.xvarid = np.array(self.map, dtype=int) #variable index
-        self.xvar = self.xtime[self.xvarid] # vars only, send this to minimi
-        self.xrate = np.zeros(self.n, dtype=float) # root rate stays zero forever
-
-        self.constrained_index = np.array(self.map, dtype=int) # all the vars
         self.constrained_low = np.array(self.low, dtype=float)[self.constrained_index] # -"-
         self.constrained_high = np.array(self.high, dtype=float)[self.constrained_index] # -"-
+
 
 
     def take(self):
@@ -235,9 +205,9 @@ class Array:
         """
         nsites = self._param.branch_length['nsites']
         for i in range(self.n):
-            self.node[i].age = self.solution[i]
+            self.node[i].age = self.time[i]
             #! PRETTY SURE this is wrong but have to match original....
-            self.node[i].rate = self.xrate[i]/nsites
+            self.node[i].rate = self.rate[i]/nsites
         return self._tree
 
     def guess(self):
@@ -253,7 +223,7 @@ class Array:
         variable = []
 
         # Start with the root if not fixed
-        if self.age[0] is None:
+        if self.fix[0] is None:
             if all((self.low[0], self.high[0])):
                 # Both boundaries exist, get a random point within
                 high = self.high[0]
@@ -284,7 +254,7 @@ class Array:
             # Child is never older than parent
             window[i] = apply_fun_to_list(min,
                 [window[i], window[self.parent_index[i]]])
-            if self.age[i] == None:
+            if self.fix[i] == None:
                 # This node is not fixed, assign a random valid age
                 high = window[i]
                 low = self.low[i]
@@ -304,11 +274,7 @@ class Array:
 
         # Return new guess.
         self.variable = variable
-
-        self.solution_merge()
-        #upd
-        self.xvar = np.array(self.variable, dtype=float)
-        self.xtime[self.xvarid] = self.xvar
+        self.time[self.variable_index] = self.variable
 
 
     def perturb(self):
@@ -328,7 +294,7 @@ class Array:
         for j in reversed(range(0,self.v)):
 
             # j counts variables, i counts everything
-            i = self.map[j]
+            i = self.variable_index[j]
             parent_position = self.parent_index[i]
 
             # Determine perturbation window first
@@ -338,7 +304,7 @@ class Array:
             # Catch root, it has no parent so ignore this from upper boundary
             #? Can possibly move this outside
             if self.parent_index[i] != i:
-                parent_age = self.solution[parent_position]
+                parent_age = self.time[parent_position]
             else:
                 parent_age = None
 
@@ -353,16 +319,13 @@ class Array:
             self.variable[j] = age
 
             # If parent is a variable, adjust its window
-            if self.age[parent_position] is None:
-                parent_variable = self.unmap[parent_position]
+            if self.fix[parent_position] is None:
+                parent_variable = np.where(self.variable_index == parent_position)[0][0]
                 window_current = window[parent_variable]
                 window_new = apply_fun_to_list(max, [age,window_current])
                 window[parent_variable] = window_new
 
-        self.solution_merge()
-        #upd
-        self.xvar = np.array(self.variable, dtype=float)
-        self.xtime[self.xvarid] = self.xvar
+        self.time[self.variable_index] = self.variable
 
 
 
@@ -487,12 +450,11 @@ class Analysis:
         array = self._array
 
         #? these can probably be moved downstairs? doesnt seem to make a diff
-        xtime = array.xtime
+        time = array.time
         parent_index = array.parent_index
-        xvarid = array.xvarid
-        xrate = array.xrate
+        variable_index = array.variable_index
+        rate = array.rate
         subs = array.subs
-        # xrootmask = array.xrootmask
         root_is_parent_index = array.root_is_parent_index
         root_not_parent_index = array.root_not_parent_index
         r = array.r
@@ -502,20 +464,20 @@ class Analysis:
             Ref Sanderson, Minimize neighbouring rates
             """
             # obj
-            xtime[xvarid] = x # put new vars inside time
+            time[variable_index] = x # put new vars inside time
 
-            xpartime = xtime[parent_index] # parent times
-            xdiftime = xpartime - xtime # time diff
+            xpartime = time[parent_index] # parent times
+            xdiftime = xpartime - time # time diff
             if xdiftime[xdiftime<=0][1:].size != 0: # ignore root
                 return largeval
-            xrate[1:] = subs[1:]/xdiftime[1:]
-            xparrate = xrate[parent_index]
-            xrateroot = xrate[root_is_parent_index]
-            sumrootrate = xrateroot.sum()
+            rate[1:] = subs[1:]/xdiftime[1:]
+            xparrate = rate[parent_index]
+            root_children_rate = rate[root_is_parent_index]
+            sumrootrate = root_children_rate.sum()
             sumrootrate *= sumrootrate
-            xrateroot *= xrateroot
-            sumrootratesquared = xrateroot.sum()
-            xdifrate = xrate-xparrate
+            root_children_rate *= root_children_rate
+            sumrootratesquared = root_children_rate.sum()
+            xdifrate = rate-xparrate
             xdifrate *= xdifrate
             xdifratemasked = xdifrate[root_not_parent_index]
             sumratesquared = xdifratemasked.sum()
@@ -531,7 +493,7 @@ class Analysis:
 
         largeval = self.param.general['largeval']
         array = self._array
-        xtime = array.xtime
+        time = array.time
         constrained_index = array.constrained_index
         constrained_high = array.constrained_high
         constrained_low = array.constrained_low
@@ -542,7 +504,7 @@ class Analysis:
             """
             # pen
 
-            xcons = xtime[constrained_index]
+            xcons = time[constrained_index]
             xl = xcons - constrained_low
             xh = constrained_high - xcons
             t = xh[(xl<0)|(xh<0)]
@@ -584,7 +546,7 @@ class Analysis:
             barrier_penalty = self._build_barrier_penalty()
 
             factor = self.param.barrier['initial_factor']
-            kept_value = objective(array.xvar)
+            kept_value = objective(array.variable)
 
             for b in range(self.param.barrier['max_iterations']):
 
@@ -592,13 +554,12 @@ class Analysis:
 
                 result = optimize.minimize(
                     lambda x: objective(x) + factor*barrier_penalty(x),
-                    array.xvar, method='Powell',
+                    array.variable, method='Powell',
                     options={'xtol':variable_tolerance,'ftol':function_tolerance})
 
-                array.variable = list(result.x)
-                array.xvar = np.array(result.x, dtype=float)
+                array.variable = np.array(result.x, dtype=float)
 
-                new_value = objective(array.xvar)
+                new_value = objective(array.variable)
 
                 if new_value == 0:
                     break
@@ -658,19 +619,17 @@ class Analysis:
             else:
                 raise ValueError('No implementation for algorithm: {0}'.format(self.param.algorithm))
 
-            print('\nLocal solution:\t {0:>12.4e}\n{1}\n'.format(new_min,array.solution))
+            print('\nLocal solution:\t {0:>12.4e}\n{1}\n'.format(new_min,array.time))
 
             kept_min = apply_fun_to_list(min, [kept_min, new_min])
             if kept_min == new_min:
-                kept_variable = array.xvar
-                kept_rate = array.xrate
+                kept_variable = array.variable
+                kept_rate = array.rate
 
         array.variable = kept_variable
-        array.xvar = kept_variable
+        array.time[array.variable_index] = kept_variable
         array.rate = kept_rate
-        array.xrate = kept_rate
-        array.solution_merge()
-        print('\nBest solution:\t {0:>12.4e}\n{1}\n'.format(kept_min,array.solution))
+        print('\nBest solution:\t {0:>12.4e}\n{1}\n'.format(kept_min,array.time))
         return kept_variable
 
 

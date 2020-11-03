@@ -475,18 +475,17 @@ class Analysis:
                 rate[1:] = np.log(rate[1:])
             rate_of_parent = rate[parent_index]
             rate_of_root_children = rate[root_is_parent_index]
-            sumrootrate = rate_of_root_children.sum()
-            sumrootrate *= sumrootrate
+            sum_root = rate_of_root_children.sum()
             rate_of_root_children *= rate_of_root_children
-            sumrootratesquared = rate_of_root_children.sum()
+            sum_root_squared = rate_of_root_children.sum()
             rate_difference = rate_of_parent-rate
             if exponent == 2:
                 rate_difference *= rate_difference
             else:
-                rate_difference = rate_difference ** exponent
+                rate_difference = np.absolute(rate_difference) ** exponent
             rate_difference_of_rest = rate_difference[root_not_parent_index]
-            sumratesquared = rate_difference_of_rest.sum()
-            w = (sumrootrate - sumrootratesquared/r)/r + sumratesquared
+            sum_rest = rate_difference_of_rest.sum()
+            w = (sum_root_squared - (sum_root*sum_root)/r)/r + sum_rest
             return w
 
         return objective_nprs

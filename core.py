@@ -442,9 +442,9 @@ class Analysis:
     ### Method function generators
 
     def _build_objective_nprs(self):
-        """Generate NPRS objective function"""
+        """Generate and return NPRS objective function"""
 
-        logarithmic = self.param.nprs['logarithmic'] #! NOT USED
+        # logarithmic = self.param.nprs['logarithmic'] #! NOT USED
         exponent = self.param.nprs['exponent'] #! NOT USED
         largeval = self.param.general['largeval']
         array = self._array
@@ -458,6 +458,14 @@ class Analysis:
         root_is_parent_index = array.root_is_parent_index
         root_not_parent_index = array.root_not_parent_index
         r = array.r
+
+        if exponent == 2:
+            def do_exponent(x):
+                x *= x
+        else:
+            def do_exponent(x):
+                x = x ** exponent
+
 
         def objective_nprs(x):
             """
@@ -478,7 +486,7 @@ class Analysis:
             root_children_rate *= root_children_rate
             sumrootratesquared = root_children_rate.sum()
             xdifrate = rate-xparrate
-            xdifrate *= xdifrate
+            do_exponent(xdifrate)
             xdifratemasked = xdifrate[root_not_parent_index]
             sumratesquared = xdifratemasked.sum()
             w = (sumrootrate - r*sumrootratesquared)/r + sumratesquared

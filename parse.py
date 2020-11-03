@@ -282,8 +282,8 @@ if __name__ == '__main__':
     a._array.guess()
     f=a._build_objective_nprs()
     p=a._build_barrier_penalty()
-    # timeit.timeit('f(a._array.xvar)',globals=globals(),number=10000)
-    # timeit.timeit('p(a._array.xvar)',globals=globals(),number=10000)
+    # timeit.timeit('f(a._array.variable)',globals=globals(),number=10000)
+    # timeit.timeit('p(a._array.variable)',globals=globals(),number=10000)
     # timeit.timeit('a.run()',globals=globals(),number=1)
 
     if False:

@@ -36,8 +36,8 @@ class Param:
             'tolerance': 0.0001,
             }
         self.nprs = {
-            'logarithmic': False,
-            'exponent': 2,
+            'logarithmic': False, #! NOT USED
+            'exponent': 2, #! NOT USED
             }
         self.powell = {
             'variable_tolerance': 1e-8,

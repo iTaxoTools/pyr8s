@@ -444,7 +444,7 @@ class Analysis:
     def _build_objective_nprs(self):
         """Generate and return NPRS objective function"""
 
-        # logarithmic = self.param.nprs['logarithmic'] #! NOT USED
+        logarithmic = self.param.nprs['logarithmic'] #! NOT USED
         exponent = self.param.nprs['exponent'] #! NOT USED
         largeval = self.param.general['largeval']
         array = self._array
@@ -459,14 +459,6 @@ class Analysis:
         root_not_parent_index = array.root_not_parent_index
         r = array.r
 
-        if exponent == 2:
-            def do_exponent(x):
-                x *= x
-        else:
-            def do_exponent(x):
-                x = x ** exponent
-
-
         def objective_nprs(x):
             """
             Ref Sanderson, Minimize neighbouring rates
@@ -474,24 +466,28 @@ class Analysis:
             # obj
             time[variable_index] = x # put new vars inside time
 
-            xpartime = time[parent_index] # parent times
-            xdiftime = xpartime - time # time diff
-            if xdiftime[xdiftime<=0][1:].size != 0: # ignore root
+            time_of_parent = time[parent_index] # parent times
+            time_difference = time_of_parent - time # time diff
+            if time_difference[time_difference<=0][1:].size != 0: # ignore root
                 return largeval
-            rate[1:] = subs[1:]/xdiftime[1:]
-            xparrate = rate[parent_index]
-            root_children_rate = rate[root_is_parent_index]
-            sumrootrate = root_children_rate.sum()
+            rate[1:] = subs[1:]/time_difference[1:]
+            if logarithmic:
+                rate[1:] = np.log(rate[1:])
+            rate_of_parent = rate[parent_index]
+            rate_of_root_children = rate[root_is_parent_index]
+            sumrootrate = rate_of_root_children.sum()
             sumrootrate *= sumrootrate
-            root_children_rate *= root_children_rate
-            sumrootratesquared = root_children_rate.sum()
-            xdifrate = rate-xparrate
-            do_exponent(xdifrate)
-            xdifratemasked = xdifrate[root_not_parent_index]
-            sumratesquared = xdifratemasked.sum()
-            w = (sumrootrate - r*sumrootratesquared)/r + sumratesquared
+            rate_of_root_children *= rate_of_root_children
+            sumrootratesquared = rate_of_root_children.sum()
+            rate_difference = rate_of_parent-rate
+            if exponent == 2:
+                rate_difference *= rate_difference
+            else:
+                rate_difference = rate_difference ** exponent
+            rate_difference_of_rest = rate_difference[root_not_parent_index]
+            sumratesquared = rate_difference_of_rest.sum()
+            w = (sumrootrate - sumrootratesquared/r)/r + sumratesquared
             return w
-            # return 0
 
         return objective_nprs
 

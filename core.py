@@ -52,7 +52,7 @@ def apply_fun_to_list(function, lista):
 
 
 ##############################################################################
-### Data Arrays
+### Data Representation and Manipulation
 
 class Array:
     """
@@ -78,7 +78,7 @@ class Array:
         persite = self._param.branch_length['persite']
         doround = self._param.branch_length['round']
 
-        # Ignore all constraints if scalar
+        # Ignore all constraints if scalar, fix root age to 1.0
         if scalar:
             for node in _tree.preorder_node_iter():
                 node.max = None
@@ -390,11 +390,17 @@ class RateAnalysisResults(dict):
             'Age': age,
             'Rate': rate,
             }
+        # chronogram: branch length corresponds to time duration
         self.chronogram = tree.clone(depth=1)
         for node in self.chronogram.preorder_node_iter_noroot():
             node.edge_length = node.parent_node.age - node.age
         self.chronogram.seed_node.edge_length = None
         extensions.strip(self.chronogram)
+        # ratogram: branch length correspond to absolute rates of substitutions
+        self.ratogram = tree.clone(depth=1)
+        for node in self.ratogram.preorder_node_iter():
+            node.edge_length = node.rate
+        extensions.strip(self.ratogram)
 
     def print(self, columns=None):
         if columns is None:

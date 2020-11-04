@@ -3,7 +3,7 @@
 
 """
 Parameter defaults for use by core.Analysis class.
-To be extended with helpstrings and ranges.
+To be extended with helpstrings and ranges for each variable.
 """
 
 class Param:
@@ -24,8 +24,7 @@ class Param:
         # Branch length formatting
         self.branch_length = {
             'persite': False,
-            'nsites': 1,
-            'round': True,
+            'round': True, # Always true or algorithms don't diverge somehow...
             }
         # Define the behaviour of manual barrier penalty
         self.barrier = {

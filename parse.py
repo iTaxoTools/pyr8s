@@ -3,6 +3,7 @@
 
 """
 Parse a NEXUS file and execute rate commands.
+Is a total mess right now.
 """
 
 import sys
@@ -25,18 +26,20 @@ def parse_rates(tokenizer, analysis):
         and not token==None:
         if token == 'BLFORMAT':
             token = tokenizer.require_next_token_ucase()
+            persite = None
+            nsites = None
             while not (token == ';'):
                 if token == 'NSITES':
                     token = parse_value(tokenizer)
                     print('* NSITES: {0}'.format(token))
-                    analysis.param.branch_length['nsites'] = int(token)
+                    nsites = int(token)
                 elif token == 'LENGTHS':
                     token = parse_value(tokenizer)
                     print('* LENGTHS: {0}'.format(token))
                     if token == 'TOTAL':
-                        analysis.param.branch_length['persite'] = False
+                        persite = False
                     elif token == 'PERSITE':
-                        analysis.param.branch_length['persite'] = True
+                        persite = True
                     else:
                         raise ValueError("BLFORMAT.LENGTHS: Unrecognised vale: '{}'".format(token))
                 elif token == 'ROUND':
@@ -51,6 +54,16 @@ def parse_rates(tokenizer, analysis):
                 else:
                     raise ValueError("BLFORMAT: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
+            if persite is None:
+                raise ValueError("BLFORMAT: Expected parameter LENGTHS not given.")
+            elif persite:
+                if nsites is None:
+                    raise ValueError("BLFORMAT: Expected parameter NSITES not given.")
+                else:
+                    analysis.param.branch_length['persite'] = nsites
+            elif not persite:
+                analysis.param.branch_length['persite'] = None
+
         elif token == 'COLLAPSE':
             print('Collapse is now automatic, no need to declare it.')
             tokenizer.skip_to_semicolon()
@@ -242,10 +255,10 @@ def parse_rates(tokenizer, analysis):
 
 
 def parse(file):
-    """First get the tree and create Analysis, then find and parse RATES commands"""
+    """First get the tree and create RateAnalysis, then find and parse RATES commands"""
     tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
     tree.print_plot()
-    analysis = core.Analysis(tree)
+    analysis = core.RateAnalysis(tree)
     file = open(file,'r')
     tokenizer = dendropy.dataio.nexusprocessing.NexusTokenizer(file)
     token = tokenizer.next_token_ucase()
@@ -300,8 +313,7 @@ if __name__ == '__main__':
         t.nodes()[5].fix = 200
 
         # This is how to use Analysis
-        a = core.Analysis(t)
-        a.param.branch_length['persite'] = True
-        a.param.branch_length['nsites'] = 100
+        a = core.RateAnalysis(t)
+        a.param.branch_length['persite'] = 100
         res = a.run()
         print(res)

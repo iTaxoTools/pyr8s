@@ -2,14 +2,36 @@
 # -*- coding: utf-8 -*-
 
 """
-Estimate Divergence Times
+pyr8s: Estimate Divergence Times
+
+This module calculates absolute rates of molecular evolution and
+divergence times on a phylogenetic tree. It is a partial python port
+of the "r8s" software: https://sourceforge.net/projects/r8s
+
+It implements Nonparametric Rate Smoothing (Sanderson 1997) using
+the Powell algorithm for finding a solution. Can easily be extended
+with more algorithms and methods.
+
+Start by creating an instance of the RateAnalysis class on a given tree.
+Set the various parameters and node calibration points. Run the analysis
+multiple times, changing parameters and calibrations as desired.
+
+Example:
+analysis = RateAnalysis(tree)
+analysis.param.general['scalar'] = True
+analysis.param.branch_length['persite'] = 100
+results = analysis.run()
+results.print()
+
+Quick use:
+RateAnalysis.quick(tree).print()
+
 """
 
 import dendropy
 import random
 import numpy as np
 import numpy.ma as ma
-
 from scipy import optimize
 from math import log
 
@@ -22,15 +44,10 @@ import params
 
 def apply_fun_to_list(function, lista):
     """
-    Used together with min and max to avoid comparing with None.
-    If lista only has Nones, return None.
+    Handle Nones when applying function to list
+    If list only has Nones, return None.
     """
-
-    # Previous solution also trimmed 0s, which we want to keep
-    # clean = list(filter(None, lista))
-    # return (function)(clean) if any(clean) else None
-
-    clean = list(i for i in filter(lambda x: x is not None, lista))
+    clean = list(filter(lambda x: x is not None, lista))
     return (function)(clean) if len(clean) else None
 
 
@@ -39,27 +56,26 @@ def apply_fun_to_list(function, lista):
 
 class Array:
     """
-    Contains all arrays needed by the optimization methods.
-    To be defined using numpy arrays if needed.
+    Contains all arrays and utilities required by the optimization methods.
+    Is used by the RateAnalysis class and views the same parameters.
     """
+
     def __init__(self, param):
-        # Bind new array options to caller
         self._param = param
         self._tree = None
 
     def make(self, tree):
         """
         Convert the given tree into arrays, preparing them for analysis.
-        The nodes are listed in preorder sequence.
+        Nodes are listed in preorder sequence.
+        Numpy Arrays are used for calculation intensive parts.
         """
-
         # Keep a copy of given tree to return later
         self._tree = tree.clone(depth=1)
         _tree = self._tree
 
         scalar = self._param.general['scalar']
         persite = self._param.branch_length['persite']
-        nsites = self._param.branch_length['nsites']
         doround = self._param.branch_length['round']
 
         # Ignore all constraints if scalar
@@ -74,12 +90,14 @@ class Array:
             _tree.seed_node.fix = 1.0
 
         # Calculate substitutions and trim afterwards
-        multiplier = nsites if persite == True else None
-        _tree.calc_subs(multiplier, doround)
+        _tree.calc_subs(persite, doround)
         _tree.collapse()
         _tree.index()
         _tree.order()
-        _tree.print_plot()
+        # _tree.print_plot()
+        if len(_tree.nodes()) < 2:
+            raise ValueError('Cannot continue since tree is just a root, ' +
+                'please check branch length parameters.')
 
         self.node = []
         self.order = []
@@ -122,7 +140,6 @@ class Array:
             if all([self.low[i], self.high[i]]):
                 if self.high[i] == self.low[i]:
                     self.fix[i] = self.high[i]
-
 
         # Nodes without value are declared variables for finding
         variable_index = [i for i, x in enumerate(self.fix) if x is None]
@@ -198,16 +215,16 @@ class Array:
         self.constrained_high = np.array(self.high, dtype=float)[self.constrained_index] # -"-
 
 
-
     def take(self):
         """
-        Return ultrametric tree with ages and local rates
+        Return a copy of the original tree with set ages and local rates.
         """
-        nsites = self._param.branch_length['nsites']
+        persite = self._param.branch_length['persite']
+        if persite is None: persite = 1
         for i in range(self.n):
             self.node[i].age = self.time[i]
             #! PRETTY SURE this is wrong but have to match original....
-            self.node[i].rate = self.rate[i]/nsites
+            self.node[i].rate = self.rate[i]/persite
         return self._tree
 
     def guess(self):
@@ -242,7 +259,7 @@ class Array:
                 # Find that and go higher still.
                 age = apply_fun_to_list(max, self.high)
                 if age is None: raise RuntimeError(
-                    'This will never diverge, should have been caught by make_array()!')
+                    'This will never diverge, should have been caught by make()!')
                 #? Even this might need to be randomised
                 age *= 1.25
             # Window gets narrower for children and root age is saved
@@ -273,7 +290,7 @@ class Array:
                 variable.append(age)
 
         # Return new guess.
-        self.variable = variable
+        self.variable[:] = variable
         self.time[self.variable_index] = self.variable
 
 
@@ -332,7 +349,7 @@ class Array:
 ##############################################################################
 ### Results
 
-class AnalysisResults(dict):
+class RateAnalysisResults(dict):
     """
     Bundle output here.
     """
@@ -409,7 +426,7 @@ class AnalysisResults(dict):
 ##############################################################################
 ### Analysis
 
-class Analysis:
+class RateAnalysis:
     """
     All the work happens here
     """
@@ -642,21 +659,42 @@ class Analysis:
         """
         if self.tree is None:
             raise ValueError('No tree to optimize.')
-        if len(self.tree.nodes()) < 1:
+        if len(self.tree.nodes()) < 2:
             raise ValueError('Tree must have at least one child.')
         self._array.make(self.tree)
         self._optimize()
         tree = self._array.take()
-        self._results = AnalysisResults(tree)
+        self._results = RateAnalysisResults(tree)
         return self._results
 
     @classmethod
-    def quick(cls, tree, scalar=True):
+    def quick(cls, tree, persite=None, scalar=True):
         """
-        Run analysis without setting constraints or params
-        ultrametric_tree = core.Analysis.quick(my_tree)
+        Run analysis without explicitly setting parameters and calibrations.
+
+        Parameters
+        ----------
+        tree : dendropy.Tree (or extensions.TreePlus)
+            The tree to be analysed.
+        persite : int
+            If |None|, branch length substitutions will be considered
+            given in total numbers. Set the persite parameter otherwise.
+        scalar : bool
+            If |True|, then do a scalar analysis by setting root age to 1.0.
+            If |False|, then assume the given tree is extended with all
+            calibrations needed for convergence.
+
+        Returns
+        -------
+        RateAnalysisResults
+            Contains output trees and tables.
+
+        Example
+        -------
+        RateAnalysis.quick(my_tree).print()
         """
         analysis = cls(tree)
         analysis.param.general['scalar'] = scalar
+        analysis.param.branch_length['persite'] = persite
         res = analysis.run()
-        return res.tree
+        return res

@@ -28,7 +28,7 @@ class Param:
             }
         # Define the behaviour of manual barrier penalty
         self.barrier = {
-            'manual': True, # True
+            'manual': True, # True, auto doesn't work
             'max_iterations': 10, #! 10
             'initial_factor': 0.25,
             'multiplier': 0.10,

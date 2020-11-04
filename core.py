@@ -190,17 +190,15 @@ class Array:
             self.parent_index.append(node.parent_node.index)
         self.parent_index = np.array(self.parent_index, dtype=int)
 
-        # Root children indexes and complimentary
-        root = []
-        noroot = []
-        for i in range(1,self.n):
-            if self.parent_index[i] == 0:
-                root.append(i)
-            else:
-                noroot.append(i)
-        self.root_is_parent_index = np.array(root, dtype=int)
-        self.root_not_parent_index = np.array(noroot, dtype=int)
-        self.r = self.root_is_parent_index.size
+        # Children indexes for each node plus compliment for root
+        children = [ [] for i in range(self.n)]
+        for node in range(1,self.n):
+            children[self.parent_index[node]].append(node)
+        self.children_index = [None] * self.n
+        for node in range(0,self.n):
+            self.children_index[node] = np.array(children[node], dtype=int)
+        parent_not_root = [i for i in range(self.n) if i not in self.children_index[0]]
+        self.parent_not_root = np.array(parent_not_root, dtype=int)
 
         # Isolate indexes of low/high constrained nodes
         constrained = []
@@ -467,8 +465,8 @@ class RateAnalysis:
     def _build_objective_nprs(self):
         """Generate and return NPRS objective function"""
 
-        logarithmic = self.param.nprs['logarithmic'] #! NOT USED
-        exponent = self.param.nprs['exponent'] #! NOT USED
+        logarithmic = self.param.nprs['logarithmic']
+        exponent = self.param.nprs['exponent']
         largeval = self.param.general['largeval']
         array = self._array
 
@@ -478,15 +476,17 @@ class RateAnalysis:
         variable_index = array.variable_index
         rate = array.rate
         subs = array.subs
-        root_is_parent_index = array.root_is_parent_index
-        root_not_parent_index = array.root_not_parent_index
-        r = array.r
+        root_is_parent_index = array.children_index[0]
+        parent_not_root = array.parent_not_root
+        r = array.children_index[0].size
 
         def objective_nprs(x):
             """
             Ref Sanderson, Minimize neighbouring rates
             """
             # obj
+            # with open('out.txt', 'w') as f:
+            #     print(x,file=f)
             time[variable_index] = x # put new vars inside time
 
             time_of_parent = time[parent_index] # parent times
@@ -506,12 +506,39 @@ class RateAnalysis:
                 rate_difference *= rate_difference
             else:
                 rate_difference = np.absolute(rate_difference) ** exponent
-            rate_difference_of_rest = rate_difference[root_not_parent_index]
+            rate_difference_of_rest = rate_difference[parent_not_root]
             sum_rest = rate_difference_of_rest.sum()
             w = (sum_root_squared - (sum_root*sum_root)/r)/r + sum_rest
             return w
 
         return objective_nprs
+
+    def _build_gradient_nprs(self):
+        """Generate and return NPRS gradient"""
+
+        logarithmic = self.param.nprs['logarithmic'] #! NOT USED
+        exponent = self.param.nprs['exponent'] #! NOT USED
+        largeval = self.param.general['largeval']
+        array = self._array
+
+        #? these can probably be moved downstairs? doesnt seem to make a diff
+        time = array.time
+        parent_index = array.parent_index
+        variable_index = array.variable_index
+        rate = array.rate
+        subs = array.subs
+        root_is_parent_index = array.children_index[0]
+        parent_not_root = array.parent_not_root
+        r = array.children_index[0].size
+
+        def gradient_nprs(x):
+            """
+            This should work...
+            """
+            rate_of_parent = rate[parent_index]
+            rate_difference = rate_of_parent - rate
+
+        return gradient_nprs
 
 
     def _build_barrier_penalty(self):
@@ -583,7 +610,7 @@ class RateAnalysis:
                     array.variable, method='Powell',
                     options={'xtol':variable_tolerance,'ftol':function_tolerance})
 
-                array.variable = np.array(result.x, dtype=float)
+                array.variable[:] = result.x
 
                 new_value = objective(array.variable)
 
@@ -602,10 +629,12 @@ class RateAnalysis:
         else:
                 result = optimize.minimize(objective, array.variable,
                     method='Powell', bounds=array.bounds,
-                    options={'xtol':variable_tolerance,'ftol':function_tolerance})
+                    options={'xtol':variable_tolerance,'ftol':function_tolerance,
+                    'return_all':True})
 
-                array.variable = list(result.x)
+                array.variable[:] = result.x
 
+        array.opt = result
         return result.fun
 
 

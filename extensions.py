@@ -43,8 +43,7 @@ class TreePlus(dendropy.Tree):
                 raise ValueError('Null length for node {0}'.
                     format(node.label))
             if length <= 0:
-                raise ValueError('Non-positive length for node {0}'.
-                    format(node.label))
+                length = 0
             if multiplier is not None:
                 length *= multiplier
             if doround == True:

@@ -10,6 +10,8 @@ import sys
 import dendropy
 import core
 
+_SEPARATOR = '-' * 50
+
 def parse_value(tokenizer):
     token = tokenizer.require_next_token_ucase()
     if token != '=':
@@ -51,6 +53,15 @@ def parse_rates(tokenizer, analysis):
                         analysis.param.branch_length['round'] = True
                     else:
                         raise ValueError("BLFORMAT.ROUND: Unrecognised vale: '{}'".format(token))
+                elif token == 'ULTRAMETRIC':
+                    token = parse_value(tokenizer)
+                    print('* ULTRAMETRIC: {0}'.format(token))
+                    if token == 'NO':
+                        pass
+                    elif token == 'YES':
+                        raise ValueError("BLFORMAT.ULTRAMETRIC: YES is not an option")
+                    else:
+                        raise ValueError("BLFORMAT.ULTRAMETRIC: Unrecognised vale: '{}'".format(token))
                 else:
                     raise ValueError("BLFORMAT: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
@@ -87,16 +98,17 @@ def parse_rates(tokenizer, analysis):
         elif token == 'FIXAGE':
             token = tokenizer.require_next_token_ucase()
             node, age = None, None
+            print('* FIXAGE:', end=' ')
             while not (token == ';'):
                 if token == 'TAXON':
                     token = parse_value(tokenizer)
-                    print('* TAXON: {0}'.format(token))
                     node = analysis.tree.find_node_with_taxon(
                         lambda x: x.label.upper() == token)
+                    print('TAXON={0}'.format(token), end=' ')
                 elif token == 'AGE':
                     token = parse_value(tokenizer)
-                    print('* AGE: {0}'.format(token))
                     age = int(token)
+                    print('AGE={0}'.format(token), end=' ')
                 else:
                     raise ValueError("FIXAGE: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
@@ -106,42 +118,46 @@ def parse_rates(tokenizer, analysis):
                 node.fix = node.age
             node.max = None
             node.min = None
+            print('')
         elif token == 'UNFIXAGE':
             token = tokenizer.require_next_token_ucase()
             node = None
+            print('* UNFIXAGE:', end=' ')
             while not (token == ';'):
                 if token == 'TAXON':
                     token = parse_value(tokenizer)
-                    print('* TAXON: {0}'.format(token))
                     node = analysis.tree.find_node_with_taxon(
                         lambda x: x.label.upper() == token)
+                    print('TAXON={0}'.format(token), end=' ')
                 else:
                     raise ValueError("UNFIXAGE: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
             node.fix = None
+            print('')
         elif token == 'CONSTRAIN':
             token = tokenizer.require_next_token_ucase()
             node, min, max = None, None, None
             all = False
+            print('* CONSTRAIN:', end=' ')
             while not (token == ';'):
                 if token == 'TAXON':
                     token = parse_value(tokenizer)
-                    print('* TAXON: {0}'.format(token))
                     node = analysis.tree.find_node_with_taxon(
                         lambda x: x.label.upper() == token)
+                    print('TAXON={0}'.format(token), end=' ')
                 elif token == 'MAX AGE' or token == 'MAXAGE':
                     token = parse_value(tokenizer)
-                    print('* MAX_AGE: {0}'.format(token))
                     if token != 'NONE':
                         max = int(token)
+                    print('MAX_AGE={0}'.format(token), end=' ')
                 elif token == 'MIN AGE' or token == 'MINAGE':
                     token = parse_value(tokenizer)
-                    print('* MIN_AGE: {0}'.format(token))
                     if token != 'NONE':
                         min = int(token)
+                    print('MIN_AGE={0}'.format(token), end=' ')
                 elif token == 'REMOVE':
                     token = parse_value(tokenizer)
-                    print('* REMOVE: {0}'.format(token))
+                    print('REMOVE={0}'.format(token), end=' ')
                     if token != 'ALL':
                         raise ValueError("CONSTRAIN.REMOVE: Expected 'all': '{}'".format(token))
                 else:
@@ -155,27 +171,30 @@ def parse_rates(tokenizer, analysis):
                 node.fix = None
                 node.max = max
                 node.min = min
+            print('')
         elif token == 'DIVTIME':
             token = tokenizer.require_next_token_ucase()
+            print(_SEPARATOR)
+            print('* DIVTIME:', end=' ')
             while not (token == ';'):
                 if token == 'METHOD':
                     token = parse_value(tokenizer)
-                    print('* METHOD: {0}'.format(token))
                     if token == 'NPRS' or token == 'NP':
                         analysis.param.method = 'nprs'
                     else:
                         raise ValueError("DIVTIME: Unrecognised method: '{}'".format(token))
+                    print('METHOD={0}'.format(token), end=' ')
                 elif token == 'ALGORITHM':
                     token = parse_value(tokenizer)
-                    print('* ALGORITHM: {0}'.format(token))
                     if token == 'POWELL' or token == 'PL':
                         analysis.param.algorithm = 'powell'
                     else:
                         raise ValueError("DIVTIME: Unrecognised algorithm: '{}'".format(token))
+                    print('ALGORITHM={0}'.format(token), end=' ')
                 else:
                     raise ValueError("DIVTIME: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
-            print('* DIVTIME: \n')
+            print('\n* BEGIN ANALYSIS: \n')
             results = analysis.run()
         elif token == 'SET':
             token = tokenizer.require_next_token_ucase()
@@ -220,9 +239,12 @@ def parse_rates(tokenizer, analysis):
                     raise ValueError("SET: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
         elif token == 'SHOWAGE':
-            #! print results
-            print('* {}'.format(token))
             tokenizer.skip_to_semicolon()
+            print('* SHOWAGE:')
+            if results is not None:
+                results.print()
+            else:
+                raise ValueError("SHOWAGE: Called before DIVTIME, nothing to show.")
         elif token == 'DESCRIBE':
             token = tokenizer.require_next_token_ucase()
             while not (token == ';'):
@@ -267,6 +289,7 @@ def parse_rates(tokenizer, analysis):
 def parse(file):
     """First get the tree and create RateAnalysis, then find and parse RATES commands"""
     tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
+    print("> TREE: from '{}'".format(file))
     tree.print_plot()
     analysis = core.RateAnalysis(tree)
     file = open(file,'r')
@@ -279,8 +302,9 @@ def parse(file):
         while token != None and token != 'BEGIN' and not tokenizer.is_eof():
             token = tokenizer.next_token_ucase()
         token = tokenizer.next_token_ucase()
-        if token == 'RATES':
-            print('RATES BLOCK FOUND!')
+        if token == 'RATES' or token=='R8S':
+            print('> RATES BLOCK:')
+            print(_SEPARATOR)
             parse_rates(tokenizer, analysis)
         else:
             while not (token == 'END' or token == 'ENDBLOCK') \
@@ -292,20 +316,17 @@ def parse(file):
 
 
 if __name__ == '__main__':
-    print('in main')
+    print(' ')
 
     if len(sys.argv) >=2:
-        print(str(sys.argv))
         a = parse(sys.argv[1])
-        if hasattr(a,'_results'):
-            a._results.print()
 
-    import timeit
-    a._array.make(a.tree)
-    a._array.guess()
-    f=a._build_objective_nprs()
-    g=a._build_gradient_nprs()
-    p=a._build_barrier_penalty()
+    # import timeit
+    # a._array.make(a.tree)
+    # a._array.guess()
+    # f=a._build_objective_nprs()
+    # g=a._build_gradient_nprs()
+    # p=a._build_barrier_penalty()
     # timeit.timeit('f(a._array.variable)',globals=globals(),number=10000)
     # timeit.timeit('p(a._array.variable)',globals=globals(),number=10000)
     # timeit.timeit('a.run()',globals=globals(),number=1)

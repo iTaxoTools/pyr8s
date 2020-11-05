@@ -1,0 +1,81 @@
+#NEXUS
+
+Begin trees;  [Treefile saved Wednesday, September 19, 2001  8:29 AM]
+[!
+>Data file = psaA-psbB.June2001
+>
+>Processing TREES block from file "ML3.A":
+>   Keeping: trees from file (replacing trees in memory)
+>   1 tree read from file
+>   1 tree now in memory
+]
+
+[Deleted Marchantia from phylogram]
+[0-length branches: Encephal - excluded with PRUNE command]
+
+tree PAUP_1 = [&U] ((((((((((((((((Acer:0.007394,Isomeris:0.019465):0,((Carya:0.009863,Fagus:0.009338):0.006802,Pisum:0.018429):0.003258):0.001493,(Enkianthus:0.024586,Nicotiana:0.009977):1.003e-08,Liquidambar:0.012394):0.002364,(Cocculus:0.012203,Coptis:0.010557):0.001872):0.001189,(Nelumbo:0.007828,Platanus:0.012564):0):0.001134,Pachysandra:0.013720):0.002248,Chloranthus:0.010720):0,((Asarum:0.016565,Saururus:0.006352):0.004043,(((Calycanthus:0.007654,(Hedycarya:0.011982,Persea:0.005146):0.001106):0.006678,(Eupomatia:0.006308,Magnolia:0.006627):0.000950):0.001298,Drimys:0.004258):0):0.001037):0,(Acorus:0.009512,(((Lilium:0.015281,(Oryza:0.011075,Zea:0.006008):0.022533):0.001303,Serenoa:0.004631):0.001020,Spathiphyllum:0.018897):0.002880):0.003092):0.002569,Austrobaileya:0.007946):0.001161,(Nuphar:0.002024,Nymphaea:0.005242):0.014194):0.004364,Amborella:0.010193):0.037794,(Cycas:0.006312,(Encephal:0,Zamia:0.004121):0.004244):0.010303):0.004007,((((Ephedra:0.032566,(Gnetum:0.044393,Welwitschia:0.019575):0.007003):0.032054,(((Abies:0.022730,Cedrus:0.009825):0.005455,Picea:0.005549):0.008600,((Pinus_par:0.002975,Pinus_str:0.017394):0.001050,Pinus_thu:0.013902):0.002509):0.010850):0.013598,((Araucaria:0.008982,(Phyllocladus:0.006038,Podocarpus:0.004505):0.008452):0.006408,(((Cryptomeria:0.005139,(Cupressus:0.001433,Juniperus:0.005783):0.008696):0.006641,Sequoia:0.002231):0.007440,(Taxus:0.019503,Torreya:0.004378):0.002000):0.004962):0.000165):0.003259,Ginkgo:0.013020):0.003000):0.029181,(((((Adiantum:0.037759,Asplenium:0.036116):0.010736,Marsilea:0.030815):0.051973,Angiopteris:0.022184):0.000845,(Ophioglossum:0.047007,Psilotum:0.039801):0.013213):0,Equisetum:0.059658):0.014902):0.007426,Huperzia:0.039661);
+End;
+
+
+BEGIN r8s;
+
+BLFORMAT lengths=persite nsites=1440 ultrametric=no;
+
+COLLAPSE;
+
+PRUNE taxon=Encephal;
+
+MRCA VP Huperzia Fagus;
+MRCA PTE Equisetum Asplenium;
+MRCA FER Angiopteris Asplenium;
+MRCA SP Ginkgo Ephedra Picea Araucaria Taxus Cycas Amborella Fagus;
+MRCA GNE Ephedra Welwitschia;
+MRCA APP Araucaria Podocarpus;
+MRCA TAX Taxus Juniperus;
+MRCA CYC Cycas Zamia;
+MRCA ANGIOS Amborella Fagus;
+MRCA NYM Nuphar Austrobaileya Acorus Calycanthus Fagus;
+MRCA CLA Calycanthus Persea;
+MRCA LAU Hedycarya Persea;
+MRCA EUDI Pachysandra Nelumbo Coptis Fagus;
+MRCA PLN Platanus Nelumbo;
+MRCA AST Enkianthus Nicotiana;
+MRCA NOR Carya Fagus;
+
+
+FIXAGE taxon=EUDI age=120;
+FIXAGE taxon=VP age=420;
+FIXAGE taxon=SP age=325;
+
+
+
+CONSTRAIN taxon=PTE min_age=370;
+CONSTRAIN taxon=FER min_age=315;
+CONSTRAIN taxon=GNE min_age=115;
+CONSTRAIN taxon=APP min_age=235;
+CONSTRAIN taxon=TAX min_age=200;
+CONSTRAIN taxon=CYC min_age=220;
+CONSTRAIN taxon=NYM min_age=121;
+CONSTRAIN taxon=CLA min_age=109;
+CONSTRAIN taxon=LAU min_age=109;
+CONSTRAIN taxon=PLN min_age=109;
+CONSTRAIN taxon=AST min_age=91;
+CONSTRAIN taxon=NOR min_age=96;
+
+[set penalty=log smoothing=100;]
+DIVTIME method=np algorithm=pl;
+showage shownamed=yes;
+[
+rrlike taxon=vp;
+rrlike taxon=ast;
+
+
+set checkgradient=yes smoothing=100;
+divtime method=pl algorithm=tn;
+showage;
+
+set penalty=add checkgradient=no;
+DIVTIME method=PL fossilconstrained=yes crossv=yes cvstart=0 cvinc=0.50 cvnum=6 algorithm=tn;
+DIVTIME method=PL fossilfixed=yes crossv=yes cvstart=0 cvinc=0.50 cvnum=6 algorithm=tn;
+]
+END;

@@ -92,6 +92,8 @@ class Array:
         # Calculate substitutions and trim afterwards
         _tree.calc_subs(persite, doround)
         _tree.collapse()
+        # print('HERE GOES',persite,doround)
+        # _tree.print_plot()
         _tree.index()
         _tree.order()
         # _tree.print_plot()
@@ -627,9 +629,11 @@ class RateAnalysis:
             factor = self.param.barrier['initial_factor']
             kept_value = objective(array.variable)
 
+            print('Barrier iterations: ', end ='', flush=True)
+
             for b in range(self.param.barrier['max_iterations']):
 
-                print('Barrier iteration: {0}'.format(b))
+                print('{0}...'.format(b), end ='', flush=True)
 
                 result = optimize.minimize(
                     lambda x: objective(x) + factor*barrier_penalty(x),
@@ -700,7 +704,7 @@ class RateAnalysis:
             else:
                 raise ValueError('No implementation for algorithm: {0}'.format(self.param.algorithm))
 
-            print('\nLocal solution:\t {0:>12.4e}\n{1}\n'.format(new_min,array.time))
+            print('\nLocal solution:\t {0:>12.4e}\n'.format(new_min))
 
             kept_min = apply_fun_to_list(min, [kept_min, new_min])
             if kept_min == new_min:
@@ -710,7 +714,7 @@ class RateAnalysis:
         array.variable = kept_variable
         array.time[array.variable_index] = kept_variable
         array.rate = kept_rate
-        print('\nBest solution:\t {0:>12.4e}\n{1}\n'.format(kept_min,array.time))
+        print('\nBest solution:\t {0:>12.4e}\n'.format(kept_min))
         return kept_variable
 
 

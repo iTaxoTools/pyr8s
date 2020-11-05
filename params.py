@@ -18,7 +18,7 @@ class Param:
         self.general = {
             'perturb_factor': 0.01,
             'scalar': False, # force root age at 1.0
-            'number_of_guesses': 2, #! 10 how many times to solve the problem
+            'number_of_guesses': 1, #! 10 how many times to solve the problem
             'largeval': 1e30, # For clamping
             }
         # Branch length formatting

@@ -445,7 +445,7 @@ class RateAnalysis:
     #? Consider locking attributes with __slots__ or @dataclass
 
     def __init__(self, tree=None):
-        random.seed(1) #! remove the 1 later !!!!
+        random.seed()
         self.param = params.Param()
         self._array = Array(self.param)
         if tree is None:

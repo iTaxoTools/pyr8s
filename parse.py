@@ -65,7 +65,10 @@ def parse_rates(tokenizer, analysis):
                 analysis.param.branch_length['persite'] = None
 
         elif token == 'COLLAPSE':
-            print('Collapse is now automatic, no need to declare it.')
+            print('* COLLAPSE: automatic')
+            tokenizer.skip_to_semicolon()
+        elif token == 'PRUNE':
+            print('* PRUNE: automatic')
             tokenizer.skip_to_semicolon()
         elif token == 'MRCA':
             ancestor = tokenizer.require_next_token()
@@ -76,8 +79,11 @@ def parse_rates(tokenizer, analysis):
                 and not token==None:
                 children.append(token)
                 token = tokenizer.require_next_token()
-            analysis.tree.label_mrca(ancestor, children)
-            print("Named the mrca '{0}' of {1}.".format(ancestor,children))
+            try:
+                analysis.tree.label_mrca(ancestor, children)
+            except KeyError:
+                raise ValueError("MRCA: Invalid children: {}".format(children))
+            print("* MRCA: '{0}' of {1}.".format(ancestor,children))
         elif token == 'FIXAGE':
             token = tokenizer.require_next_token_ucase()
             node, age = None, None
@@ -85,7 +91,8 @@ def parse_rates(tokenizer, analysis):
                 if token == 'TAXON':
                     token = parse_value(tokenizer)
                     print('* TAXON: {0}'.format(token))
-                    node = analysis.tree.find_node_with_taxon_label(token)
+                    node = analysis.tree.find_node_with_taxon(
+                        lambda x: x.label.upper() == token)
                 elif token == 'AGE':
                     token = parse_value(tokenizer)
                     print('* AGE: {0}'.format(token))
@@ -106,7 +113,8 @@ def parse_rates(tokenizer, analysis):
                 if token == 'TAXON':
                     token = parse_value(tokenizer)
                     print('* TAXON: {0}'.format(token))
-                    node = analysis.tree.find_node_with_taxon_label(token)
+                    node = analysis.tree.find_node_with_taxon(
+                        lambda x: x.label.upper() == token)
                 else:
                     raise ValueError("UNFIXAGE: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
@@ -119,13 +127,14 @@ def parse_rates(tokenizer, analysis):
                 if token == 'TAXON':
                     token = parse_value(tokenizer)
                     print('* TAXON: {0}'.format(token))
-                    node = analysis.tree.find_node_with_taxon_label(token)
-                elif token == 'MAX_AGE' or token == 'MAXAGE':
+                    node = analysis.tree.find_node_with_taxon(
+                        lambda x: x.label.upper() == token)
+                elif token == 'MAX AGE' or token == 'MAXAGE':
                     token = parse_value(tokenizer)
                     print('* MAX_AGE: {0}'.format(token))
                     if token != 'NONE':
                         max = int(token)
-                elif token == 'MIN_AGE' or token == 'MINAGE':
+                elif token == 'MIN AGE' or token == 'MINAGE':
                     token = parse_value(tokenizer)
                     print('* MIN_AGE: {0}'.format(token))
                     if token != 'NONE':
@@ -166,6 +175,7 @@ def parse_rates(tokenizer, analysis):
                 else:
                     raise ValueError("DIVTIME: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
+            print('* DIVTIME: \n')
             results = analysis.run()
         elif token == 'SET':
             token = tokenizer.require_next_token_ucase()

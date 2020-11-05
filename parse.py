@@ -294,6 +294,7 @@ if __name__ == '__main__':
     a._array.make(a.tree)
     a._array.guess()
     f=a._build_objective_nprs()
+    g=a._build_gradient_nprs()
     p=a._build_barrier_penalty()
     # timeit.timeit('f(a._array.variable)',globals=globals(),number=10000)
     # timeit.timeit('p(a._array.variable)',globals=globals(),number=10000)

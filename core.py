@@ -178,6 +178,10 @@ class Array:
         # Keep rates, root stays zero forever
         self.rate = np.zeros(self.n, dtype=float)
 
+
+        # Keep gradient
+        self.gradient = np.zeros(self.n, dtype=float)
+
         # Set branch lengths
         subs = [None]
         for node in _tree.preorder_node_iter_noroot():
@@ -199,6 +203,10 @@ class Array:
             self.children_index[node] = np.array(children[node], dtype=int)
         parent_not_root = [i for i in range(self.n) if i not in self.children_index[0]]
         self.parent_not_root = np.array(parent_not_root, dtype=int)
+        variable_not_root = [i for i in variable_index if i not in self.children_index[0]]
+        variable_to_root = [i for i in variable_index if i in self.children_index[0]]
+        self.variable_not_root = np.array(variable_not_root, dtype=int)
+        self.variable_to_root = np.array(variable_to_root, dtype=int)
 
         # Isolate indexes of low/high constrained nodes
         constrained = []
@@ -484,7 +492,6 @@ class RateAnalysis:
             """
             Ref Sanderson, Minimize neighbouring rates
             """
-            # obj
             # with open('out.txt', 'w') as f:
             #     print(x,file=f)
             time[variable_index] = x # put new vars inside time
@@ -492,7 +499,7 @@ class RateAnalysis:
             time_of_parent = time[parent_index] # parent times
             time_difference = time_of_parent - time # time diff
             if time_difference[time_difference<=0][1:].size != 0: # ignore root
-                return largeval
+                return largeval # parent younger than child
             rate[1:] = subs[1:]/time_difference[1:]
             if logarithmic:
                 rate[1:] = np.log(rate[1:])
@@ -527,16 +534,35 @@ class RateAnalysis:
         variable_index = array.variable_index
         rate = array.rate
         subs = array.subs
+        children_index = array.children_index
         root_is_parent_index = array.children_index[0]
         parent_not_root = array.parent_not_root
         r = array.children_index[0].size
+        rate_derivative = np.zeros(array.n,dtype=float)
+        variable_not_root = array.variable_not_root
+        variable_to_root = array.variable_to_root
+        gradient = array.gradient #! is size n, should be size v maybe?
 
         def gradient_nprs(x):
             """
-            This should work...
+            This should work... For exp=2,log=no
             """
+            time[variable_index] = x # put new vars inside time
+            time_of_parent = time[parent_index]
             rate_of_parent = rate[parent_index]
+            time_difference = time_of_parent - time
             rate_difference = rate_of_parent - rate
+            # if time_difference[time_difference<=0][1:].size != 0: # ignore root
+            #     return [largeval] # parent younger than child
+            time_difference *= time_difference
+            rate_derivative[1:] = subs[1:]/time_difference[1:]
+            rate_derivative_of_parent = rate_derivative[parent_index]
+            rate_derivative_diff = rate_derivative_of_parent + rate_derivative
+            rate_derivative_perplexed = rate_difference * rate_derivative_diff
+            for i in variable_not_root:
+                gradient[i] = (-2) * rate_difference[i] * rate_derivative[i] + \
+                    2 * rate_derivative_perplexed[children_index[i]].sum()
+            return gradient
 
         return gradient_nprs
 

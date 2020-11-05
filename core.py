@@ -521,7 +521,7 @@ class RateAnalysis:
         return objective_nprs
 
     def _build_gradient_nprs(self):
-        """Generate and return NPRS gradient"""
+        """THIS DOESN'T WORK"""
 
         logarithmic = self.param.nprs['logarithmic'] #! NOT USED
         exponent = self.param.nprs['exponent'] #! NOT USED
@@ -545,7 +545,7 @@ class RateAnalysis:
 
         def gradient_nprs(x):
             """
-            This should work... For exp=2,log=no
+            THIS STILL DOESN'T WORK... For exp=2,log=no
             """
             time[variable_index] = x # put new vars inside time
             time_of_parent = time[parent_index]

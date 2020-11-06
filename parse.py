@@ -6,7 +6,6 @@ Parse a NEXUS file and execute rate commands.
 Is a total mess right now.
 """
 
-import sys
 import dendropy
 import core
 
@@ -314,20 +313,3 @@ def parse(file):
                 tokenizer.skip_to_semicolon()
                 token = tokenizer.next_token_ucase()
     return analysis
-
-
-if __name__ == '__main__':
-    print(' ')
-
-    if len(sys.argv) >=2:
-        a = parse(sys.argv[1])
-
-    # import timeit
-    # a._array.make(a.tree)
-    # a._array.guess()
-    # f=a._build_objective_nprs()
-    # g=a._build_gradient_nprs()
-    # p=a._build_barrier_penalty()
-    # timeit.timeit('f(a._array.variable)',globals=globals(),number=10000)
-    # timeit.timeit('p(a._array.variable)',globals=globals(),number=10000)
-    # timeit.timeit('a.run()',globals=globals(),number=1)

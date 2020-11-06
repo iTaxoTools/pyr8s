@@ -57,7 +57,7 @@ constrain taxon=EUD max_age=125;
 constrain taxon=SP max_age=330;
 
 unfixage taxon=lp;
-
+set num_time_guesses=3 MAXBARRIERITER=15;
 divtime method=np algorithm=pl;
 showage;
 

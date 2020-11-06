@@ -50,6 +50,11 @@ def apply_fun_to_list(function, lista):
     clean = list(filter(lambda x: x is not None, lista))
     return (function)(clean) if len(clean) else None
 
+def print_tree(tree):
+    """Quick method to print the tree"""
+    tree.print_plot(show_internal_node_labels=True)
+
+
 
 ##############################################################################
 ### Data Representation and Manipulation
@@ -180,7 +185,6 @@ class Array:
         # Keep rates, root stays zero forever
         self.rate = np.zeros(self.n, dtype=float)
 
-
         # Keep gradient
         self.gradient = np.zeros(self.n, dtype=float)
 
@@ -220,7 +224,9 @@ class Array:
         # self.constrained_index = np.array(self.map, dtype=int) # low/high/fixed
 
         self.constrained_low = np.array(self.low, dtype=float)[self.constrained_index] # -"-
+        np.nan_to_num(self.constrained_low, nan=-np.inf, copy=False)
         self.constrained_high = np.array(self.high, dtype=float)[self.constrained_index] # -"-
+        np.nan_to_num(self.constrained_high, nan=np.inf, copy=False)
 
 
     def take(self):
@@ -342,6 +348,7 @@ class Array:
             age = random.uniform(low,high)
 
             self.variable[j] = age
+            self.time[i] = age
 
             # If parent is a variable, adjust its window
             if self.fix[parent_position] is None:
@@ -349,9 +356,6 @@ class Array:
                 window_current = window[parent_variable]
                 window_new = apply_fun_to_list(max, [age,window_current])
                 window[parent_variable] = window_new
-
-        self.time[self.variable_index] = self.variable
-
 
 
 ##############################################################################
@@ -447,7 +451,7 @@ class RateAnalysis:
     #? Consider locking attributes with __slots__ or @dataclass
 
     def __init__(self, tree=None):
-        random.seed()
+        random.seed(1) #! REMOVE THE 1
         self.param = params.Param()
         self._array = Array(self.param)
         if tree is None:
@@ -494,13 +498,13 @@ class RateAnalysis:
             """
             Ref Sanderson, Minimize neighbouring rates
             """
-            # with open('out.txt', 'w') as f:
-            #     print(x,file=f)
             time[variable_index] = x # put new vars inside time
 
             time_of_parent = time[parent_index] # parent times
             time_difference = time_of_parent - time # time diff
             if time_difference[time_difference<=0][1:].size != 0: # ignore root
+                # with open('out.txt', 'a') as f:
+                #     print('W = INF for X = \n{0}'.format(x),file=f)
                 return largeval # parent younger than child
             rate[1:] = subs[1:]/time_difference[1:]
             if logarithmic:
@@ -518,55 +522,59 @@ class RateAnalysis:
             rate_difference_of_rest = rate_difference[parent_not_root]
             sum_rest = rate_difference_of_rest.sum()
             w = (sum_root_squared - (sum_root*sum_root)/r)/r + sum_rest
+            # with open('out.txt', 'a') as f:
+            #     print('W = {0} for X = \n{1}'.format(w,x),file=f)
+            #     with open('out.txt', 'a') as f:
+            #         print('Time[34] = {0} with max {1}'.format(time[34],array.high[34]),file=f)
             return w
 
         return objective_nprs
 
-    def _build_gradient_nprs(self):
-        """THIS DOESN'T WORK"""
-
-        logarithmic = self.param.nprs['logarithmic'] #! NOT USED
-        exponent = self.param.nprs['exponent'] #! NOT USED
-        largeval = self.param.general['largeval']
-        array = self._array
-
-        #? these can probably be moved downstairs? doesnt seem to make a diff
-        time = array.time
-        parent_index = array.parent_index
-        variable_index = array.variable_index
-        rate = array.rate
-        subs = array.subs
-        children_index = array.children_index
-        root_is_parent_index = array.children_index[0]
-        parent_not_root = array.parent_not_root
-        r = array.children_index[0].size
-        rate_derivative = np.zeros(array.n,dtype=float)
-        variable_not_root = array.variable_not_root
-        variable_to_root = array.variable_to_root
-        gradient = array.gradient #! is size n, should be size v maybe?
-
-        def gradient_nprs(x):
-            """
-            THIS STILL DOESN'T WORK... For exp=2,log=no
-            """
-            time[variable_index] = x # put new vars inside time
-            time_of_parent = time[parent_index]
-            rate_of_parent = rate[parent_index]
-            time_difference = time_of_parent - time
-            rate_difference = rate_of_parent - rate
-            # if time_difference[time_difference<=0][1:].size != 0: # ignore root
-            #     return [largeval] # parent younger than child
-            time_difference *= time_difference
-            rate_derivative[1:] = subs[1:]/time_difference[1:]
-            rate_derivative_of_parent = rate_derivative[parent_index]
-            rate_derivative_diff = rate_derivative_of_parent + rate_derivative
-            rate_derivative_perplexed = rate_difference * rate_derivative_diff
-            for i in variable_not_root:
-                gradient[i] = (-2) * rate_difference[i] * rate_derivative[i] + \
-                    2 * rate_derivative_perplexed[children_index[i]].sum()
-            return gradient
-
-        return gradient_nprs
+    # def _build_gradient_nprs(self):
+    #     """THIS DOESN'T WORK"""
+    #
+    #     logarithmic = self.param.nprs['logarithmic'] #! NOT USED
+    #     exponent = self.param.nprs['exponent'] #! NOT USED
+    #     largeval = self.param.general['largeval']
+    #     array = self._array
+    #
+    #     #? these can probably be moved downstairs? doesnt seem to make a diff
+    #     time = array.time
+    #     parent_index = array.parent_index
+    #     variable_index = array.variable_index
+    #     rate = array.rate
+    #     subs = array.subs
+    #     children_index = array.children_index
+    #     root_is_parent_index = array.children_index[0]
+    #     parent_not_root = array.parent_not_root
+    #     r = array.children_index[0].size
+    #     rate_derivative = np.zeros(array.n,dtype=float)
+    #     variable_not_root = array.variable_not_root
+    #     variable_to_root = array.variable_to_root
+    #     gradient = array.gradient #! is size n, should be size v maybe?
+    #
+    #     def gradient_nprs(x):
+    #         """
+    #         THIS STILL DOESN'T WORK... For exp=2,log=no
+    #         """
+    #         time[variable_index] = x # put new vars inside time
+    #         time_of_parent = time[parent_index]
+    #         rate_of_parent = rate[parent_index]
+    #         time_difference = time_of_parent - time
+    #         rate_difference = rate_of_parent - rate
+    #         # if time_difference[time_difference<=0][1:].size != 0: # ignore root
+    #         #     return [largeval] # parent younger than child
+    #         time_difference *= time_difference
+    #         rate_derivative[1:] = subs[1:]/time_difference[1:]
+    #         rate_derivative_of_parent = rate_derivative[parent_index]
+    #         rate_derivative_diff = rate_derivative_of_parent + rate_derivative
+    #         rate_derivative_perplexed = rate_difference * rate_derivative_diff
+    #         for i in variable_not_root:
+    #             gradient[i] = (-2) * rate_difference[i] * rate_derivative[i] + \
+    #                 2 * rate_derivative_perplexed[children_index[i]].sum()
+    #         return gradient
+    #
+    #     return gradient_nprs
 
 
     def _build_barrier_penalty(self):
@@ -585,14 +593,15 @@ class RateAnalysis:
             """
             # pen
 
-            xcons = time[constrained_index]
-            xl = xcons - constrained_low
-            xh = constrained_high - xcons
-            t = xh[(xl<0)|(xh<0)]
-            if t.size != 0:
+            constrained_variables = time[constrained_index]
+            low_difference = constrained_variables - constrained_low
+            high_difference = constrained_high - constrained_variables
+            # indexing like this is faster than getting the bool results
+            barrier_crossed = high_difference[(low_difference<0)|(high_difference<0)]
+            if barrier_crossed.size != 0:
                 return largeval
-            xa = 1/xl + 1/xh
-            return xa.sum()
+            penaly = 1/low_difference + 1/high_difference
+            return penaly.sum()
 
         return barrier_penalty
 
@@ -633,7 +642,9 @@ class RateAnalysis:
 
             for b in range(self.param.barrier['max_iterations']):
 
-                print('{0}...'.format(b), end ='', flush=True)
+                print('{0}...'.format(b+1), end ='', flush=True)
+                # with open('out.txt', 'a') as f:
+                #     print('NEW ITERATION: {}'.format(b),file=f)
 
                 result = optimize.minimize(
                     lambda x: objective(x) + factor*barrier_penalty(x),
@@ -655,6 +666,9 @@ class RateAnalysis:
                     kept_value = new_value
                     factor *= self.param.barrier['multiplier']
                     self._array.perturb()
+                    # with open('out.txt', 'a') as f:
+                    #     print('PERTURB CHECK: {}'.format(objective(array.variable)),file=f)
+
 
         else:
                 result = optimize.minimize(objective, array.variable,
@@ -666,14 +680,6 @@ class RateAnalysis:
 
         array.opt = result
         return result.fun
-
-
-    ##########################################################################
-    ### Utility
-
-    def print_tree(self):
-        """Quick method to print the tree"""
-        self.tree.print_plot(show_internal_node_labels=True)
 
 
     ##########################################################################
@@ -691,12 +697,13 @@ class RateAnalysis:
         kept_min = None
         kept_variable = None
         kept_rate = None
+        number_of_guesses = self.param.general['number_of_guesses']
 
-        for g in range(self.param.general['number_of_guesses']):
+        for g in range(number_of_guesses):
 
             self._array.guess()
 
-            print('Guess {0}: {1}\n'.format(g, array.variable))
+            print('Guess {0}/{1}: \n{2}\n'.format(g+1, number_of_guesses, array.variable))
 
             # Call the appropriate optimization method
             if hasattr(self, '_algorithm_' + self.param.algorithm):
@@ -722,6 +729,8 @@ class RateAnalysis:
         """
         This is the only thing the user needs to run.
         """
+        # with open('out.txt', 'w') as f:
+        #     print('BEGIN RUN',file=f)
         if self.tree is None:
             raise ValueError('No tree to optimize.')
         if len(self.tree.nodes()) < 2:

@@ -257,18 +257,19 @@ def parse_rates(tokenizer, analysis):
                         print('* {}'.format(token))
                         pass
                     if token == 'CHRONOGRAM':
-                        print('* {}'.format(token))
-                        pass
+                        print('* {} (unweighted branches):'.format(token))
+                        core.print_tree(results.chronogram)
                     if token == 'RATOGRAM':
                         print('* {}'.format(token))
                         pass
-                    if token == 'TREE_DESCRIPTION':
+                    if token == 'TREE DESCRIPTION':
+                        print('* {}:'.format(token))
+                        print(results.chronogram.as_string(
+                            schema="newick",suppress_internal_node_labels=True))
+                    if token == 'PHYLO DESCRIPTION':
                         print('* {}'.format(token))
                         pass
-                    if token == 'PHYLO_DESCRIPTION':
-                        print('* {}'.format(token))
-                        pass
-                    if token == 'RATO_DESCRIPTION':
+                    if token == 'RATO DESCRIPTION':
                         print('* {}'.format(token))
                         pass
                 elif token == 'PLOTWIDTH':
@@ -330,22 +331,3 @@ if __name__ == '__main__':
     # timeit.timeit('f(a._array.variable)',globals=globals(),number=10000)
     # timeit.timeit('p(a._array.variable)',globals=globals(),number=10000)
     # timeit.timeit('a.run()',globals=globals(),number=1)
-
-    if False:
-        # Somehow get tree
-        s = "(A:10,(B:9,(C:8,(D:7,E:6))H):4)V:3;"
-        s = "(A:10,(B:9,(C:8,(D:7,:6))H):4):3;"
-        # Force internal nodes as taxa, would have been labels otherwise
-        t = dendropy.Tree.get_from_string(s, "newick", suppress_internal_node_taxa=False)
-        t.is_rooted = True
-        t.seed_node.max = 510
-        t.seed_node.min = 490
-        t.nodes()[2].min = 90
-        t.nodes()[2].max = 400
-        t.nodes()[5].fix = 200
-
-        # This is how to use Analysis
-        a = core.RateAnalysis(t)
-        a.param.branch_length['persite'] = 100
-        res = a.run()
-        print(res)

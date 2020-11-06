@@ -456,7 +456,7 @@ class RateAnalysisResults(dict):
                 value = self.table[column][index]
                 row += formats[column].format(value)
             print('{}\t'.format(row))
-        print('\n')
+        print('')
 
 
 ##############################################################################

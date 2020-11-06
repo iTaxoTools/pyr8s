@@ -12,14 +12,14 @@ import dendropy
 
 class TreePlus(dendropy.Tree):
 
-    def collapse(self, warn=True):
+    def collapse(self, throw=False):
         """
         Remove edges with zero length.
         Prints warning or raises error depending on flag.
         """
         collapsed_constraints = self._collapse_inner()
         if collapsed_constraints != []:
-            if warn:
+            if not throw:
                 print('WARNING: Collapsed nodes with constraints:')
                 for n in collapsed_constraints:
                     print('* {0}: fix={1}, min={2}, max={3}'.format(n.taxon.label, n.fix, n.min, n.max))

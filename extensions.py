@@ -12,26 +12,63 @@ import dendropy
 
 class TreePlus(dendropy.Tree):
 
-    def collapse(self):
+    def collapse(self, warn=True):
         """
-        Remove edges with zero length
+        Remove edges with zero length.
+        Prints warning or raises error depending on flag.
         """
+        collapsed_constraints = self._collapse_inner()
+        if collapsed_constraints != []:
+            if warn:
+                print('WARNING: Collapsed nodes with constraints:')
+                for n in collapsed_constraints:
+                    print('* {0}: fix={1}, min={2}, max={3}'.format(n.taxon.label, n.fix, n.min, n.max))
+                print('')
+            else:
+                raise RuntimeError('Collapsed nodes with constraints: {}'.
+                    format(collapsed_constraints))
 
-        # Collect nodes for deletion
+    def _collapse_inner(self):
+        """
+        Remove edges with zero length.
+        Return a list with any constrained nodes that were pruned.
+        """
         remove = []
+        collapsed_constraints = []
 
         # Children before parent, ensures removal is done in proper order
         for node in self.postorder_node_iter_noroot():
             #? Maybe consider a minimum length too
             if node.edge_length is None or node.subs == 0:
                 remove.append(node)
+                if node.fix is not None or node.min is not None or node.max is not None:
+                    collapsed_constraints.append(node)
 
-        # Get rid of the node, parent inherits children
+        # Remove the nodes, parents inherit children
         for node in remove:
+            # Constraints passed to parents and children
+            if node.fix is not None:
+                inherit_up = node.fix
+                inherit_down = node.fix
+            else:
+                inherit_up = node.max
+                inherit_down = node.min
             parent = node.parent_node
             for child in node.child_node_iter():
                 parent.add_child(child)
+                if inherit_down is not None:
+                    if child.max is not None:
+                        child.max = min(child.max, inherit_down)
+                    if child.max is None and child.fix is None:
+                        child.max = inherit_down
             parent.remove_child(node)
+            if inherit_up is not None:
+                if parent.min is not None:
+                    parent.min = max(parent.min, inherit_up)
+                if parent.min is None and parent.fix is None:
+                    parent.min = inherit_up
+
+        return collapsed_constraints
 
     def calc_subs(self, multiplier, doround):
         """

@@ -357,6 +357,24 @@ class Array:
                 window_new = apply_fun_to_list(max, [age,window_current])
                 window[parent_variable] = window_new
 
+    def satisfies_constraints(self):
+        """
+        Confirm that all variables meet user and tree constraints
+        Returns False if something is wrong.
+        """
+        for i in range(self.n):
+            parent = self.parent_index[i]
+            if i != parent and not self.time[i] < self.time[parent]:
+                print('parent',i)
+                return False
+            if self.high[i] is not None and not self.time[i] <= self.high[i]:
+                print('high',i)
+                return False
+            if self.low[i] is not None and not self.time[i] >= self.low[i]:
+                print('low',i)
+                return False
+        return True
+
 
 ##############################################################################
 ### Results
@@ -669,6 +687,8 @@ class RateAnalysis:
                     # with open('out.txt', 'a') as f:
                     #     print('PERTURB CHECK: {}'.format(objective(array.variable)),file=f)
 
+                if not array.satisfies_constraints():
+                    raise RuntimeError('Variables outside constraints, aborting!')
 
         else:
                 result = optimize.minimize(objective, array.variable,

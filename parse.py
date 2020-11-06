@@ -244,6 +244,10 @@ def parse_rates(tokenizer, analysis):
                 results.print()
             else:
                 raise ValueError("SHOWAGE: Called before DIVTIME, nothing to show.")
+        elif token == 'SCALAR':
+            tokenizer.skip_to_semicolon()
+            print('* SCALAR:')
+            analysis.param.general['scalar'] = True
         elif token == 'DESCRIBE':
             token = tokenizer.require_next_token_ucase()
             while not (token == ';'):

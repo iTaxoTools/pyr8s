@@ -7,7 +7,7 @@ Is a total mess right now.
 """
 
 import dendropy
-import core
+from . import core
 
 _SEPARATOR = '-' * 50
 

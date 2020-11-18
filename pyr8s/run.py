@@ -6,9 +6,9 @@ Parse the nexus file given through the console.
 """
 
 import sys
-import parse
+from . import parse
 
-if __name__ == '__main__':
+def main():
     if len(sys.argv) == 2:
         print(' ')
         a = parse.parse(sys.argv[1])

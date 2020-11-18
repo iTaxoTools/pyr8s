@@ -35,8 +35,8 @@ import numpy.ma as ma
 from scipy import optimize
 from math import log
 
-import extensions
-import params
+from . import extensions
+from . import params
 
 
 ##############################################################################

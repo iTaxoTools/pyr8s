@@ -13,7 +13,7 @@ Try running some samples in interactive mode:
 $ python -i run.py tests/legacy_1
 ```
 
-This automatically creates RateAnalysis object: a
+This automatically creates RateAnalysis object `a`. 
 It then parses selected file, imports the first tree and executes any nexus rate commands.
 
 Explore the created arrays:

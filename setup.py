@@ -22,7 +22,7 @@ setup(name='pyr8s',
     # license='N/A',
     packages=[
         'pyr8s',
+        'pyr8s.tk',
     ],
-    include_package_data=True
-    # zip_safe=False
+    # include_package_data=True,
 )

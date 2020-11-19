@@ -18,8 +18,9 @@ setup(name='pyr8s',
     ],
     entry_points = {
         'console_scripts': ['pyr8s=pyr8s.run:main'],
+        'gui_scripts': ['pyr8s_tk=pyr8s.run_tk:main'],
     },
-    # license='N/A',
+    license='All rights reserved',
     packages=[
         'pyr8s',
         'pyr8s.tk',

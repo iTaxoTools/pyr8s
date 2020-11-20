@@ -13,5 +13,5 @@ def main():
         print(' ')
         a = parse.parse(sys.argv[1])
     else:
-        print('Usage: python run.py NEXUS_FILE')
-        print('Ex:    python run.py tests/legacy_1')
+        print('Usage: pyr8s NEXUS_FILE')
+        print('Ex:    pyr8s tests/legacy_1')

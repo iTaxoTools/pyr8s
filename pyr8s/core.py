@@ -473,7 +473,7 @@ class RateAnalysis:
 
     def __init__(self, tree=None, param_file='params.json'):
         random.seed()
-        self.param = params.ParamList(param_file)
+        self.param = params.ParamList()
         self._array = Array(self.param)
         if tree is None:
             self._tree = None

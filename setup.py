@@ -25,5 +25,6 @@ setup(name='pyr8s',
         'pyr8s',
         'pyr8s.tk',
     ],
-    # include_package_data=True,
+    include_package_data=True,
+    # zip_safe=True,
 )

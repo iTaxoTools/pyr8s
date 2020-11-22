@@ -47,9 +47,9 @@ def parse_rates(tokenizer, analysis):
                     token = parse_value(tokenizer)
                     print('* ROUND: {0}'.format(token))
                     if token == 'NO':
-                        analysis.param.branch_length['round'] = False
+                        analysis.param.branch_length.round = False
                     elif token == 'YES':
-                        analysis.param.branch_length['round'] = True
+                        analysis.param.branch_length.round = True
                     else:
                         raise ValueError("BLFORMAT.ROUND: Unrecognised vale: '{}'".format(token))
                 elif token == 'ULTRAMETRIC':
@@ -70,9 +70,10 @@ def parse_rates(tokenizer, analysis):
                 if nsites is None:
                     raise ValueError("BLFORMAT: Expected parameter NSITES not given.")
                 else:
-                    analysis.param.branch_length['persite'] = nsites
+                    analysis.param.branch_length.persite = True
+                    analysis.param.branch_length.nsites = nsites
             elif not persite:
-                analysis.param.branch_length['persite'] = None
+                analysis.param.branch_length.persite = False
 
         elif token == 'COLLAPSE':
             print('* COLLAPSE: automatic')
@@ -179,14 +180,14 @@ def parse_rates(tokenizer, analysis):
                 if token == 'METHOD':
                     token = parse_value(tokenizer)
                     if token == 'NPRS' or token == 'NP':
-                        analysis.param.method = 'nprs'
+                        analysis.param.method.method = 'nprs'
                     else:
                         raise ValueError("DIVTIME: Unrecognised method: '{}'".format(token))
                     print('METHOD={0}'.format(token), end=' ')
                 elif token == 'ALGORITHM':
                     token = parse_value(tokenizer)
                     if token == 'POWELL' or token == 'PL':
-                        analysis.param.algorithm = 'powell'
+                        analysis.param.algorithm.algorithm = 'powell'
                     else:
                         raise ValueError("DIVTIME: Unrecognised algorithm: '{}'".format(token))
                     print('ALGORITHM={0}'.format(token), end=' ')
@@ -201,39 +202,39 @@ def parse_rates(tokenizer, analysis):
                 if token == 'NUM TIME GUESSES':
                     token = parse_value(tokenizer)
                     print('* NUM_TIME_GUESSES: {0}'.format(token))
-                    analysis.param.general['number_of_guesses'] = int(token)
+                    analysis.param.general.number_of_guesses = int(token)
                 elif token == 'NPEXP':
                     token = parse_value(tokenizer)
                     print('* NPEXP: {0}'.format(token))
-                    analysis.param.nprs['exponent'] = int(token)
+                    analysis.param.method.exponent = int(token)
                 elif token == 'PENALTY':
                     token = parse_value(tokenizer)
                     print('* PENALTY: {0}'.format(token))
                     if token == 'ADD':
-                        analysis.param.nprs['logarithmic'] = False
+                        analysis.param.method.logarithmic = False
                     elif token == 'LOG':
-                        analysis.param.nprs['logarithmic'] = True
+                        analysis.param.method.logarithmic = True
                     else:
                         raise ValueError("PENALTY: Unrecognised option: '{}'".format(token))
                 elif token == 'PERTURB_FACTOR':
                     token = parse_value(tokenizer)
                     print('* PERTURB_FACTOR: {0}'.format(token))
-                    analysis.param.general['perturb_factor'] = float(token)
+                    analysis.param.general.perturb_factor = float(token)
                 elif token == 'MAXITER':
                     #! for minimize.powell
                     pass
                 elif token == 'MAXBARRIERITER':
                     token = parse_value(tokenizer)
                     print('* MAXBARRIERITER: {0}'.format(token))
-                    analysis.param.barrier['max_iterations'] = int(token)
+                    analysis.param.barrier.max_iterations = int(token)
                 elif token == 'BARRIERMULTIPLIER':
                     token = parse_value(tokenizer)
                     print('* BARRIERMULTIPLIER: {0}'.format(token))
-                    analysis.param.barrier['multiplier'] = float(token)
+                    analysis.param.barrier.multiplier = float(token)
                 elif token == 'INITBARRIERFACTOR':
                     token = parse_value(tokenizer)
                     print('* INITBARRIERFACTOR: {0}'.format(token))
-                    analysis.param.barrier['initial_factor'] = float(token)
+                    analysis.param.barrier.initial_factor = float(token)
                 else:
                     raise ValueError("SET: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
@@ -247,7 +248,7 @@ def parse_rates(tokenizer, analysis):
         elif token == 'SCALAR':
             tokenizer.skip_to_semicolon()
             print('* SCALAR:')
-            analysis.param.general['scalar'] = True
+            analysis.param.general.scalar = True
         elif token == 'DESCRIBE':
             token = tokenizer.require_next_token_ucase()
             while not (token == ';'):

@@ -2,43 +2,111 @@
 # -*- coding: utf-8 -*-
 
 """
-Parameter defaults for use by core.Analysis class.
-To be extended with helpstrings and ranges for each variable.
+Parameter classes for use by core.Analysis class.
+Parameter declarations and defaults are loaded from a json file.
+
+Interactive python console example:
+(assume ParamList param)
+
+Browse available categories:
+>>> param.keys()
+
+Browse category 'general':
+>>> param.general.keys()
+
+Get the value of a specific field:
+>>> f = param.general.scalar
+
+Set the value of a specific field:
+>>> param.general.scalar = True
+
+Access field documentation:
+>>> param.general['scalar'].doc
 """
 
-class Param:
+import json
 
-    def __init__(self):
+class ParamField():
+    """Information about this parameter"""
 
-        # Method and Algorithm to use
-        self.algorithm = 'powell'
-        self.method = 'nprs'
+    def __repr__(self):
+        return '(' + str(self.label) + ': ' + str(self.value) + ')'
 
-        # General options
-        self.general = {
-            'perturb_factor': 0.01,
-            'scalar': False, # force root age at 1.0
-            'number_of_guesses': 1, #! 10 how many times to solve the problem
-            'largeval': 1e30, # For clamping
-            }
-        # Branch length formatting
-        self.branch_length = {
-            'persite': False,
-            'round': True, # Always true or algorithms don't diverge somehow...
-            }
-        # Define the behaviour of manual barrier penalty
-        self.barrier = {
-            'manual': True, # True, auto doesn't work
-            'max_iterations': 10, #! 10
-            'initial_factor': 0.25,
-            'multiplier': 0.10,
-            'tolerance': 0.0001,
-            }
-        self.nprs = {
-            'logarithmic': False, #! NOT USED
-            'exponent': 2, #! NOT USED
-            }
-        self.powell = {
-            'variable_tolerance': 1e-8,
-            'function_tolerance': 1e-8,
-            }
+    def __dir__(self):
+        return list(vars(self))
+
+    def __init__(self, dictionary):
+        self.order = dictionary['order']
+        self.label = dictionary['label']
+        self.doc = dictionary['doc']
+        self.type = dictionary['type']
+        self.default = dictionary['default']
+
+        if 'meta' in dictionary.keys():
+            self.meta = dictionary['meta']
+        else:
+            self.meta = {}
+
+        self.value = dictionary['default']
+
+class ParamCategory(dict):
+    """Dictionary of fields belonging to this category."""
+
+    def __getattr__(self, name):
+        try:
+            return self[name].value
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name, value):
+        if name in self.keys():
+            try:
+                self[name].value = value
+            except KeyError:
+                raise AttributeError(name)
+        else:
+            object.__setattr__(self, name, value)
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+
+    def __init__(self, dictionary):
+        self.label = dictionary['label']
+        self.order = dictionary['order']
+        for k in dictionary['fields'].keys():
+            self[k] = ParamField(dictionary['fields'][k])
+
+
+class ParamList(dict):
+    """Dictionary of all categories."""
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __repr__(self):
+        if self.keys():
+            m = max(map(len, list(self.keys()))) + 1
+            return '\n'.join([k.rjust(m) + ': ' + repr(v)
+                              for k, v in sorted(self.items())])
+        else:
+            return self.__class__.__name__ + "()"
+
+    def __dir__(self):
+        return list(self.keys())
+
+    def __init__(self, file):
+        with open(file) as data:
+            dictionary = json.load(data)
+        for k in dictionary.keys():
+            self[k] = ParamCategory(dictionary[k])

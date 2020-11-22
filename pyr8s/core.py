@@ -79,9 +79,10 @@ class Array:
         self._tree = tree.clone(depth=1)
         _tree = self._tree
 
-        scalar = self._param.general['scalar']
-        persite = self._param.branch_length['persite']
-        doround = self._param.branch_length['round']
+        scalar = self._param.general.scalar
+        persite = self._param.branch_length.persite
+        nsites = self._param.branch_length.nsites
+        doround = self._param.branch_length.round
 
         # Ignore all constraints if scalar, fix root age to 1.0
         if scalar:
@@ -95,7 +96,7 @@ class Array:
             _tree.seed_node.fix = 1.0
 
         # Calculate substitutions and trim afterwards
-        _tree.calc_subs(persite, doround)
+        _tree.calc_subs(persite, nsites, doround)
         _tree.collapse()
         # print('HERE GOES',persite,doround)
         # _tree.print_plot()
@@ -233,12 +234,14 @@ class Array:
         """
         Return a copy of the original tree with set ages and local rates.
         """
-        persite = self._param.branch_length['persite']
-        if persite is None: persite = 1
+        persite = self._param.branch_length.persite
+        nsites = self._param.branch_length.nsites
+        divider = nsites
+        if not persite: divider = 1
         for i in range(self.n):
             self.node[i].age = self.time[i]
             #! PRETTY SURE this is wrong but have to match original....
-            self.node[i].rate = self.rate[i]/persite
+            self.node[i].rate = self.rate[i]/divider
         return self._tree
 
     def guess(self):
@@ -315,7 +318,7 @@ class Array:
         #! Make sure a guess exists in variable
         if not all(self.variable):
             raise RuntimeError('There is no complete guess to _perturb!')
-        perturb_factor = self._param.general['perturb_factor']
+        perturb_factor = self._param.general.perturb_factor
 
         # Keep lower bound window for each variable
         window = [None] * self.v
@@ -468,9 +471,9 @@ class RateAnalysis:
     """
     #? Consider locking attributes with __slots__ or @dataclass
 
-    def __init__(self, tree=None):
-        random.seed(1) #! REMOVE THE 1
-        self.param = params.Param()
+    def __init__(self, tree=None, param_file='params.json'):
+        random.seed()
+        self.param = params.ParamList(param_file)
         self._array = Array(self.param)
         if tree is None:
             self._tree = None
@@ -497,9 +500,9 @@ class RateAnalysis:
     def _build_objective_nprs(self):
         """Generate and return NPRS objective function"""
 
-        logarithmic = self.param.nprs['logarithmic']
-        exponent = self.param.nprs['exponent']
-        largeval = self.param.general['largeval']
+        logarithmic = self.param.method.logarithmic
+        exponent = self.param.method.exponent
+        largeval = self.param.general.largeval
         array = self._array
 
         #? these can probably be moved downstairs? doesnt seem to make a diff
@@ -598,7 +601,7 @@ class RateAnalysis:
     def _build_barrier_penalty(self):
         """Generate penalty function"""
 
-        largeval = self.param.general['largeval']
+        largeval = self.param.general.largeval
         array = self._array
         time = array.time
         constrained_index = array.constrained_index
@@ -635,15 +638,15 @@ class RateAnalysis:
         array = self._array
         result = None
         # Use the appropriate algorithm
-        if hasattr(self, '_build_objective_' + self.param.method):
-            objective = getattr(self, '_build_objective_' + self.param.method)()
+        if hasattr(self, '_build_objective_' + self.param.method.method):
+            objective = getattr(self, '_build_objective_' + self.param.method.method)()
         else:
-            raise ValueError('No such algorithm: {0}'.format(self.param.method))
+            raise ValueError('No such algorithm: {0}'.format(self.param.method.method))
 
-        variable_tolerance = self.param.powell['variable_tolerance']
-        function_tolerance = self.param.powell['function_tolerance']
+        variable_tolerance = self.param.algorithm.variable_tolerance
+        function_tolerance = self.param.algorithm.function_tolerance
 
-        if self.param.barrier['manual'] == True:
+        if self.param.barrier.manual == True:
 
             # Adds a barrier_penalty to the objective function
             # to keep solution variables away from their boundaries.
@@ -653,12 +656,12 @@ class RateAnalysis:
 
             barrier_penalty = self._build_barrier_penalty()
 
-            factor = self.param.barrier['initial_factor']
+            factor = self.param.barrier.initial_factor
             kept_value = objective(array.variable)
 
             print('Barrier iterations: ', end ='', flush=True)
 
-            for b in range(self.param.barrier['max_iterations']):
+            for b in range(self.param.barrier.max_iterations):
 
                 print('{0}...'.format(b+1), end ='', flush=True)
                 # with open('out.txt', 'a') as f:
@@ -678,11 +681,11 @@ class RateAnalysis:
 
                 tolerance = abs((new_value - kept_value)/new_value)
 
-                if tolerance < self.param.barrier['tolerance']:
+                if tolerance < self.param.barrier.tolerance:
                     break
                 else:
                     kept_value = new_value
-                    factor *= self.param.barrier['multiplier']
+                    factor *= self.param.barrier.multiplier
                     self._array.perturb()
                     # with open('out.txt', 'a') as f:
                     #     print('PERTURB CHECK: {}'.format(objective(array.variable)),file=f)
@@ -717,7 +720,7 @@ class RateAnalysis:
         kept_min = None
         kept_variable = None
         kept_rate = None
-        number_of_guesses = self.param.general['number_of_guesses']
+        number_of_guesses = self.param.general.number_of_guesses
 
         for g in range(number_of_guesses):
 
@@ -726,10 +729,10 @@ class RateAnalysis:
             print('Guess {0}/{1}: \n{2}\n'.format(g+1, number_of_guesses, array.variable))
 
             # Call the appropriate optimization method
-            if hasattr(self, '_algorithm_' + self.param.algorithm):
-                new_min = getattr(self, '_algorithm_' + self.param.algorithm)()
+            if hasattr(self, '_algorithm_' + self.param.algorithm.algorithm):
+                new_min = getattr(self, '_algorithm_' + self.param.algorithm.algorithm)()
             else:
-                raise ValueError('No implementation for algorithm: {0}'.format(self.param.algorithm))
+                raise ValueError('No implementation for algorithm: {0}'.format(self.param.algorithm.algorithm))
 
             print('\nLocal solution:\t {0:>12.4e}\n'.format(new_min))
 
@@ -762,7 +765,7 @@ class RateAnalysis:
         return self._results
 
     @classmethod
-    def quick(cls, tree, persite=None, scalar=True):
+    def quick(cls, tree, nsites=None, scalar=True):
         """
         Run analysis without explicitly setting parameters and calibrations.
 
@@ -770,9 +773,9 @@ class RateAnalysis:
         ----------
         tree : dendropy.Tree (or extensions.TreePlus)
             The tree to be analysed.
-        persite : int
+        nsites : int
             If |None|, branch length substitutions will be considered
-            given in total numbers. Set the persite parameter otherwise.
+            given in total numbers. Set the persite/nsites parameters otherwise.
         scalar : bool
             If |True|, then do a scalar analysis by setting root age to 1.0.
             If |False|, then assume the given tree is extended with all
@@ -788,7 +791,12 @@ class RateAnalysis:
         RateAnalysis.quick(my_tree).print()
         """
         analysis = cls(tree)
-        analysis.param.general['scalar'] = scalar
-        analysis.param.branch_length['persite'] = persite
+        analysis.param.general.scalar = scalar
+        if nsites is None:
+            analysis.param.branch_length.persite = False
+            analysis.param.branch_length.nsites = 1
+        else:
+            analysis.param.branch_length.persite = True
+            analysis.param.branch_length.nsites = nsites
         res = analysis.run()
         return res

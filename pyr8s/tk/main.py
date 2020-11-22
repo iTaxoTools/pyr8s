@@ -43,7 +43,7 @@ class Main:
         def draw_pane_right(parent):
 
             ftoolbar = ttk.Frame(parent, height=_TOOLBAR_HEIGHT, padding=(0,2), style='Red.TFrame')
-            fgraph = ttk.Frame(parent, style='White.TFrame')
+            fgraph = ttk.Frame(parent, relief='ridge', style='White.TFrame')
             ffoot = ttk.Frame(parent, height=_FOOTER_HEIGHT, padding=(0,2), style='Blue.TFrame')
             stoolbar = ttk.Separator(parent, orient=HORIZONTAL)
             sfoot = ttk.Separator(parent, orient=HORIZONTAL)
@@ -54,15 +54,15 @@ class Main:
             bopen = ttk.Button(fleft, text='Open')
             bsave = ttk.Button(fleft, text='Save')
             bexport = ttk.Button(fleft, text='Export')
-            babout = ttk.Button(fright, text='About')
+            blogs = ttk.Button(fright, text='Logs')
             lnote = ttk.Label(ffoot, text='Notification here.')
 
             ftoolbar.grid_propagate(0)
             ffoot.grid_propagate(0)
             ftoolbar.grid(row=0, column=0, sticky='nwe')
-            stoolbar.grid(row=1, column=0, sticky='we')
-            fgraph.grid(row=2, column=0, sticky='nswe')
-            sfoot.grid(row=3, column=0, sticky='we')
+            # stoolbar.grid(row=1, column=0, sticky='we')
+            fgraph.grid(row=2, column=0, pady=2, sticky='nswe')
+            # sfoot.grid(row=3, column=0, sticky='we')
             ffoot.grid(row=4, column=0, sticky='swe')
 
             fleft.grid(row=0, column=0, sticky='nsw')
@@ -70,7 +70,7 @@ class Main:
             bopen.grid(row=0, column=0, padx=(0,_TOOLBAR_PAD), sticky='nswe')
             bsave.grid(row=0, column=1, padx=(0,_TOOLBAR_PAD), sticky='nswe')
             bexport.grid(row=0, column=2, padx=(0,_TOOLBAR_PAD), sticky='nswe')
-            babout.grid(row=0, column=0, padx=(0,0), sticky='nswe')
+            blogs.grid(row=0, column=0, padx=(0,0), sticky='nswe')
             lnote.grid(row=0, column=0, padx=(0,0), sticky='nsw')
 
             parent.rowconfigure(0, weight=0)

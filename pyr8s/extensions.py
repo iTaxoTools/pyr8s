@@ -70,7 +70,7 @@ class TreePlus(dendropy.Tree):
 
         return collapsed_constraints
 
-    def calc_subs(self, multiplier, doround):
+    def calc_subs(self, persite, nsites, doround):
         """
         Set substitutions for each node
         """
@@ -81,8 +81,8 @@ class TreePlus(dendropy.Tree):
                     format(node.label))
             if length <= 0:
                 length = 0
-            if multiplier is not None:
-                length *= multiplier
+            if persite:
+                length *= nsites
             if doround == True:
                 length = round(length)
             node.subs = length

@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import ttk
 import dendropy
+import re
 
 from .. import core
 
@@ -15,8 +16,7 @@ class Main:
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
 
-        self.tree = None
-        self.analysis = None
+        self.analysis = core.RateAnalysis()
 
         self.draw()
 
@@ -24,32 +24,33 @@ class Main:
         """Create and place widgets"""
         s = ttk.Style()
         s.theme_use('clam')
-        # s.configure('Red.TFrame', background='red')
-        # s.configure('Green.TFrame', background='green')
-        # s.configure('Blue.TFrame', background='blue')
-        # s.configure('Yellow.TFrame', background='yellow')
+        s.configure('Red.TFrame', background='red')
+        s.configure('Green.TFrame', background='green')
+        s.configure('Blue.TFrame', background='blue')
+        s.configure('Yellow.TFrame', background='yellow')
         s.configure('White.TFrame', background='white')
-        s.configure('Red.TFrame')
-        s.configure('Green.TFrame')
-        s.configure('Blue.TFrame')
-        s.configure('Yellow.TFrame')
-        s.configure('Visible.Panedwindow', background='red')
+        # s.configure('Red.TFrame')
+        # s.configure('Green.TFrame')
+        # s.configure('Blue.TFrame')
+        # s.configure('Yellow.TFrame')
+        # s.configure('Visible.Panedwindow', background='red')
 
         _TOOLBAR_HEIGHT = 36
         _TOOLBAR_PAD = 6
         _FOOTER_HEIGHT = 22
         _RUN_HEIGHT = 36
+        _PARAM_WIDTH = 100
 
         def draw_pane_right(parent):
 
-            ftoolbar = ttk.Frame(parent, height=_TOOLBAR_HEIGHT, padding=(0,2), style='Red.TFrame')
-            fgraph = ttk.Frame(parent, relief='ridge', style='White.TFrame')
-            ffoot = ttk.Frame(parent, height=_FOOTER_HEIGHT, padding=(0,2), style='Blue.TFrame')
+            ftoolbar = ttk.Frame(parent, height=_TOOLBAR_HEIGHT, padding=(0,2))
+            fgraph = ttk.Frame(parent, relief='ridge')
+            ffoot = ttk.Frame(parent, height=_FOOTER_HEIGHT, padding=(0,2))
             stoolbar = ttk.Separator(parent, orient=HORIZONTAL)
             sfoot = ttk.Separator(parent, orient=HORIZONTAL)
 
-            fleft = ttk.Frame(ftoolbar, style='Green.TFrame')
-            fright = ttk.Frame(ftoolbar, style='Green.TFrame')
+            fleft = ttk.Frame(ftoolbar)
+            fright = ttk.Frame(ftoolbar)
 
             bopen = ttk.Button(fleft, text='Open')
             bsave = ttk.Button(fleft, text='Save')
@@ -91,13 +92,152 @@ class Main:
             fright.columnconfigure(0, weight=1)
             fright.rowconfigure(0, weight=1)
 
+        def draw_params(parent):
+
+            param = self.analysis.param
+
+            fparam = ttk.Frame(parent)
+            fdoc = ttk.Frame(parent, relief='ridge')
+            fparam.grid(row=0, column=0, padx=5, pady=(5,0), sticky='nswe')
+            fdoc.grid(row=1, column=0, padx=5, pady=(5,5), sticky='nswe')
+
+            parent.columnconfigure(0, weight=1)
+            parent.rowconfigure(0, weight=3)
+            parent.rowconfigure(1, weight=1)
+
+            lftest = ttk.Labelframe(fparam, text=param.general.label)
+            lftest.grid(row=0, column=0, pady=5, sticky='nwe')
+            fparam.columnconfigure(0, weight=1)
+            fparam.rowconfigure(0, weight=0)
+
+            vtest1 = StringVar()
+            vtest2 = StringVar()
+            ltest1 = ttk.Label(lftest, text='Test1')
+            etest1 = ttk.Entry(lftest, textvariable=vtest1, width=5)
+            ltest2 = ttk.Label(lftest, text='Test2 long text here')
+            etest2 = ttk.Entry(lftest, textvariable=vtest2, width=5)
+
+            ltest1.grid(row=0, column=0, padx=5, pady=5, sticky='nswe')
+            etest1.grid(row=0, column=1, padx=5, pady=5, sticky='nswe')
+            ltest2.grid(row=1, column=0, padx=5, pady=5, sticky='nswe')
+            etest2.grid(row=1, column=1, padx=5, pady=5, sticky='nswe')
+
+            lftest.columnconfigure(0, weight=10000)
+            lftest.columnconfigure(1, weight=1)
+            lftest.rowconfigure(0, weight=0)
+
+            lftest = ttk.Labelframe(fparam, text=param.general.label, padding=(5,5))
+            lftest.grid(row=1, column=0, pady=5,sticky='nwe')
+            fparam.columnconfigure(0, weight=1)
+            fparam.rowconfigure(1, weight=0)
+
+            vtest1 = StringVar()
+            vtest2 = StringVar()
+            countryvar = StringVar(value='Powell')
+            measureSystem = StringVar()
+            ltest1 = ttk.Label(lftest, text='Test1')
+            ftest1 = ttk.Frame(lftest, width=_PARAM_WIDTH, style='Red.TFrame')
+            etest1 = ttk.Combobox(ftest1, state='readonly',
+                textvariable=countryvar, values=('Only'))
+            etest1.bind('<<ComboboxSelected>>', lambda e: e.widget.selection_clear())
+            ctest2 = ttk.Checkbutton(lftest, text='Use Metric',
+                variable=measureSystem,
+                onvalue='metric', offvalue='imperial')
+
+            ftest1.grid_propagate(0)
+            ftest1.columnconfigure(0, weight=1)
+            ftest1.rowconfigure(0, weight=1)
+            ltest1.grid(row=0, column=0, sticky='nswe')
+            ftest1.grid(row=0, column=1, sticky='nswe')
+            etest1.grid(row=0, column=0, sticky='nswe')
+            ctest2.grid(row=1, column=0, columnspan=2, sticky='nsw')
+
+            lftest.columnconfigure(0, weight=10000)
+            lftest.columnconfigure(1, weight=1)
+            lftest.rowconfigure(0, weight=0)
+
+            def param_int(parent, row, label):
+                var = StringVar()
+                check = (parent.register(lambda v:
+                    re.match('^[0-9]*$', v) is not None), '%P')
+                label = ttk.Label(parent, text=label+':  ')
+                frame = ttk.Frame(parent, width=_PARAM_WIDTH)
+                entry = ttk.Entry(frame, textvariable=var,
+                    validate='key', validatecommand=check)
+                parent.rowconfigure(row, weight=1, pad=10)
+                frame.grid_propagate(0)
+                frame.columnconfigure(0, weight=1)
+                frame.rowconfigure(0, weight=1)
+                label.grid(row=row, column=0, sticky='nswe')
+                frame.grid(row=row, column=1, sticky='nswe')
+                entry.grid(row=0, column=0, sticky='we')
+                return entry
+
+            def param_float(parent, row, label):
+                var = StringVar()
+                check = (parent.register(lambda v:
+                    re.match('^[0-9]*\.?[0-9]*e?-?[0-9]*$', v) is not None), '%P')
+                label = ttk.Label(parent, text=label+':  ')
+                frame = ttk.Frame(parent, width=_PARAM_WIDTH)
+                entry = ttk.Entry(frame, textvariable=var,
+                    validate='key', validatecommand=check)
+                parent.rowconfigure(row, weight=1, pad=10)
+                frame.grid_propagate(0)
+                frame.columnconfigure(0, weight=1)
+                frame.rowconfigure(0, weight=1)
+                label.grid(row=row, column=0, sticky='we')
+                frame.grid(row=row, column=1, sticky='nswe')
+                entry.grid(row=0, column=0, sticky='we')
+                return entry
+
+            def param_bool(parent, row, label):
+                var = BooleanVar()
+                checkbutton = ttk.Checkbutton(parent, text=label,
+                    variable=var,
+                    onvalue=True, offvalue=False)
+                parent.rowconfigure(row, weight=1, pad=2)
+                checkbutton.grid(row=row, column=0, columnspan=2, sticky='nsw')
+                return checkbutton
+
+            def param_list(parent, row, label):
+                var = StringVar()
+                label = ttk.Label(parent, text=label+':  ')
+                frame = ttk.Frame(parent, width=_PARAM_WIDTH)
+                combo = ttk.Combobox(frame, state='readonly',
+                    textvariable=var, values=('Only'))
+                combo.bind('<<ComboboxSelected>>', lambda e: e.widget.selection_clear())
+                parent.rowconfigure(row, weight=1, pad=10)
+                frame.grid_propagate(0)
+                frame.columnconfigure(0, weight=1)
+                frame.rowconfigure(0, weight=1)
+                label.grid(row=row, column=0, sticky='nswe')
+                frame.grid(row=row, column=1, sticky='nswe')
+                combo.grid(row=0, column=0, sticky='we')
+                return combo
+
+            def param_category(parent, row, label):
+                lframe = ttk.Labelframe(parent, text=label, padding=(5,5))
+                lframe.grid(row=row, column=0, pady=5, sticky='nwe')
+                parent.columnconfigure(0, weight=1)
+                parent.rowconfigure(1, weight=0)
+                lframe.columnconfigure(0, weight=10000)
+                lframe.columnconfigure(1, weight=1)
+                return lframe
+
+            newf = param_category(fparam, 3, 'BOOP')
+            param_list(newf, 0, 'List box')
+            param_int(newf, 1, 'Int box')
+            param_float(newf, 2, 'Float box')
+            param_bool(newf, 10, 'Check box')
+
+
         def draw_tabs(parent):
 
             ntabs = ttk.Notebook(parent)
 
-            fconstr = ttk.Frame(ntabs, style='Blue.TFrame')
-            ftable = ttk.Frame(ntabs, style='Green.TFrame')
-            fparam = ttk.Frame(ntabs, style='Red.TFrame')
+            fconstr = ttk.Frame(ntabs)
+            ftable = ttk.Frame(ntabs)
+            fparam = ttk.Frame(ntabs)
 
             ntabs.add(fconstr, text='Constraints')
             ntabs.add(ftable, text='Tables')
@@ -108,13 +248,15 @@ class Main:
 
             ntabs.grid(row=0, column=0, sticky='nswe')
 
+            draw_params(fconstr)
+
 
         def draw_pane_left(parent):
 
             fhead = ttk.Frame(parent, height=_TOOLBAR_HEIGHT, padding=(0,2))
-            ftabs = ttk.Frame(parent, padding=(2,2), style='Yellow.TFrame')
-            frun = ttk.Frame(parent, padding=(2,2), style='Blue.TFrame')
-            ffoot = ttk.Frame(parent, height=_FOOTER_HEIGHT, padding=(0,2), style='Green.TFrame')
+            ftabs = ttk.Frame(parent, padding=(2,2))
+            frun = ttk.Frame(parent, padding=(2,2))
+            ffoot = ttk.Frame(parent, height=_FOOTER_HEIGHT, padding=(0,2))
             sline = ttk.Separator(parent, orient=HORIZONTAL)
 
             lhead = ttk.Label(fhead, anchor='center', relief='ridge', text='Tree of Life')
@@ -156,8 +298,8 @@ class Main:
         def draw_panes(parent):
 
             pmain = ttk.PanedWindow(parent, orient=HORIZONTAL)
-            fleft = ttk.Frame(pmain, style='Red.TFrame')
-            fright = ttk.Frame(pmain, style='Red.TFrame')
+            fleft = ttk.Frame(pmain)
+            fright = ttk.Frame(pmain)
             sline = ttk.Separator(fleft,orient=VERTICAL)
 
             # pmain['sashwidth'] = 10
@@ -184,9 +326,8 @@ class Main:
     def open(self, file):
         """Load tree from file"""
         try:
-            self.tree = dendropy.Tree.get(path=file,
+            self.analysis.tree = dendropy.Tree.get(path=file,
                 schema='nexus', suppress_internal_node_taxa=False)
-            self.analysis = core.RateAnalysis(self.tree)
             print("Loaded file: " + file)
         except FileNotFoundError as e:
             print("Failed to load file: " + str(e))

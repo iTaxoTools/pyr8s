@@ -24,6 +24,7 @@ Access field documentation:
 >>> param.general['scalar'].doc
 """
 
+from collections import OrderedDict
 import json
 
 class ParamField():
@@ -36,7 +37,6 @@ class ParamField():
         return list(vars(self))
 
     def __init__(self, dictionary):
-        self.order = dictionary['order']
         self.label = dictionary['label']
         self.doc = dictionary['doc']
         self.type = dictionary['type']
@@ -49,7 +49,7 @@ class ParamField():
 
         self.value = dictionary['default']
 
-class ParamCategory(dict):
+class ParamCategory(OrderedDict):
     """Dictionary of fields belonging to this category."""
 
     def __getattr__(self, name):
@@ -80,12 +80,11 @@ class ParamCategory(dict):
 
     def __init__(self, dictionary):
         self.label = dictionary['label']
-        self.order = dictionary['order']
         for k in dictionary['fields'].keys():
             self[k] = ParamField(dictionary['fields'][k])
 
 
-class ParamList(dict):
+class ParamList(OrderedDict):
     """Dictionary of all categories."""
 
     def __getattr__(self, name):
@@ -106,6 +105,6 @@ class ParamList(dict):
         return list(self.keys())
 
     def __init__(self, data):
-        dictionary = json.load(data)
+        dictionary = json.load(data, object_pairs_hook=OrderedDict)
         for k in dictionary.keys():
             self[k] = ParamCategory(dictionary[k])

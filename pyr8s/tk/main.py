@@ -10,7 +10,7 @@ from .. import core
 from ..param import tk as ptk
 
 
-def bind_scroll_wheel(canvas, frame, bar):
+def bind_scroll_wheel(canvas, frame):
     os = canvas.tk.call('tk', 'windowingsystem')
     if os == 'x11':
         canvas.bind_all('<Button-4>', lambda e:
@@ -120,34 +120,49 @@ class Main:
 
         def draw_params(parent):
 
+            widget_from_type = {
+                'int': ptk.ParamInt,
+                'float': ptk.ParamFloat,
+                'list': ptk.ParamList,
+                'bool': ptk.ParamBool,
+                }
+
             param = self.analysis.param
 
             fparam = ttk.Frame(parent)
             fparam.grid(row=0, column=0, padx=5, pady=(5,0), sticky='nswe')
-
             parent.columnconfigure(0, weight=1)
             parent.rowconfigure(0, weight=1)
 
-            cont = ptk.ParamContainer(fparam, s)
-            bind_scroll_wheel(cont.canvas, cont.scrollframe, cont.scrollbar)
+            container = ptk.ParamContainer(fparam, s)
+            bind_scroll_wheel(container.canvas, container.scrollframe)
 
-            newf = ptk.ParamCategory(cont, 0, 'BOOP')
-            ptk.ParamList(newf, 0, 'List box')
-            ptk.ParamInt(newf, 1, 'Int box')
-            ptk.ParamFloat(newf, 2, 'Float boxaaaaaaaaaaaaaaaaaa')
-            ptk.ParamBool(newf, 10, 'Check box')
+            for i, category in enumerate(param.keys()):
+                print(category, param[category].label)
+                new_category = ptk.ParamCategory(container,
+                    i, param[category].label)
+                for j, field in enumerate(param[category].keys()):
+                    print(field, param[category][field].label)
+                    widget_from_type[param[category][field].type](new_category,
+                        j, param[category][field].label)
 
-            newf = ptk.ParamCategory(cont, 3, '1')
-            ptk.ParamList(newf, 0, 'List box')
-            ptk.ParamInt(newf, 1, 'Int box')
-            ptk.ParamFloat(newf, 2, 'Float box')
-            ptk.ParamBool(newf, 10, 'Check box')
-
-            newf = ptk.ParamCategory(cont, 5, '2')
-            ptk.ParamList(newf, 0, 'List box')
-            ptk.ParamInt(newf, 1, 'Int box')
-            ptk.ParamFloat(newf, 2, 'Float boxy')
-            ptk.ParamBool(newf, 10, 'Check box')
+            # newf = ptk.ParamCategory(container, 0, 'BOOP')
+            # ptk.ParamList(newf, 0, 'List box')
+            # ptk.ParamInt(newf, 1, 'Int box')
+            # ptk.ParamFloat(newf, 2, 'Float boxaaaaaaaaaaaaaaaaaa')
+            # ptk.ParamBool(newf, 10, 'Check box')
+            #
+            # newf = ptk.ParamCategory(container, 3, '1')
+            # ptk.ParamList(newf, 0, 'List box')
+            # ptk.ParamInt(newf, 1, 'Int box')
+            # ptk.ParamFloat(newf, 2, 'Float box')
+            # ptk.ParamBool(newf, 10, 'Check box')
+            #
+            # newf = ptk.ParamCategory(container, 5, '2')
+            # ptk.ParamList(newf, 0, 'List box')
+            # ptk.ParamInt(newf, 1, 'Int box')
+            # ptk.ParamFloat(newf, 2, 'Float boxy')
+            # ptk.ParamBool(newf, 10, 'Check box')
 
 
         def draw_tabs(parent):

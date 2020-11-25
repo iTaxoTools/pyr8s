@@ -1,31 +1,26 @@
 {
   "general": {
-    "order":  1,
     "label": "General",
     "fields": {
       "perturb_factor": {
-        "order":    1,
         "label":    "Perturb Factor",
         "doc":      "Perturb Factor.",
         "type":     "float",
         "default":  0.01
       },
-      "scalar": {
-        "order":    2,
-        "label":    "Scalar",
-        "doc":      "Force root age at 1.0.",
-        "type":     "bool",
-        "default":  false
-      },
       "number_of_guesses": {
-        "order":    3,
         "label":    "Number of guesses",
         "doc":      "How many times to solve the problem.",
         "type":     "int",
         "default":  1
       },
+      "scalar": {
+        "label":    "Scalar",
+        "doc":      "Force root age at 1.0.",
+        "type":     "bool",
+        "default":  false
+      },
       "largeval": {
-        "order":    4,
         "label":    "Large value",
         "doc":      "For clamping.",
         "type":     "float",
@@ -34,25 +29,21 @@
     }
   },
   "branch_length": {
-    "order":  2,
     "label": "Branch Length",
     "fields": {
       "persite": {
-        "order":    1,
         "label":    "Per Site",
         "doc":      "Per site?",
         "type":     "bool",
         "default":  false
       },
       "nsites": {
-        "order":    2,
         "label":    "Subs per site",
         "doc":      "#Per site?",
         "type":     "int",
         "default":  1
       },
       "round": {
-        "order":    3,
         "label":    "Round",
         "doc":      "Always true or algorithms don't diverge somehow...",
         "type":     "bool",
@@ -61,39 +52,33 @@
     }
   },
   "barrier": {
-    "order":  3,
     "label": "Barrier",
     "fields": {
       "manual": {
-        "order":    1,
         "label":    "Manual",
         "doc":      "True, auto doesn't work",
         "type":     "bool",
         "default":  true
       },
       "max_iterations": {
-        "order":    2,
         "label":    "Max Iterations",
         "doc":      "Repeatedly close barrier.",
         "type":     "int",
         "default":  10
       },
       "initial_factor": {
-        "order":    3,
         "label":    "Initial Factor",
         "doc":      "Initial Factor.",
         "type":     "float",
         "default":  0.25
       },
       "multiplier": {
-        "order":    4,
         "label":    "Multiplier",
         "doc":      "Multiplier.",
         "type":     "float",
         "default":  0.10
       },
       "tolerance": {
-        "order":    5,
         "label":    "Tolerance",
         "doc":      "Tolerance.",
         "type":     "float",
@@ -102,25 +87,21 @@
     }
   },
   "method": {
-    "order":  4,
     "label": "Method",
     "fields": {
       "method": {
-        "order":    1,
         "label":    "Method",
         "doc":      "Pick one.",
         "type":     "list",
         "default":  "nprs"
       },
       "logarithmic": {
-        "order":    2,
         "label":    "Logarithmic",
         "doc":      "Logarithmic.",
         "type":     "bool",
         "default":  false
       },
       "exponent": {
-        "order":    3,
         "label":    "Exponent",
         "doc":      "Exponent.",
         "type":     "int",
@@ -129,25 +110,21 @@
     }
   },
   "algorithm": {
-    "order":  5,
     "label": "Algorithm",
     "fields": {
       "algorithm": {
-        "order":    1,
         "label":    "Algorithm",
         "doc":      "Algorithm.",
         "type":     "list",
         "default":  "powell"
       },
       "variable_tolerance": {
-        "order":    2,
         "label":    "Variable tolerance",
         "doc":      "Variable tolerance.",
         "type":     "float",
         "default":  1e-8
       },
       "function_tolerance": {
-        "order":    3,
         "label":    "Function tolerance",
         "doc":      "Function tolerance.",
         "type":     "float",

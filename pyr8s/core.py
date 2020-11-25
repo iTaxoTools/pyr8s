@@ -31,7 +31,6 @@ RateAnalysis.quick(tree).print()
 import dendropy
 import random
 import numpy as np
-import numpy.ma as ma
 from scipy import optimize
 from math import log
 import importlib.resources
@@ -474,7 +473,7 @@ class RateAnalysis:
 
     def __init__(self, tree=None):
         random.seed()
-
+        self.results = None
         with importlib.resources.open_text(__package__, 'params.json') as data:
             self.param = param.core.ParamList(data)
         self._array = Array(self.param)
@@ -764,8 +763,8 @@ class RateAnalysis:
         self._array.make(self.tree)
         self._optimize()
         tree = self._array.take()
-        self._results = RateAnalysisResults(tree)
-        return self._results
+        self.results = RateAnalysisResults(tree)
+        return self.results
 
     @classmethod
     def quick(cls, tree, nsites=None, scalar=True):

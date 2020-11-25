@@ -42,10 +42,10 @@ class ParamField():
         self.type = dictionary['type']
         self.default = dictionary['default']
 
-        if 'meta' in dictionary.keys():
-            self.meta = dictionary['meta']
+        if 'data' in dictionary.keys():
+            self.data = dictionary['data']
         else:
-            self.meta = {}
+            self.data = {}
 
         self.value = dictionary['default']
 

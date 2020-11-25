@@ -93,7 +93,11 @@
         "label":    "Method",
         "doc":      "Pick one.",
         "type":     "list",
-        "default":  "nprs"
+        "default":  "nprs",
+        "data": {
+          "items":  ["nprs", "pl"],
+          "labels": ["NPRS", "Penalized"]
+          }
       },
       "logarithmic": {
         "label":    "Logarithmic",
@@ -116,7 +120,11 @@
         "label":    "Algorithm",
         "doc":      "Algorithm.",
         "type":     "list",
-        "default":  "powell"
+        "default":  "powell",
+        "data": {
+          "items":  ["powell", "tnc"],
+          "labels": ["Powell", "TNC"]
+          }
       },
       "variable_tolerance": {
         "label":    "Variable tolerance",

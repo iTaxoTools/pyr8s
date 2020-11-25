@@ -4,16 +4,24 @@
 from tkinter import *
 from tkinter import ttk
 
-_PARAM_WIDTH = 100
+_PARAM_WIDTH = 80
 
 class ParamInt:
-    def __init__(self, category, row, label, entry_width=_PARAM_WIDTH):
-        self.category = category
+    def __init__(self, category, row, field, entry_width=_PARAM_WIDTH):
         parent = category.frame
-        self.var = StringVar()
+        category.fields.append(self)
+        self.category = category
+        self.field = field
+        self.var = StringVar(value=field.value)
+        def var_update(*args):
+            try:
+                field.value = int(self.var.get())
+            except ValueError:
+                pass
+        self.var.trace_add('write', var_update)
         check = (parent.register(lambda v:
             re.match('^[0-9]*$', v) is not None), '%P')
-        self.label = ttk.Label(parent, text=label+':  ')
+        self.label = ttk.Label(parent, text=field.label+':  ')
         self.frame = ttk.Frame(parent, width=entry_width)
         self.entry = ttk.Entry(self.frame, textvariable=self.var,
             validate='key', validatecommand=check)
@@ -27,13 +35,21 @@ class ParamInt:
 
 
 class ParamFloat:
-    def __init__(self, category, row, label, entry_width=_PARAM_WIDTH):
-        self.category = category
+    def __init__(self, category, row, field, entry_width=_PARAM_WIDTH):
         parent = category.frame
-        self.var = StringVar()
+        category.fields.append(self)
+        self.category = category
+        self.field = field
+        self.var = StringVar(value=field.value)
+        def var_update(*args):
+            try:
+                field.value = float(self.var.get())
+            except ValueError:
+                pass
+        self.var.trace_add('write', var_update)
         check = (parent.register(lambda v:
-            re.match('^[0-9]*\.?[0-9]*e?-?[0-9]*$', v) is not None), '%P')
-        self.label = ttk.Label(parent, text=label+':  ')
+            re.match('^[0-9]*\.?[0-9]*(e(\-|\+)?[0-9]*)?$', v) is not None), '%P')
+        self.label = ttk.Label(parent, text=field.label+':  ')
         self.frame = ttk.Frame(parent, width=entry_width)
         self.entry = ttk.Entry(self.frame, textvariable=self.var,
             validate='key', validatecommand=check)
@@ -46,14 +62,24 @@ class ParamFloat:
         self.entry.grid(row=0, column=0, sticky='we')
 
 class ParamList:
-    def __init__(self, category, row, label, entry_width=_PARAM_WIDTH):
-        self.category = category
+    def __init__(self, category, row, field, entry_width=_PARAM_WIDTH):
         parent = category.frame
-        self.var = StringVar()
-        self.label = ttk.Label(parent, text=label+':  ')
+        category.fields.append(self)
+        self.category = category
+        self.field = field
+        i = field.data['items'].index(field.value)
+        self.var = StringVar(value=field.data['labels'][i])
+        def var_update(*args):
+            try:
+                i = field.data['labels'].index(self.var.get())
+                field.value = field.data['items'][i]
+            except ValueError:
+                pass
+        self.var.trace_add('write', var_update)
+        self.label = ttk.Label(parent, text=field.label+':  ')
         self.frame = ttk.Frame(parent, width=entry_width)
         self.combo = ttk.Combobox(self.frame, state='readonly',
-            textvariable=self.var, values=('Only'))
+            textvariable=self.var, values=self.field.data['labels'])
         self.combo.bind('<<ComboboxSelected>>', lambda e: e.widget.selection_clear())
         parent.rowconfigure(row, weight=1, pad=10)
         self.frame.grid_propagate(0)
@@ -65,11 +91,19 @@ class ParamList:
 
 class ParamBool:
     """Checkbox"""
-    def __init__(self, category, row, label):
-        self.category = category
+    def __init__(self, category, row, field):
         parent = category.frame
-        self.var = BooleanVar()
-        self.checkbutton = ttk.Checkbutton(parent, text=label,
+        category.fields.append(self)
+        self.category = category
+        self.field = field
+        self.var = BooleanVar(value=field.value)
+        def var_update(*args):
+            try:
+                field.value = bool(self.var.get())
+            except ValueError:
+                pass
+        self.var.trace_add('write', var_update)
+        self.checkbutton = ttk.Checkbutton(parent, text=field.label,
             variable=self.var,
             onvalue=True, offvalue=False)
         parent.rowconfigure(row, weight=1, pad=2)
@@ -77,11 +111,13 @@ class ParamBool:
 
 class ParamCategory:
     """Holds a group of parameters"""
-    def __init__(self, container, row, label):
+    def __init__(self, container, row, category):
+        self.fields = []
+        container.categories.append(self)
         self.container = container
         parent = container.scrollframe
         pad = 0 if row == 0 else 10
-        self.frame = ttk.Labelframe(parent, text='  '+label, padding=(5,5))
+        self.frame = ttk.Labelframe(parent, text='  '+category.label, padding=(5,5))
         self.frame.grid(row=row, column=0, pady=(pad,0), sticky='nwe')
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(row, weight=0)
@@ -91,9 +127,10 @@ class ParamCategory:
 
 class ParamContainer:
     """All Param widgets go here"""
-    def __init__(self, parent, style):
+    def __init__(self, parent, style, param):
+        self.categories = []
         self.parent = parent
-        self.canvas = Canvas(parent, height=0, width=0,
+        self.canvas = Canvas(parent, height=0, width=0, highlightthickness=0,
             bg=style.lookup('TFrame', 'background'))
         self.scrollbar = ttk.Scrollbar(parent, orient='vertical',
             command=self.canvas.yview)
@@ -108,7 +145,11 @@ class ParamContainer:
         self.canvas.bind('<Configure>', self._event_canvas)
         self.fdoc.bind('<Configure>', self._event_doc)
 
-        lab = ttk.Button(self.fdoc, text='hmhmhm').grid(row=0, column=0)
+
+        def helloCallBack():
+            print(param.algorithm.algorithm)
+        btn = ttk.Button(self.fdoc, text='Do it', command=helloCallBack)
+        btn.grid(row=0, column=1)
 
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)
@@ -133,3 +174,10 @@ class ParamContainer:
             self.canvas.configure(height=self.scrollframe.winfo_reqheight())
             self.parent.rowconfigure(1, weight=0)
             self.scrollbar.grid()
+
+widget_from_type = {
+    'int': ParamInt,
+    'float': ParamFloat,
+    'list': ParamList,
+    'bool': ParamBool,
+    }

@@ -120,13 +120,6 @@ class Main:
 
         def draw_params(parent):
 
-            widget_from_type = {
-                'int': ptk.ParamInt,
-                'float': ptk.ParamFloat,
-                'list': ptk.ParamList,
-                'bool': ptk.ParamBool,
-                }
-
             param = self.analysis.param
 
             fparam = ttk.Frame(parent)
@@ -134,17 +127,17 @@ class Main:
             parent.columnconfigure(0, weight=1)
             parent.rowconfigure(0, weight=1)
 
-            container = ptk.ParamContainer(fparam, s)
+            container = ptk.ParamContainer(fparam, s, param) #! remove param
             bind_scroll_wheel(container.canvas, container.scrollframe)
 
             for i, category in enumerate(param.keys()):
-                print(category, param[category].label)
+                # print(category, param[category].label)
                 new_category = ptk.ParamCategory(container,
-                    i, param[category].label)
+                    i, param[category])
                 for j, field in enumerate(param[category].keys()):
-                    print(field, param[category][field].label)
-                    widget_from_type[param[category][field].type](new_category,
-                        j, param[category][field].label)
+                    # print(field, param[category][field].label)
+                    ptk.widget_from_type[param[category][field].type](new_category,
+                        j, param[category][field])
 
             # newf = ptk.ParamCategory(container, 0, 'BOOP')
             # ptk.ParamList(newf, 0, 'List box')

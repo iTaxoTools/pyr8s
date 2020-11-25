@@ -97,64 +97,10 @@ class Main:
             param = self.analysis.param
 
             fparam = ttk.Frame(parent)
-            fdoc = ttk.Frame(parent, relief='ridge')
             fparam.grid(row=0, column=0, padx=5, pady=(5,0), sticky='nswe')
-            fdoc.grid(row=1, column=0, padx=5, pady=(5,5), sticky='nswe')
 
             parent.columnconfigure(0, weight=1)
-            parent.rowconfigure(0, weight=3)
-            parent.rowconfigure(1, weight=1)
-
-            lftest = ttk.Labelframe(fparam, text=param.general.label)
-            lftest.grid(row=0, column=0, pady=5, sticky='nwe')
-            fparam.columnconfigure(0, weight=1)
-            fparam.rowconfigure(0, weight=0)
-
-            vtest1 = StringVar()
-            vtest2 = StringVar()
-            ltest1 = ttk.Label(lftest, text='Test1')
-            etest1 = ttk.Entry(lftest, textvariable=vtest1, width=5)
-            ltest2 = ttk.Label(lftest, text='Test2 long text here')
-            etest2 = ttk.Entry(lftest, textvariable=vtest2, width=5)
-
-            ltest1.grid(row=0, column=0, padx=5, pady=5, sticky='nswe')
-            etest1.grid(row=0, column=1, padx=5, pady=5, sticky='nswe')
-            ltest2.grid(row=1, column=0, padx=5, pady=5, sticky='nswe')
-            etest2.grid(row=1, column=1, padx=5, pady=5, sticky='nswe')
-
-            lftest.columnconfigure(0, weight=10000)
-            lftest.columnconfigure(1, weight=1)
-            lftest.rowconfigure(0, weight=0)
-
-            lftest = ttk.Labelframe(fparam, text=param.general.label, padding=(5,5))
-            lftest.grid(row=1, column=0, pady=5,sticky='nwe')
-            fparam.columnconfigure(0, weight=1)
-            fparam.rowconfigure(1, weight=0)
-
-            vtest1 = StringVar()
-            vtest2 = StringVar()
-            countryvar = StringVar(value='Powell')
-            measureSystem = StringVar()
-            ltest1 = ttk.Label(lftest, text='Test1')
-            ftest1 = ttk.Frame(lftest, width=_PARAM_WIDTH, style='Red.TFrame')
-            etest1 = ttk.Combobox(ftest1, state='readonly',
-                textvariable=countryvar, values=('Only'))
-            etest1.bind('<<ComboboxSelected>>', lambda e: e.widget.selection_clear())
-            ctest2 = ttk.Checkbutton(lftest, text='Use Metric',
-                variable=measureSystem,
-                onvalue='metric', offvalue='imperial')
-
-            ftest1.grid_propagate(0)
-            ftest1.columnconfigure(0, weight=1)
-            ftest1.rowconfigure(0, weight=1)
-            ltest1.grid(row=0, column=0, sticky='nswe')
-            ftest1.grid(row=0, column=1, sticky='nswe')
-            etest1.grid(row=0, column=0, sticky='nswe')
-            ctest2.grid(row=1, column=0, columnspan=2, sticky='nsw')
-
-            lftest.columnconfigure(0, weight=10000)
-            lftest.columnconfigure(1, weight=1)
-            lftest.rowconfigure(0, weight=0)
+            parent.rowconfigure(0, weight=1)
 
             def param_int(parent, row, label):
                 var = StringVar()
@@ -216,15 +162,86 @@ class Main:
                 return combo
 
             def param_category(parent, row, label):
-                lframe = ttk.Labelframe(parent, text=label, padding=(5,5))
-                lframe.grid(row=row, column=0, pady=5, sticky='nwe')
+                lframe = ttk.Labelframe(parent, text='  '+label, padding=(5,5))
+                lframe.grid(row=row, column=0, pady=(10,0), sticky='nwe')
                 parent.columnconfigure(0, weight=1)
                 parent.rowconfigure(1, weight=0)
                 lframe.columnconfigure(0, weight=10000)
                 lframe.columnconfigure(1, weight=1)
                 return lframe
 
-            newf = param_category(fparam, 3, 'BOOP')
+            def param_container(parent):
+                canvas = Canvas(parent, height=0, width=0, bg=s.lookup('TFrame', 'background'))
+                scrollbar = ttk.Scrollbar(parent, orient='vertical',
+                    command=canvas.yview)
+                fscrollable = ttk.Frame(canvas, padding=(0,0,1,0))
+                iid = canvas.create_window((0,0), window=fscrollable, anchor='nw')
+                fdoc = ttk.Frame(parent, relief='ridge')
+                #! These DO call each other and stop when canvas is set to
+                #  the same width as it already has... could this be bad later?
+                fscrollable.bind('<Configure>', lambda e: [
+                    canvas.configure(scrollregion=canvas.bbox('all')),
+                    canvas.configure(width=fscrollable.winfo_width())])
+                def canvasbind(e):
+                    canvas.itemconfig(iid, width=canvas.winfo_width())
+                    print('RESIZE')
+                    print('e.widget',e.height)
+                    print('canvas.winfo_height',canvas.winfo_height())
+                    print('fscrollable.winfo_height',fscrollable.winfo_height())
+                    if (e.height >= fscrollable.winfo_height()
+                            and fdoc.winfo_height() >= fdoc.winfo_reqheight()-5):
+                        print('large')
+                        scrollbar.grid_remove()
+                        parent.rowconfigure(1, weight=10000)
+                    else:
+                        print('small')
+                        canvas.configure(height=fscrollable.winfo_height())
+                        parent.rowconfigure(1, weight=0)
+                        scrollbar.grid()
+                canvas.bind('<Configure>', canvasbind)
+                canvas.configure(yscrollcommand=scrollbar.set)
+                def parentbind(e):
+                    print('RESIZE')
+                    print('e.widget',e.height)
+                    print('canvas.winfo_height',canvas.winfo_height())
+                    print('fscrollable.winfo_height',fscrollable.winfo_height())
+                    if (canvas.winfo_height() >= fscrollable.winfo_height()
+                            and fdoc.winfo_height() >= fdoc.winfo_reqheight()-5):
+                        print('large')
+                        scrollbar.grid_remove()
+                        parent.rowconfigure(1, weight=10000)
+                    else:
+                        print('small')
+                        canvas.configure(height=fscrollable.winfo_height())
+                        parent.rowconfigure(1, weight=0)
+                        scrollbar.grid()
+                parent.bind('<Configure>', parentbind)
+
+                lab = ttk.Button(fdoc, text='hmhmhm').grid(row=0, column=0)
+
+                parent.columnconfigure(0, weight=1)
+                parent.rowconfigure(0, weight=1)
+                parent.rowconfigure(1, weight=0)
+                canvas.grid(row=0, column=0, sticky='nswe')
+                scrollbar.grid(row=0, column=1, padx=(5,0), sticky='nse')
+                fdoc.grid(row=1, column=0, columnspan=2, pady=(5,5), sticky='nswe')
+                return fscrollable
+
+            cont = param_container(fparam)
+
+            newf = param_category(cont, 1, 'BOOP')
+            param_list(newf, 0, 'List box')
+            param_int(newf, 1, 'Int box')
+            param_float(newf, 2, 'Float boxaaaaaaaaaaaaaaaaaa')
+            param_bool(newf, 10, 'Check box')
+
+            newf = param_category(cont, 3, '1')
+            param_list(newf, 0, 'List box')
+            param_int(newf, 1, 'Int box')
+            param_float(newf, 2, 'Float box')
+            param_bool(newf, 10, 'Check box')
+
+            newf = param_category(cont, 5, '2')
             param_list(newf, 0, 'List box')
             param_int(newf, 1, 'Int box')
             param_float(newf, 2, 'Float box')

@@ -184,38 +184,20 @@ class Main:
                     canvas.configure(width=fscrollable.winfo_width())])
                 def canvasbind(e):
                     canvas.itemconfig(iid, width=canvas.winfo_width())
-                    print('RESIZE')
-                    print('e.widget',e.height)
-                    print('canvas.winfo_height',canvas.winfo_height())
-                    print('fscrollable.winfo_height',fscrollable.winfo_height())
-                    if (e.height >= fscrollable.winfo_height()
-                            and fdoc.winfo_height() >= fdoc.winfo_reqheight()-5):
+                    if e.height >= fscrollable.winfo_reqheight():
                         print('large')
                         scrollbar.grid_remove()
+                        canvas.configure(height=fscrollable.winfo_reqheight())
                         parent.rowconfigure(1, weight=10000)
-                    else:
-                        print('small')
-                        canvas.configure(height=fscrollable.winfo_height())
-                        parent.rowconfigure(1, weight=0)
-                        scrollbar.grid()
                 canvas.bind('<Configure>', canvasbind)
                 canvas.configure(yscrollcommand=scrollbar.set)
-                def parentbind(e):
-                    print('RESIZE')
-                    print('e.widget',e.height)
-                    print('canvas.winfo_height',canvas.winfo_height())
-                    print('fscrollable.winfo_height',fscrollable.winfo_height())
-                    if (canvas.winfo_height() >= fscrollable.winfo_height()
-                            and fdoc.winfo_height() >= fdoc.winfo_reqheight()-5):
-                        print('large')
-                        scrollbar.grid_remove()
-                        parent.rowconfigure(1, weight=10000)
-                    else:
+                def docbind(e):
+                    if (e.height < fdoc.winfo_reqheight()-1):
                         print('small')
-                        canvas.configure(height=fscrollable.winfo_height())
+                        canvas.configure(height=fscrollable.winfo_reqheight())
                         parent.rowconfigure(1, weight=0)
                         scrollbar.grid()
-                parent.bind('<Configure>', parentbind)
+                fdoc.bind('<Configure>', docbind)
 
                 lab = ttk.Button(fdoc, text='hmhmhm').grid(row=0, column=0)
 

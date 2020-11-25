@@ -6,108 +6,117 @@ from tkinter import ttk
 
 _PARAM_WIDTH = 80
 
-class ParamInt:
-    def __init__(self, category, row, field, entry_width=_PARAM_WIDTH):
-        parent = category.frame
+class ParamField:
+    """Prototype Param with label and custom entry field"""
+
+    def __init__(self, category, field, row):
         category.fields.append(self)
+        self.parent = category.frame
         self.category = category
         self.field = field
-        self.var = StringVar(value=field.value)
-        def var_update(*args):
-            try:
-                field.value = int(self.var.get())
-            except ValueError:
-                pass
-        self.var.trace_add('write', var_update)
-        check = (parent.register(lambda v:
-            re.match('^[0-9]*$', v) is not None), '%P')
-        self.label = ttk.Label(parent, text=field.label+':  ')
-        self.frame = ttk.Frame(parent, width=entry_width)
-        self.entry = ttk.Entry(self.frame, textvariable=self.var,
-            validate='key', validatecommand=check)
-        parent.rowconfigure(row, weight=1, pad=10)
-        self.frame.grid_propagate(0)
-        self.frame.columnconfigure(0, weight=1)
-        self.frame.rowconfigure(0, weight=1)
-        self.label.grid(row=row, column=0, sticky='nswe')
-        self.frame.grid(row=row, column=1, sticky='nswe')
-        self.entry.grid(row=0, column=0, sticky='we')
+        self.row = row
+        self.var = self.var()
+        self.var.trace_add('write', self.update)
+        self.interface()
+    def update(self, *args):
+        try:
+            self.field.value = self.get()
+            self.valid()
+        except ValueError:
+            self.invalid()
+            pass
+    def valid(self):
+        print('Set:', self.field.label, '=', self.field.value)
+    def invalid(self):
+        print('Set:', self.field.label, '= ?')
+    def interface(self):
+        pass
+    def var(self):
+        pass
+    def get(self):
+        pass
 
-
-class ParamFloat:
-    def __init__(self, category, row, field, entry_width=_PARAM_WIDTH):
-        parent = category.frame
-        category.fields.append(self)
-        self.category = category
-        self.field = field
-        self.var = StringVar(value=field.value)
-        def var_update(*args):
-            try:
-                field.value = float(self.var.get())
-            except ValueError:
-                pass
-        self.var.trace_add('write', var_update)
-        check = (parent.register(lambda v:
-            re.match('^[0-9]*\.?[0-9]*(e(\-|\+)?[0-9]*)?$', v) is not None), '%P')
-        self.label = ttk.Label(parent, text=field.label+':  ')
-        self.frame = ttk.Frame(parent, width=entry_width)
-        self.entry = ttk.Entry(self.frame, textvariable=self.var,
-            validate='key', validatecommand=check)
-        parent.rowconfigure(row, weight=1, pad=10)
-        self.frame.grid_propagate(0)
-        self.frame.columnconfigure(0, weight=1)
-        self.frame.rowconfigure(0, weight=1)
-        self.label.grid(row=row, column=0, sticky='we')
-        self.frame.grid(row=row, column=1, sticky='nswe')
-        self.entry.grid(row=0, column=0, sticky='we')
-
-class ParamList:
-    def __init__(self, category, row, field, entry_width=_PARAM_WIDTH):
-        parent = category.frame
-        category.fields.append(self)
-        self.category = category
-        self.field = field
-        i = field.data['items'].index(field.value)
-        self.var = StringVar(value=field.data['labels'][i])
-        def var_update(*args):
-            try:
-                i = field.data['labels'].index(self.var.get())
-                field.value = field.data['items'][i]
-            except ValueError:
-                pass
-        self.var.trace_add('write', var_update)
-        self.label = ttk.Label(parent, text=field.label+':  ')
-        self.frame = ttk.Frame(parent, width=entry_width)
-        self.combo = ttk.Combobox(self.frame, state='readonly',
-            textvariable=self.var, values=self.field.data['labels'])
-        self.combo.bind('<<ComboboxSelected>>', lambda e: e.widget.selection_clear())
-        parent.rowconfigure(row, weight=1, pad=10)
-        self.frame.grid_propagate(0)
-        self.frame.columnconfigure(0, weight=1)
-        self.frame.rowconfigure(0, weight=1)
-        self.label.grid(row=row, column=0, sticky='nswe')
-        self.frame.grid(row=row, column=1, sticky='nswe')
-        self.combo.grid(row=0, column=0, sticky='we')
-
-class ParamBool:
+class ParamBool(ParamField):
     """Checkbox"""
-    def __init__(self, category, row, field):
-        parent = category.frame
-        category.fields.append(self)
-        self.category = category
-        self.field = field
-        self.var = BooleanVar(value=field.value)
-        def var_update(*args):
-            try:
-                field.value = bool(self.var.get())
-            except ValueError:
-                pass
-        self.var.trace_add('write', var_update)
-        self.checkbutton = ttk.Checkbutton(parent, text=field.label,
+    def interface(self):
+        self.checkbutton = ttk.Checkbutton(self.parent, text=self.field.label,
             variable=self.var,
             onvalue=True, offvalue=False)
-        parent.rowconfigure(row, weight=1, pad=2)
-        self.checkbutton.grid(row=row, column=0, columnspan=2, sticky='nsw')
+        self.parent.rowconfigure(self.row, weight=1, pad=2)
+        self.checkbutton.grid(row=self.row, column=0, columnspan=2, sticky='nsw')
+    def var(self):
+        return BooleanVar(value=self.field.value)
+    def get(self):
+        return bool(self.var.get())
+
+class ParamFieldEntry(ParamField):
+    """With label and entry with fixed width"""
+    def interface(self, entry_width=_PARAM_WIDTH):
+        self.label = ttk.Label(self.parent, text=self.field.label+':  ')
+        self.frame = ttk.Frame(self.parent, width=entry_width)
+        self.entry = self.entry()
+        self.parent.rowconfigure(self.row, weight=1, pad=10)
+        self.frame.grid_propagate(0)
+        self.frame.columnconfigure(0, weight=1)
+        self.frame.rowconfigure(0, weight=1)
+        self.label.grid(row=self.row, column=0, sticky='nswe')
+        self.frame.grid(row=self.row, column=1, sticky='nswe')
+        self.entry.grid(row=0, column=0, sticky='we')
+        self.style()
+    def style(self):
+        self.style_valid = 'TEntry'
+        self.style_invalid = 'Alert.TEntry'
+    def valid(self):
+        self.entry.configure(style=self.style_valid)
+        super().valid()
+    def invalid(self):
+        self.entry.configure(style=self.style_invalid)
+        super().invalid()
+    def entry(self):
+        pass
+
+class ParamInt(ParamFieldEntry):
+    """For integer parameters"""
+    def entry(self):
+        check = (self.frame.register(lambda v:
+            re.match('^[0-9]*$', v) is not None), '%P')
+        entry = ttk.Entry(self.frame, textvariable=self.var,
+            validate='key', validatecommand=check)
+        return entry
+    def var(self):
+        return StringVar(value=self.field.value)
+    def get(self):
+        return int(self.var.get())
+
+class ParamFloat(ParamFieldEntry):
+    """For float point parameters"""
+    def entry(self):
+        check = (self.frame.register(lambda v:
+            re.match('^[0-9]*\.?[0-9]*(e(\-|\+)?[0-9]*)?$', v) is not None), '%P')
+        entry = ttk.Entry(self.frame, textvariable=self.var,
+            validate='key', validatecommand=check)
+        return entry
+    def var(self):
+        return StringVar(value=self.field.value)
+    def get(self):
+        return float(self.var.get())
+
+class ParamList(ParamFieldEntry):
+    """For item list parameters"""
+    def entry(self):
+        entry = ttk.Combobox(self.frame, state='readonly',
+            textvariable=self.var, values=self.field.data['labels'])
+        entry.bind('<<ComboboxSelected>>', lambda e: e.widget.selection_clear())
+        return entry
+    def style(self):
+        self.style_valid = 'TCombobox'
+        self.style_invalid = 'Alert.TCombobox'
+    def var(self):
+        i = self.field.data['items'].index(self.field.value)
+        return StringVar(value=self.field.data['labels'][i])
+    def get(self):
+        i = self.field.data['labels'].index(self.var.get())
+        return self.field.data['items'][i]
 
 class ParamCategory:
     """Holds a group of parameters"""
@@ -124,10 +133,11 @@ class ParamCategory:
         self.frame.columnconfigure(0, weight=10000)
         self.frame.columnconfigure(1, weight=1)
 
-
 class ParamContainer:
     """All Param widgets go here"""
     def __init__(self, parent, style, param):
+        style.configure('Alert.TCombobox', bordercolor='red')
+        style.configure('Alert.TEntry', bordercolor='red')
         self.categories = []
         self.parent = parent
         self.canvas = Canvas(parent, height=0, width=0, highlightthickness=0,
@@ -145,11 +155,12 @@ class ParamContainer:
         self.canvas.bind('<Configure>', self._event_canvas)
         self.fdoc.bind('<Configure>', self._event_doc)
 
-
         def helloCallBack():
             print(param.algorithm.algorithm)
         btn = ttk.Button(self.fdoc, text='Do it', command=helloCallBack)
         btn.grid(row=0, column=1)
+        btn = ttk.Entry(self.fdoc, text='Do it')
+        btn.grid(row=0, column=0)
 
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)

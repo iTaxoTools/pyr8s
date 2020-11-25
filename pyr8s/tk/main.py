@@ -137,7 +137,7 @@ class Main:
                 for j, field in enumerate(param[category].keys()):
                     # print(field, param[category][field].label)
                     ptk.widget_from_type[param[category][field].type](new_category,
-                        j, param[category][field])
+                        param[category][field], j)
 
             # newf = ptk.ParamCategory(container, 0, 'BOOP')
             # ptk.ParamList(newf, 0, 'List box')

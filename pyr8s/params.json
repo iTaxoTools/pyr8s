@@ -14,17 +14,17 @@
         "type":     "int",
         "default":  1
       },
-      "scalar": {
-        "label":    "Scalar",
-        "doc":      "Force root age at 1.0.",
-        "type":     "bool",
-        "default":  false
-      },
       "largeval": {
         "label":    "Large value",
         "doc":      "For clamping.",
         "type":     "float",
         "default":  1e30
+      },
+      "scalar": {
+        "label":    "Scalar",
+        "doc":      "Force root age at 1.0.",
+        "type":     "bool",
+        "default":  false
       }
     }
   },
@@ -99,17 +99,17 @@
           "labels": ["NPRS", "Penalized"]
           }
       },
-      "logarithmic": {
-        "label":    "Logarithmic",
-        "doc":      "Logarithmic.",
-        "type":     "bool",
-        "default":  false
-      },
       "exponent": {
         "label":    "Exponent",
         "doc":      "Exponent.",
         "type":     "int",
         "default":  2
+      },
+      "logarithmic": {
+        "label":    "Logarithmic",
+        "doc":      "Logarithmic.",
+        "type":     "bool",
+        "default":  false
       }
     }
   },

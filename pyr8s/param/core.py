@@ -24,7 +24,6 @@ Access field documentation:
 >>> param.general['scalar'].doc
 """
 
-import importlib.resources
 import json
 
 class ParamField():
@@ -106,8 +105,7 @@ class ParamList(dict):
     def __dir__(self):
         return list(self.keys())
 
-    def __init__(self):
-        with importlib.resources.open_text(__package__, 'params.json') as data:
-            dictionary = json.load(data)
+    def __init__(self, data):
+        dictionary = json.load(data)
         for k in dictionary.keys():
             self[k] = ParamCategory(dictionary[k])

@@ -1,9 +1,35 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
 from tkinter import *
 from tkinter import ttk
 import dendropy
 import re
 
 from .. import core
+from ..param import tk as ptk
+
+
+def bind_scroll_wheel(canvas, frame, bar):
+    os = canvas.tk.call('tk', 'windowingsystem')
+    if os == 'x11':
+        canvas.bind_all('<Button-4>', lambda e:
+            canvas.event_generate("<MouseWheel>",delta=1))
+        canvas.bind_all('<Button-5>', lambda e:
+            canvas.event_generate("<MouseWheel>",delta=-1))
+    if os == 'win32':
+        def _on_wheel(e):
+            canvas.yview_scroll(int(-1*(e.delta/120)), 'units')
+    else:
+        def _on_wheel(e):
+            canvas.yview_scroll(int(-1*(e.delta)), 'units')
+    def _bind_wheel(e):
+        canvas.bind_all('<MouseWheel>', _on_wheel)
+    def _unbind_wheel(e):
+        canvas.unbind_all('<MouseWheel>')
+    frame.bind('<Enter>',_bind_wheel)
+    frame.bind('<Leave>',_unbind_wheel)
+
 
 class Main:
     """Main screen"""
@@ -102,132 +128,26 @@ class Main:
             parent.columnconfigure(0, weight=1)
             parent.rowconfigure(0, weight=1)
 
-            def param_int(parent, row, label):
-                var = StringVar()
-                check = (parent.register(lambda v:
-                    re.match('^[0-9]*$', v) is not None), '%P')
-                label = ttk.Label(parent, text=label+':  ')
-                frame = ttk.Frame(parent, width=_PARAM_WIDTH)
-                entry = ttk.Entry(frame, textvariable=var,
-                    validate='key', validatecommand=check)
-                parent.rowconfigure(row, weight=1, pad=10)
-                frame.grid_propagate(0)
-                frame.columnconfigure(0, weight=1)
-                frame.rowconfigure(0, weight=1)
-                label.grid(row=row, column=0, sticky='nswe')
-                frame.grid(row=row, column=1, sticky='nswe')
-                entry.grid(row=0, column=0, sticky='we')
-                return entry
+            cont = ptk.ParamContainer(fparam, s)
+            bind_scroll_wheel(cont.canvas, cont.scrollframe, cont.scrollbar)
 
-            def param_float(parent, row, label):
-                var = StringVar()
-                check = (parent.register(lambda v:
-                    re.match('^[0-9]*\.?[0-9]*e?-?[0-9]*$', v) is not None), '%P')
-                label = ttk.Label(parent, text=label+':  ')
-                frame = ttk.Frame(parent, width=_PARAM_WIDTH)
-                entry = ttk.Entry(frame, textvariable=var,
-                    validate='key', validatecommand=check)
-                parent.rowconfigure(row, weight=1, pad=10)
-                frame.grid_propagate(0)
-                frame.columnconfigure(0, weight=1)
-                frame.rowconfigure(0, weight=1)
-                label.grid(row=row, column=0, sticky='we')
-                frame.grid(row=row, column=1, sticky='nswe')
-                entry.grid(row=0, column=0, sticky='we')
-                return entry
+            newf = ptk.ParamCategory(cont, 0, 'BOOP')
+            ptk.ParamList(newf, 0, 'List box')
+            ptk.ParamInt(newf, 1, 'Int box')
+            ptk.ParamFloat(newf, 2, 'Float boxaaaaaaaaaaaaaaaaaa')
+            ptk.ParamBool(newf, 10, 'Check box')
 
-            def param_bool(parent, row, label):
-                var = BooleanVar()
-                checkbutton = ttk.Checkbutton(parent, text=label,
-                    variable=var,
-                    onvalue=True, offvalue=False)
-                parent.rowconfigure(row, weight=1, pad=2)
-                checkbutton.grid(row=row, column=0, columnspan=2, sticky='nsw')
-                return checkbutton
+            newf = ptk.ParamCategory(cont, 3, '1')
+            ptk.ParamList(newf, 0, 'List box')
+            ptk.ParamInt(newf, 1, 'Int box')
+            ptk.ParamFloat(newf, 2, 'Float box')
+            ptk.ParamBool(newf, 10, 'Check box')
 
-            def param_list(parent, row, label):
-                var = StringVar()
-                label = ttk.Label(parent, text=label+':  ')
-                frame = ttk.Frame(parent, width=_PARAM_WIDTH)
-                combo = ttk.Combobox(frame, state='readonly',
-                    textvariable=var, values=('Only'))
-                combo.bind('<<ComboboxSelected>>', lambda e: e.widget.selection_clear())
-                parent.rowconfigure(row, weight=1, pad=10)
-                frame.grid_propagate(0)
-                frame.columnconfigure(0, weight=1)
-                frame.rowconfigure(0, weight=1)
-                label.grid(row=row, column=0, sticky='nswe')
-                frame.grid(row=row, column=1, sticky='nswe')
-                combo.grid(row=0, column=0, sticky='we')
-                return combo
-
-            def param_category(parent, row, label):
-                lframe = ttk.Labelframe(parent, text='  '+label, padding=(5,5))
-                lframe.grid(row=row, column=0, pady=(10,0), sticky='nwe')
-                parent.columnconfigure(0, weight=1)
-                parent.rowconfigure(1, weight=0)
-                lframe.columnconfigure(0, weight=10000)
-                lframe.columnconfigure(1, weight=1)
-                return lframe
-
-            def param_container(parent):
-                canvas = Canvas(parent, height=0, width=0, bg=s.lookup('TFrame', 'background'))
-                scrollbar = ttk.Scrollbar(parent, orient='vertical',
-                    command=canvas.yview)
-                fscrollable = ttk.Frame(canvas, padding=(0,0,1,0))
-                iid = canvas.create_window((0,0), window=fscrollable, anchor='nw')
-                fdoc = ttk.Frame(parent, relief='ridge')
-                #! These DO call each other and stop when canvas is set to
-                #  the same width as it already has... could this be bad later?
-                fscrollable.bind('<Configure>', lambda e: [
-                    canvas.configure(scrollregion=canvas.bbox('all')),
-                    canvas.configure(width=fscrollable.winfo_width())])
-                def canvasbind(e):
-                    canvas.itemconfig(iid, width=canvas.winfo_width())
-                    if e.height >= fscrollable.winfo_reqheight():
-                        print('large')
-                        scrollbar.grid_remove()
-                        canvas.configure(height=fscrollable.winfo_reqheight())
-                        parent.rowconfigure(1, weight=10000)
-                canvas.bind('<Configure>', canvasbind)
-                canvas.configure(yscrollcommand=scrollbar.set)
-                def docbind(e):
-                    if (e.height < fdoc.winfo_reqheight()-1):
-                        print('small')
-                        canvas.configure(height=fscrollable.winfo_reqheight())
-                        parent.rowconfigure(1, weight=0)
-                        scrollbar.grid()
-                fdoc.bind('<Configure>', docbind)
-
-                lab = ttk.Button(fdoc, text='hmhmhm').grid(row=0, column=0)
-
-                parent.columnconfigure(0, weight=1)
-                parent.rowconfigure(0, weight=1)
-                parent.rowconfigure(1, weight=0)
-                canvas.grid(row=0, column=0, sticky='nswe')
-                scrollbar.grid(row=0, column=1, padx=(5,0), sticky='nse')
-                fdoc.grid(row=1, column=0, columnspan=2, pady=(5,5), sticky='nswe')
-                return fscrollable
-
-            cont = param_container(fparam)
-
-            newf = param_category(cont, 1, 'BOOP')
-            param_list(newf, 0, 'List box')
-            param_int(newf, 1, 'Int box')
-            param_float(newf, 2, 'Float boxaaaaaaaaaaaaaaaaaa')
-            param_bool(newf, 10, 'Check box')
-
-            newf = param_category(cont, 3, '1')
-            param_list(newf, 0, 'List box')
-            param_int(newf, 1, 'Int box')
-            param_float(newf, 2, 'Float box')
-            param_bool(newf, 10, 'Check box')
-
-            newf = param_category(cont, 5, '2')
-            param_list(newf, 0, 'List box')
-            param_int(newf, 1, 'Int box')
-            param_float(newf, 2, 'Float box')
-            param_bool(newf, 10, 'Check box')
+            newf = ptk.ParamCategory(cont, 5, '2')
+            ptk.ParamList(newf, 0, 'List box')
+            ptk.ParamInt(newf, 1, 'Int box')
+            ptk.ParamFloat(newf, 2, 'Float boxy')
+            ptk.ParamBool(newf, 10, 'Check box')
 
 
         def draw_tabs(parent):

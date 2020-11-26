@@ -127,36 +127,9 @@ class Main:
             parent.columnconfigure(0, weight=1)
             parent.rowconfigure(0, weight=1)
 
-            container = ptk.ParamContainer(fparam, s, param) #! remove param
+            container = ptk.ParamContainer(fparam, param)
             bind_scroll_wheel(container.canvas, container.scrollframe)
-
-            for i, category in enumerate(param.keys()):
-                # print(category, param[category].label)
-                new_category = ptk.ParamCategory(container,
-                    i, param[category])
-                for j, field in enumerate(param[category].keys()):
-                    # print(field, param[category][field].label)
-                    ptk.widget_from_type[param[category][field].type](new_category,
-                        param[category][field], j)
-
-            # newf = ptk.ParamCategory(container, 0, 'BOOP')
-            # ptk.ParamList(newf, 0, 'List box')
-            # ptk.ParamInt(newf, 1, 'Int box')
-            # ptk.ParamFloat(newf, 2, 'Float boxaaaaaaaaaaaaaaaaaa')
-            # ptk.ParamBool(newf, 10, 'Check box')
-            #
-            # newf = ptk.ParamCategory(container, 3, '1')
-            # ptk.ParamList(newf, 0, 'List box')
-            # ptk.ParamInt(newf, 1, 'Int box')
-            # ptk.ParamFloat(newf, 2, 'Float box')
-            # ptk.ParamBool(newf, 10, 'Check box')
-            #
-            # newf = ptk.ParamCategory(container, 5, '2')
-            # ptk.ParamList(newf, 0, 'List box')
-            # ptk.ParamInt(newf, 1, 'Int box')
-            # ptk.ParamFloat(newf, 2, 'Float boxy')
-            # ptk.ParamBool(newf, 10, 'Check box')
-
+            
 
         def draw_tabs(parent):
 

@@ -135,7 +135,8 @@ class ParamCategory:
 
 class ParamContainer:
     """All Param widgets go here"""
-    def __init__(self, parent, style, param):
+    def __init__(self, parent, param=None):
+        style = ttk.Style()
         style.configure('Alert.TCombobox', bordercolor='red')
         style.configure('Alert.TEntry', bordercolor='red')
         self.categories = []
@@ -169,6 +170,9 @@ class ParamContainer:
         self.scrollbar.grid(row=0, column=1, padx=(5,0), sticky='nse')
         self.fdoc.grid(row=1, column=0, columnspan=2, pady=(5,5), sticky='nswe')
 
+        if param is not None:
+            self.populate(param)
+
     def _event_frame(self, e):
         self.canvas.configure(scrollregion=self.canvas.bbox('all'))
         self.canvas.configure(width=self.scrollframe.winfo_width())
@@ -186,9 +190,17 @@ class ParamContainer:
             self.parent.rowconfigure(1, weight=0)
             self.scrollbar.grid()
 
-widget_from_type = {
-    'int': ParamInt,
-    'float': ParamFloat,
-    'list': ParamList,
-    'bool': ParamBool,
-    }
+    def populate(self, param):
+        """Create categories and fields"""
+        widget_from_type = {
+            'int': ParamInt,
+            'float': ParamFloat,
+            'list': ParamList,
+            'bool': ParamBool,
+            }
+        for i, category in enumerate(param.keys()):
+            new_category = ParamCategory(self,
+                i, param[category])
+            for j, field in enumerate(param[category].keys()):
+                widget_from_type[param[category][field].type](new_category,
+                    param[category][field], j)

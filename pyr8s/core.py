@@ -93,7 +93,7 @@ class Array:
                     node.fix = 0
                 else:
                     node.fix = None
-            _tree.seed_node.fix = 1.0
+            _tree.seed_node.fix = 100.0
 
         # Calculate substitutions and trim afterwards
         _tree.calc_subs(persite, nsites, doround)
@@ -773,26 +773,32 @@ class RateAnalysis:
 
         Parameters
         ----------
-        tree : dendropy.Tree (or extensions.TreePlus)
-            The tree to be analysed.
+        tree : string
+            The tree to be analysed in Newick format.
         nsites : int
-            If |None|, branch length substitutions will be considered
-            given in total numbers. Set the persite/nsites parameters otherwise.
+            The number of sites in sequences that branch
+            lengths on input trees were calculated from.
+            If |None|, the branch lengths will assumed to be in
+            units of total numbers of substitutions.
         scalar : bool
-            If |True|, then do a scalar analysis by setting root age to 1.0.
+            If |True|, then do a scalar analysis by setting root age to 100.0.
             If |False|, then assume the given tree is extended with all
             calibrations needed for convergence.
 
         Returns
         -------
-        RateAnalysisResults
-            Contains output trees and tables.
+        string
+            The calculated chronogram in newick form, that is:
+            an ultrametric phylogenetic tree in which branch lengths
+            correspond to time durations along branches.
 
         Example
         -------
         RateAnalysis.quick(my_tree).print()
         """
-        analysis = cls(tree)
+        dendrotree = dendropy.Tree.get(data=tree,
+            schema="newick", suppress_internal_node_taxa=False)
+        analysis = cls(dendrotree)
         analysis.param.general.scalar = scalar
         if nsites is None:
             analysis.param.branch_length.persite = False
@@ -801,4 +807,5 @@ class RateAnalysis:
             analysis.param.branch_length.persite = True
             analysis.param.branch_length.nsites = nsites
         res = analysis.run()
-        return res
+        chrono = res.chronogram.as_string(schema='newick', suppress_rooting=True)
+        return chrono

@@ -68,9 +68,14 @@ View and edit output trees:
 
 ## Quick analysis
 
-To quickly analyze a dendropy tree without setting any params or calibrations:
+To quickly analyze a tree without setting any params or calibrations.
+Example:
 ```
 import pyr8s.core
-pyr8s.core.RateAnalysis.quick(my_tree, nsites=1000)
+res = pyr8s.core.RateAnalysis.quick(tree, nsites=1000)
 ```
-You may omit the nsites argument if the branch lengths are absolute.
+Where `tree` is a string in Newick format and `nsites` is the number of sites
+in sequences that branch lengths on input trees were calculated from.
+You may omit `nsites` if the branch lengths are absolute.
+The result `res` is a chronogram in Newick string format,
+with the root set to an age of 100.

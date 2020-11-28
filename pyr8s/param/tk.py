@@ -156,12 +156,16 @@ class ParamContainer:
         self.canvas.bind('<Configure>', self._event_canvas)
         self.fdoc.bind('<Configure>', self._event_doc)
 
-        def helloCallBack():
-            print(param.algorithm.algorithm)
-        btn = ttk.Button(self.fdoc, text='Do it', command=helloCallBack)
-        btn.grid(row=0, column=1)
-        btn = ttk.Entry(self.fdoc, text='Do it')
-        btn.grid(row=0, column=0)
+        # def helloCallBack():
+        #     print(param.algorithm.algorithm)
+        # btn = ttk.Button(self.fdoc, text='Do it', command=helloCallBack)
+        # btn.grid(row=0, column=1)
+        # btn = ttk.Entry(self.fdoc, text='Do it')
+        # btn.grid(row=0, column=0)
+        lbl = ttk.Label(self.fdoc, text='Number of guesses:\n'+
+            'How many times to repeat the analysis.\n'+
+            'Different starting point each time.')
+        lbl.grid(row=0, column=0, padx=10, pady=10)
 
         parent.columnconfigure(0, weight=1)
         parent.rowconfigure(0, weight=1)

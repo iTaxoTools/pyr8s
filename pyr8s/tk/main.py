@@ -9,6 +9,7 @@ import re
 from .. import core
 from ..param import tk as ptk
 
+# from ttkthemes import ThemedTk
 
 def bind_scroll_wheel(canvas, frame):
     os = canvas.tk.call('tk', 'windowingsystem')
@@ -129,7 +130,7 @@ class Main:
 
             container = ptk.ParamContainer(fparam, param)
             bind_scroll_wheel(container.canvas, container.scrollframe)
-            
+
 
         def draw_tabs(parent):
 
@@ -148,7 +149,7 @@ class Main:
 
             ntabs.grid(row=0, column=0, sticky='nswe')
 
-            draw_params(fconstr)
+            draw_params(fparam)
 
 
         def draw_pane_left(parent):
@@ -159,7 +160,7 @@ class Main:
             ffoot = ttk.Frame(parent, height=_FOOTER_HEIGHT, padding=(0,2))
             sline = ttk.Separator(parent, orient=HORIZONTAL)
 
-            lhead = ttk.Label(fhead, anchor='center', relief='ridge', text='Tree of Life')
+            lhead = ttk.Label(fhead, anchor='center', relief='ridge', text='lacertidae/PHYLIP_1')
             lfoot = ttk.Label(ffoot, text='Progress')
             brun = ttk.Button(frun, text='Run')
 
@@ -236,6 +237,7 @@ class Main:
 def show(file=None):
     """Entry point"""
     root = Tk()
+    # root = ThemedTk(theme="clearlooks")
     main = Main(root)
     if file is not None:
         main.open(file)

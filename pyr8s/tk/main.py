@@ -11,6 +11,14 @@ from ..param import tk as ptk
 
 # from ttkthemes import ThemedTk
 
+def unbind_combo_wheel(root):
+    os = root.tk.call('tk', 'windowingsystem')
+    if os == 'x11':
+        root.unbind_class("TCombobox", "<ButtonPress-4>")
+        root.unbind_class("TCombobox", "<ButtonPress-5>")
+    else:
+        root.unbind_class("TCombobox", "<MouseWheel>")
+
 def bind_scroll_wheel(canvas, frame):
     os = canvas.tk.call('tk', 'windowingsystem')
     if os == 'x11':
@@ -42,6 +50,7 @@ class Main:
         root.geometry('854x480+0+0')
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
+        unbind_combo_wheel(root)
 
         self.analysis = core.RateAnalysis()
 

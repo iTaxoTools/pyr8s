@@ -1,76 +1,137 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtCore import QDateTime, Qt, QTimer
+from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
-        QVBoxLayout, QWidget)
+        QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar)
+from PyQt5.QtGui import QIcon
 
+class PToolBar(QToolBar):
+    """Paired toolbar"""
+    resized = pyqtSignal()
 
-class WidgetGallery(QDialog):
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if event.size().height() != event.oldSize().height():
+            # print('resized', event.size().height(), event.oldSize().height())
+            self.resized.emit()
+
+    def pairHandle(self):
+        # print('another', self.sender().height())
+        other = self.sender().height()
+        if other > self.height():
+            self.setFixedHeight(other)
+
+    def pair(self, widget):
+        self.resized.connect(widget.pairHandle)
+
+class Main(QDialog):
     def __init__(self, parent=None):
-        super(WidgetGallery, self).__init__(parent)
+        super(Main, self).__init__(parent)
 
-        self.originalPalette = QApplication.palette()
+        self.setWindowTitle("pyr8s")
+        self.resize(854,480)
+        self.draw()
 
-        styleComboBox = QComboBox()
-        styleComboBox.addItems(QStyleFactory.keys())
-
-        styleLabel = QLabel("&Style:")
-        styleLabel.setBuddy(styleComboBox)
-
-        self.useStylePaletteCheckBox = QCheckBox("&Use style's standard palette")
-        self.useStylePaletteCheckBox.setChecked(True)
-
-        disableWidgetsCheckBox = QCheckBox("&Disable widgets")
-
-        self.createTopLeftGroupBox()
+    def draw(self):
+        """Draw all widgets"""
         self.createTopRightGroupBox()
-        self.createBottomLeftTabWidget()
-        self.createBottomRightGroupBox()
-        self.createProgressBar()
+        self.leftPane, self.barLabel = self.createEditPane()
+        self.rightPane, self.barButton  = self.createCanvasPane()
+        self.barLabel.pair(self.barButton)
+        self.barButton.pair(self.barLabel)
 
-        styleComboBox.activated[str].connect(self.changeStyle)
-        self.useStylePaletteCheckBox.toggled.connect(self.changePalette)
-        disableWidgetsCheckBox.toggled.connect(self.topLeftGroupBox.setDisabled)
-        disableWidgetsCheckBox.toggled.connect(self.topRightGroupBox.setDisabled)
-        disableWidgetsCheckBox.toggled.connect(self.bottomLeftTabWidget.setDisabled)
-        disableWidgetsCheckBox.toggled.connect(self.bottomRightGroupBox.setDisabled)
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.addWidget(self.leftPane)
+        splitter.addWidget(self.rightPane)
+        splitter.setStretchFactor(0,0)
+        splitter.setStretchFactor(1,1)
 
-        topLayout = QHBoxLayout()
-        topLayout.addWidget(styleLabel)
-        topLayout.addWidget(styleComboBox)
-        topLayout.addStretch(1)
-        topLayout.addWidget(self.useStylePaletteCheckBox)
-        topLayout.addWidget(disableWidgetsCheckBox)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(splitter)
+        self.setLayout(layout)
 
-        mainLayout = QGridLayout()
-        mainLayout.addLayout(topLayout, 0, 0, 1, 2)
-        mainLayout.addWidget(self.topLeftGroupBox, 1, 0)
-        mainLayout.addWidget(self.topRightGroupBox, 1, 1)
-        mainLayout.addWidget(self.bottomLeftTabWidget, 2, 0)
-        mainLayout.addWidget(self.bottomRightGroupBox, 2, 1)
-        mainLayout.addWidget(self.progressBar, 3, 0, 1, 2)
-        mainLayout.setRowStretch(1, 1)
-        mainLayout.setRowStretch(2, 1)
-        mainLayout.setColumnStretch(0, 1)
-        mainLayout.setColumnStretch(1, 1)
-        self.setLayout(mainLayout)
+    def createCanvasPane(self):
+        pane = QWidget()
 
-        self.setWindowTitle("Styles")
-        self.changeStyle('Windows')
+        toolbar = PToolBar('Tools')
+        toolbar.addAction('Open')
+        toolbar.addAction('Save')
+        toolbar.addAction('Export')
 
-    def changeStyle(self, styleName):
-        QApplication.setStyle(QStyleFactory.create(styleName))
-        self.changePalette()
+        canvas = QGroupBox()
+        canvas.setContentsMargins(0, 0, 0, 0)
 
-    def changePalette(self):
-        if (self.useStylePaletteCheckBox.isChecked()):
-            QApplication.setPalette(QApplication.style().standardPalette())
-        else:
-            QApplication.setPalette(self.originalPalette)
+        layout = QVBoxLayout()
+        layout.setMenuBar(toolbar)
+        layout.addWidget(canvas)
+        layout.setContentsMargins(0, 0, 0, 0)
+        pane.setLayout(layout)
+
+        return pane, toolbar
+
+    def createEditPane(self):
+        pane = QWidget()
+
+        exitAct = QAction('Exit', self)
+        exitAct.setShortcut('Ctrl+Q')
+        exitAct.triggered.connect(qApp.quit)
+
+        label = QLabel("Some tools")
+        label.setAlignment(Qt.AlignHCenter)
+        labelayout = QHBoxLayout()
+        labelayout.addWidget(label, 1)
+        labelwidget = QWidget()
+        labelwidget.setLayout(labelayout)
+
+        toolbar = PToolBar('Tools')
+        toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        # toolbar.addAction(exitAct)
+        # toolbar.addAction('exitAct')
+        toolbar.addWidget(labelwidget)
+
+        tabWidget = QTabWidget()
+        # tabWidget.setSizePolicy(QSizePolicy.Preferred,
+        #         QSizePolicy.Ignored)
+
+        tab1 = QWidget()
+        tableWidget = QTableWidget(10, 10)
+
+        tab1hbox = QHBoxLayout()
+        tab1hbox.setContentsMargins(0, 0, 0, 0)
+        tab1hbox.addWidget(tableWidget)
+        tab1.setLayout(tab1hbox)
+
+        tab2 = QWidget()
+        textEdit = QTextEdit()
+
+        textEdit.setPlainText("Twinkle, twinkle, little star,\n"
+                              "How I wonder what you are.\n"
+                              "Up above the world so high,\n"
+                              "Like a diamond in the sky.\n"
+                              "Twinkle, twinkle, little star,\n"
+                              "How I wonder what you are!\n")
+
+        tab2hbox = QHBoxLayout()
+        # tab2hbox.setContentsMargins(5, 5, 5, 5)
+        tab1hbox.setContentsMargins(0, 0, 0, 0)
+        tab2hbox.addWidget(textEdit)
+        tab2.setLayout(tab2hbox)
+
+        tabWidget.addTab(tab1, "&Table")
+        tabWidget.addTab(tab2, "Text &Edit")
+
+        layout = QVBoxLayout()
+        layout.setMenuBar(toolbar)
+        layout.addWidget(tabWidget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        pane.setLayout(layout)
+
+        return pane, toolbar
 
     def advanceProgressBar(self):
         curVal = self.progressBar.value()
@@ -195,6 +256,6 @@ class WidgetGallery(QDialog):
 def show(sys):
     """Entry point"""
     app = QApplication(sys.argv)
-    gallery = WidgetGallery()
-    gallery.show()
+    main = Main()
+    main.show()
     sys.exit(app.exec_())

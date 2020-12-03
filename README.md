@@ -76,6 +76,6 @@ res = pyr8s.core.RateAnalysis.quick(tree, nsites=1000)
 ```
 Where `tree` is a string in Newick format and `nsites` is the number of sites
 in sequences that branch lengths on input trees were calculated from.
-You may omit `nsites` if the branch lengths are absolute.
+If `nsites` is not provided then it is guessed based on maximum branch length.
 The result `res` is a chronogram in Newick string format,
 with the root set to an age of 100.

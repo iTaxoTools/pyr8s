@@ -771,7 +771,7 @@ class RateAnalysis:
         return self.results
 
     @classmethod
-    def quick(cls, tree, nsites=None, scalar=True):
+    def quick(cls, tree, persite=True, nsites=None, scalar=True):
         """
         Run analysis without explicitly setting parameters and calibrations.
 
@@ -779,14 +779,17 @@ class RateAnalysis:
         ----------
         tree : string
             The tree to be analysed in Newick format.
+        persite: bool
+            If |True| then nsites must be provided.
+            If |False| then assume the branch lengths are given in
+            units of total numbers of substitutions.
         nsites : int
             The number of sites in sequences that branch
             lengths on input trees were calculated from.
-            If |None|, the branch lengths will assumed to be in
-            units of total numbers of substitutions.
+            If |None| then try to guess them based on given tree lengths.
         scalar : bool
-            If |True|, then do a scalar analysis by setting root age to 100.0.
-            If |False|, then assume the given tree is extended with all
+            If |True| then do a scalar analysis by setting root age to 100.0.
+            If |False| then assume the given tree is extended with all
             calibrations needed for convergence.
 
         Returns
@@ -804,12 +807,19 @@ class RateAnalysis:
             schema="newick", suppress_internal_node_taxa=False)
         analysis = cls(dendrotree)
         analysis.param.general.scalar = scalar
-        if nsites is None:
-            analysis.param.branch_length.persite = False
+        analysis.param.branch_length.persite = persite
+        if not persite:
             analysis.param.branch_length.nsites = 1
-        else:
-            analysis.param.branch_length.persite = True
+        elif nsites is not None:
             analysis.param.branch_length.nsites = nsites
+        elif nsites is None:
+            max = 0
+            for node in dendrotree.postorder_node_iter():
+                if node.edge_length is not None and node.edge_length > max:
+                    max = node.edge_length
+            while max < 1000:
+                max *= 10
+            analysis.param.branch_length.nsites = int(max)
         res = analysis.run()
         chrono = res.chronogram.as_string(schema='newick', suppress_rooting=True)
         return chrono

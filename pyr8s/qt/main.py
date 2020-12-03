@@ -1,16 +1,44 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtCore import QDateTime, Qt, QTimer, pyqtSignal
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
+from PyQt5.QtCore import (Qt, QObject, QRunnable, QThread, QThreadPool,
+        pyqtSignal, pyqtSlot)
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
-        QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar)
+        QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
+        QMessageBox)
 from PyQt5.QtGui import QIcon
+
+import time #! remove this
 
 from .. import core
 from ..param import qt as pqt
+
+# class Thread(QThread):
+#     """Multithreaded function execution"""
+#     done = pyqtSignal()
+#     fail = pyqtSignal(object)
+#
+#     def __init__(self, function, *args, **kwargs):
+#         super().__init__()
+#         self.function = function
+#         self.args = args
+#         self.kwargs = kwargs
+#         # self.kwargs['thread'] = self
+#
+#     def run(self):
+#         self.started.emit()
+#         try:
+#             print('inside', QThread.currentThread())
+#             time.sleep(3)
+#             self.function(*self.args, **self.kwargs)
+#         except Exception as e:
+#             self.fail.emit(e)
+#         else:
+#             self.done.emit()
+#         self.finished.emit()
 
 class SyncedWidget(QWidget):
     """Sync height with other widgets"""
@@ -34,6 +62,7 @@ class SToolBar(QToolBar, SyncedWidget):
     pass
 
 class Main(QDialog):
+
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
 
@@ -106,6 +135,7 @@ class Main(QDialog):
         layout.addWidget(paramWidget)
         tab.setLayout(layout)
 
+        self.paramWidget = paramWidget
         return tab
 
     def createPaneEdit(self):
@@ -134,13 +164,45 @@ class Main(QDialog):
         tabWidget.addTab(tab2, "&Data")
         tabWidget.addTab(tab3, "&Params")
 
+        runButton = QPushButton('Run')
+        runButton.clicked.connect(self.run)
+        runLayout = QVBoxLayout()
+        runLayout.addWidget(runButton)
+        runWidget = QGroupBox()
+        runWidget.setLayout(runLayout)
+
         layout = QVBoxLayout()
         layout.setMenuBar(toolbar)
         layout.addWidget(tabWidget)
+        layout.addWidget(runWidget)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
         return pane, toolbar
+
+    def run(self):
+        pass
+
+        # def work(*args, **kwargs):
+        #     print('thread', QThread.currentThread())
+        #     # self.paramWidget.applyParams()
+        #     # self.analysis.run()
+        #     # time.sleep(5)
+        #
+        # def fail(event):
+        #     QMessageBox.critical(self, 'Exception occured',
+        #         str(event), QMessageBox.Ok)
+        #
+        # print('before', QThread.currentThread())
+        # thread = Thread(work)
+        # print('created', QThread.currentThread())
+        # thread.setObjectName('analysis')
+        # thread.done.connect(lambda: print('Analysis success'))
+        # thread.fail.connect(fail)
+        # thread.started.connect(lambda: print('Analysis start'))
+        # thread.finished.connect(lambda: print('Analysis over'))
+        # thread.start()
+        # print('after', QThread.currentThread())
 
     def open(self, file):
         """Load tree from file"""
@@ -148,14 +210,15 @@ class Main(QDialog):
             self.analysis.tree_from_file(file)
             print("Loaded file: " + file)
         except FileNotFoundError as e:
-            print("Failed to load file: " + str(e))
+            QMessageBox.critical(self, 'Exception occured',
+                "Failed to load file: " + e.filename, QMessageBox.Ok)
 
 
 def show(sys):
     """Entry point"""
     app = QApplication(sys.argv)
     main = Main()
+    main.show()
     if len(sys.argv) >= 2:
         main.open(sys.argv[1])
-    main.show()
     sys.exit(app.exec_())

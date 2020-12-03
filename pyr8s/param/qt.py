@@ -84,7 +84,6 @@ class ParamBool(QCheckBox, ParamField):
         layout = self.parent.layout()
         row = self.parent.nextRow()
         layout.addWidget(self, row, 0, 1, 2)
-        print(self.field.label, row)
 
     def set(self, value=None):
         if value is None:
@@ -223,7 +222,7 @@ class ParamContainer(QWidget):
         doc.setLayout(docLayout)
 
         object = QLabel("This is a very helpful string about parameters "
-                        "and how to use them effectively.")
+                        "and how to use placeholders effectively.")
         object.setWordWrap(True)
         docLayout.addWidget(object)
 
@@ -231,7 +230,7 @@ class ParamContainer(QWidget):
 
     def drawResetButton(self):
         button = QPushButton('Reset to defaults')
-        button.clicked.connect(self.applyParams)
+        button.clicked.connect(self.resetDefaults)
         layout = QVBoxLayout()
         layout.addWidget(button)
         box = QGroupBox()
@@ -264,8 +263,7 @@ class ParamContainer(QWidget):
                 for field in category.fields:
                     field.field.value = field.get()
         except ValueError:
-            print(field.field.label)
-            answer = QMessageBox.warning(
+            QMessageBox.warning(
                 self, 'Invalid parameter',
                 'Invalid value for parameter:\n' +
                 category.category.label + ': ' + field.field.label,

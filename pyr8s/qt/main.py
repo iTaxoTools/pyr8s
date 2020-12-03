@@ -9,8 +9,11 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar)
 from PyQt5.QtGui import QIcon
 
-class SToolBar(QToolBar):
-    """Sync height with other toolbars"""
+from .. import core
+from ..param import qt as pqt
+
+class SyncedWidget(QWidget):
+    """Sync height with other widgets"""
     syncSignal = pyqtSignal()
 
     def resizeEvent(self, event):
@@ -26,10 +29,15 @@ class SToolBar(QToolBar):
         self.syncSignal.connect(widget.syncHandle)
         widget.syncSignal.connect(self.syncHandle)
 
+class SToolBar(QToolBar, SyncedWidget):
+    syncSignal = pyqtSignal()
+    pass
 
 class Main(QDialog):
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
+
+        self.analysis = core.RateAnalysis()
 
         self.setWindowTitle("pyr8s")
         self.resize(854,480)
@@ -82,10 +90,21 @@ class Main(QDialog):
         tab = QWidget()
         tableWidget = QTableWidget(10, 10)
 
-        tabLayout = QHBoxLayout()
-        tabLayout.setContentsMargins(0, 0, 0, 0)
-        tabLayout.addWidget(tableWidget)
-        tab.setLayout(tabLayout)
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(tableWidget)
+        tab.setLayout(layout)
+
+        return tab
+
+    def createTabParams(self):
+        tab = QWidget()
+        paramWidget = pqt.ParamContainer(self.analysis.param)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(paramWidget)
+        tab.setLayout(layout)
 
         return tab
 
@@ -107,7 +126,7 @@ class Main(QDialog):
 
         tabWidget = QTabWidget()
 
-        tab1 = self.createTabConstraints()
+        tab1 = self.createTabParams()
         tab2 = self.createTabConstraints()
         tab3 = self.createTabConstraints()
 
@@ -123,10 +142,20 @@ class Main(QDialog):
 
         return pane, toolbar
 
+    def open(self, file):
+        """Load tree from file"""
+        try:
+            self.analysis.tree_from_file(file)
+            print("Loaded file: " + file)
+        except FileNotFoundError as e:
+            print("Failed to load file: " + str(e))
+
 
 def show(sys):
     """Entry point"""
     app = QApplication(sys.argv)
     main = Main()
+    if len(sys.argv) >= 2:
+        main.open(sys.argv[1])
     main.show()
     sys.exit(app.exec_())

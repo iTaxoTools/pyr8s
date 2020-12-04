@@ -17,11 +17,11 @@ from .. import core
 from .. import parse
 from ..param import qt as pqt
 
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Pipe
 
 class Thread(QThread):
     """Multithreaded function execution"""
-    done = pyqtSignal()
+    done = pyqtSignal(object)
     fail = pyqtSignal(object)
 
     def __init__(self, function, *args, **kwargs):
@@ -33,12 +33,14 @@ class Thread(QThread):
 
     def run(self):
         try:
-            print('inside', QThread.currentThread())
-            self.function(*self.args, **self.kwargs)
-        except Exception as e:
-            self.fail.emit(e)
+            # print('inside', QThread.currentThread())
+            result = self.function(*self.args, **self.kwargs)
+        except Exception as exception:
+            print('>>> EXCEPT')
+            self.fail.emit(exception)
         else:
-            self.done.emit()
+            print('>>> ALL GOOD')
+            self.done.emit(result)
 
 class SyncedWidget(QWidget):
     """Sync height with other widgets"""
@@ -182,53 +184,68 @@ class Main(QDialog):
 
     def run(self):
 
-        def f(q, self):
+        def mf(ssss, *args, **kwargs):
+            ssss.paramWidget.applyParams()
+            ssss.analysis.run()
+            ssss.analysis.results.print()
+            return ssss.analysis.results
+
+        def pf(connection, function, *args, **kwargs):
             try:
                 # raise Exception('mama mia')
-                self.paramWidget.applyParams()
-                self.analysis.run()
-                self.analysis.results.print()
-                q.put(True)
-                q.put(self.analysis.results)
-            except Exception as e:
-                q.put(False)
-                q.put(e)
+                result = function(*args, **kwargs)
+                connection.send('RESULT')
+                connection.send(result)
+            except Exception as exception:
+                connection.send('EXCEPTION')
+                connection.send(exception)
 
-        q = Queue()
-        p = Process(target=f, args=(q,self,), daemon=True)
+        (pipeIn, pipeOut) = Pipe()
+        pargs = (self,)
+        pkwargs = {'test':42}
+        p = Process(target=pf, args=(pipeIn,mf,)+pargs, kwargs=pkwargs, name='some_proc', daemon=True)
         p.start()
 
-        self.q = q
+        self.q = pipeOut
 
         def work(*args, **kwargs):
-            print('thread', QThread.currentThread())
-            check = q.get()
-            if check:
-                res = q.get()
-                self.results = res
-            else:
-                e = q.get()
-                self.results = None
-                print(str(e))
-                # QMessageBox.critical(None, 'Exception occured',
-                #     str(e), QMessageBox.Ok)
-            p.join()
-            print('BROKE')
+            # print('thread', QThread.currentThread())
+            check = pipeOut.recv()
+            if check == 'RESULT':
+                result = pipeOut.recv()
+                return result
+            elif check == 'EXCEPTION':
+                exception = pipeOut.recv()
+                raise exception
 
-        def done():
+            # try except EOFError
+            p.join()
+            # print('BROKE')
+
+        def done(result):
             # self.results.print()
+            print('IT IS DONE')
+            result.print()
+            QMessageBox.information(None, 'Success',
+                'Analysis performed successfully.', QMessageBox.Ok)
             pass
 
+        def fail(exception):
+            print(str(exception))
+            QMessageBox.critical(None, 'Exception occured',
+                str(exception), QMessageBox.Ok)
+
         thread = Thread(work)
-        print('created', QThread.currentThread())
-        thread.setObjectName('analysis')
-        thread.done.connect(lambda: print('Analysis success'))
-        # thread.fail.connect(fail)
+        thread.setObjectName('some_thread')
         thread.started.connect(lambda: print('Analysis start'))
-        thread.finished.connect(done)
+        thread.finished.connect(lambda: print('Analysis finish'))
+        thread.fail.connect(fail)
+        thread.done.connect(done)
         thread.start()
-        print('after', QThread.currentThread())
         self.thread = thread
+
+        # print('after', QThread.currentThread())
+
         # self.analysis.results.print()
         # def work(*args, **kwargs):
         #     print('thread', QThread.currentThread())

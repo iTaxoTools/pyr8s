@@ -11,13 +11,13 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
         QMessageBox)
 from PyQt5.QtGui import QIcon
 
-import time #! remove this
-
 from .. import core
 from .. import parse
 from ..param import qt as pqt
 
 from multiprocessing import Process, Pipe
+
+from .utility import UProcess, SyncedWidget, UToolBar
 
 class Thread(QThread):
     """Multithreaded function execution"""
@@ -98,7 +98,7 @@ class Main(QDialog):
         exitAct.setShortcut('Ctrl+Q')
         exitAct.triggered.connect(qApp.quit)
 
-        toolbar = SToolBar('Tools')
+        toolbar = UToolBar('Tools')
         toolbar.addAction('Open', lambda: print('GO FISH'))
         toolbar.addAction('Save', lambda: self.barButton.setMinimumHeight(68))
         toolbar.addAction('Export')
@@ -184,43 +184,11 @@ class Main(QDialog):
 
     def run(self):
 
-        def mf(ssss, *args, **kwargs):
-            ssss.paramWidget.applyParams()
-            ssss.analysis.run()
-            ssss.analysis.results.print()
-            return ssss.analysis.results
-
-        def pf(connection, function, *args, **kwargs):
-            try:
-                # raise Exception('mama mia')
-                result = function(*args, **kwargs)
-                connection.send('RESULT')
-                connection.send(result)
-            except Exception as exception:
-                connection.send('EXCEPTION')
-                connection.send(exception)
-
-        (pipeIn, pipeOut) = Pipe()
-        pargs = (self,)
-        pkwargs = {'test':42}
-        p = Process(target=pf, args=(pipeIn,mf,)+pargs, kwargs=pkwargs, name='some_proc', daemon=True)
-        p.start()
-
-        self.q = pipeOut
-
-        def work(*args, **kwargs):
-            # print('thread', QThread.currentThread())
-            check = pipeOut.recv()
-            if check == 'RESULT':
-                result = pipeOut.recv()
-                return result
-            elif check == 'EXCEPTION':
-                exception = pipeOut.recv()
-                raise exception
-
-            # try except EOFError
-            p.join()
-            # print('BROKE')
+        def work(main, *args, **kwargs):
+            main.paramWidget.applyParams()
+            main.analysis.run()
+            main.analysis.results.print()
+            return main.analysis.results
 
         def done(result):
             # self.results.print()
@@ -235,38 +203,12 @@ class Main(QDialog):
             QMessageBox.critical(None, 'Exception occured',
                 str(exception), QMessageBox.Ok)
 
-        thread = Thread(work)
-        thread.setObjectName('some_thread')
-        thread.started.connect(lambda: print('Analysis start'))
-        thread.finished.connect(lambda: print('Analysis finish'))
-        thread.fail.connect(fail)
-        thread.done.connect(done)
-        thread.start()
-        self.thread = thread
-
-        # print('after', QThread.currentThread())
-
-        # self.analysis.results.print()
-        # def work(*args, **kwargs):
-        #     print('thread', QThread.currentThread())
-        #     # self.paramWidget.applyParams()
-        #     # self.analysis.run()
-        #     # time.sleep(5)
-        #
-        # def fail(event):
-        #     QMessageBox.critical(self, 'Exception occured',
-        #         str(event), QMessageBox.Ok)
-        #
-        # print('before', QThread.currentThread())
-        # thread = Thread(work)
-        # print('created', QThread.currentThread())
-        # thread.setObjectName('analysis')
-        # thread.done.connect(lambda: print('Analysis success'))
-        # thread.fail.connect(fail)
-        # thread.started.connect(lambda: print('Analysis start'))
-        # thread.finished.connect(lambda: print('Analysis over'))
-        # thread.start()
-        # print('after', QThread.currentThread())
+        self.launcher = UProcess(work, self)
+        self.launcher.started.connect(lambda: print('Analysis start'))
+        self.launcher.finished.connect(lambda: print('Analysis finish'))
+        self.launcher.done.connect(done)
+        self.launcher.fail.connect(fail)
+        self.launcher.start()
 
     def open(self, file):
         """Load tree from file"""

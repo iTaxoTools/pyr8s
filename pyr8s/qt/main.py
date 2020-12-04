@@ -14,31 +14,31 @@ from PyQt5.QtGui import QIcon
 import time #! remove this
 
 from .. import core
+from .. import parse
 from ..param import qt as pqt
 
-# class Thread(QThread):
-#     """Multithreaded function execution"""
-#     done = pyqtSignal()
-#     fail = pyqtSignal(object)
-#
-#     def __init__(self, function, *args, **kwargs):
-#         super().__init__()
-#         self.function = function
-#         self.args = args
-#         self.kwargs = kwargs
-#         # self.kwargs['thread'] = self
-#
-#     def run(self):
-#         self.started.emit()
-#         try:
-#             print('inside', QThread.currentThread())
-#             time.sleep(3)
-#             self.function(*self.args, **self.kwargs)
-#         except Exception as e:
-#             self.fail.emit(e)
-#         else:
-#             self.done.emit()
-#         self.finished.emit()
+from multiprocessing import Process, Queue
+
+class Thread(QThread):
+    """Multithreaded function execution"""
+    done = pyqtSignal()
+    fail = pyqtSignal(object)
+
+    def __init__(self, function, *args, **kwargs):
+        super().__init__()
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        # self.kwargs['thread'] = self
+
+    def run(self):
+        try:
+            print('inside', QThread.currentThread())
+            self.function(*self.args, **self.kwargs)
+        except Exception as e:
+            self.fail.emit(e)
+        else:
+            self.done.emit()
 
 class SyncedWidget(QWidget):
     """Sync height with other widgets"""
@@ -181,8 +181,55 @@ class Main(QDialog):
         return pane, toolbar
 
     def run(self):
-        pass
 
+        def f(q, self):
+            try:
+                # raise Exception('mama mia')
+                self.paramWidget.applyParams()
+                self.analysis.run()
+                self.analysis.results.print()
+                q.put(True)
+                q.put(self.analysis.results)
+            except Exception as e:
+                q.put(False)
+                q.put(e)
+
+        q = Queue()
+        p = Process(target=f, args=(q,self,), daemon=True)
+        p.start()
+
+        self.q = q
+
+        def work(*args, **kwargs):
+            print('thread', QThread.currentThread())
+            check = q.get()
+            if check:
+                res = q.get()
+                self.results = res
+            else:
+                e = q.get()
+                self.results = None
+                print(str(e))
+                # QMessageBox.critical(None, 'Exception occured',
+                #     str(e), QMessageBox.Ok)
+            p.join()
+            print('BROKE')
+
+        def done():
+            # self.results.print()
+            pass
+
+        thread = Thread(work)
+        print('created', QThread.currentThread())
+        thread.setObjectName('analysis')
+        thread.done.connect(lambda: print('Analysis success'))
+        # thread.fail.connect(fail)
+        thread.started.connect(lambda: print('Analysis start'))
+        thread.finished.connect(done)
+        thread.start()
+        print('after', QThread.currentThread())
+        self.thread = thread
+        # self.analysis.results.print()
         # def work(*args, **kwargs):
         #     print('thread', QThread.currentThread())
         #     # self.paramWidget.applyParams()

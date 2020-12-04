@@ -18,7 +18,7 @@ def parse_value(tokenizer):
     token = tokenizer.require_next_token_ucase()
     return token
 
-def parse_rates(tokenizer, analysis):
+def parse_rates(tokenizer, analysis, allow_run=True):
     results = None
     tokenizer.skip_to_semicolon()
     token = tokenizer.next_token_ucase()
@@ -195,7 +195,8 @@ def parse_rates(tokenizer, analysis):
                     raise ValueError("DIVTIME: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
             print('\n* BEGIN ANALYSIS: \n')
-            results = analysis.run()
+            if allow_run:
+                results = analysis.run()
         elif token == 'SET':
             token = tokenizer.require_next_token_ucase()
             while not (token == ';'):
@@ -291,7 +292,7 @@ def parse_rates(tokenizer, analysis):
         token = tokenizer.next_token_ucase()
 
 
-def parse(file):
+def parse(file, allow_run=True):
     """First get the tree and create RateAnalysis, then find and parse RATES commands"""
     tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
     print("> TREE: from '{}'".format(file))
@@ -310,7 +311,7 @@ def parse(file):
         if token == 'RATES' or token=='R8S':
             print('> RATES BLOCK:')
             print(_SEPARATOR)
-            parse_rates(tokenizer, analysis)
+            parse_rates(tokenizer, analysis, allow_run=allow_run)
         else:
             while not (token == 'END' or token == 'ENDBLOCK') \
                 and not tokenizer.is_eof() \
@@ -318,3 +319,73 @@ def parse(file):
                 tokenizer.skip_to_semicolon()
                 token = tokenizer.next_token_ucase()
     return analysis
+
+
+def quick(tree=None, file=None, persite=True, nsites=None, scalar=True):
+    """
+    Run analysis without explicitly setting parameters and calibrations.
+
+    Parameters
+    ----------
+    Exactly one of the following must be specified:
+
+        tree : string
+            The tree to be analyzed in Newick format.
+        file : string
+            The path of the file to be analyzed in Nexus format.
+
+    If a tree was given, the following optional keywords are supported:
+
+        persite: bool
+            If |True| then nsites must be provided.
+            If |False| then assume the branch lengths are given in
+            units of total numbers of substitutions.
+        nsites : int
+            The number of sites in sequences that branch
+            lengths on input trees were calculated from.
+            If |None| then try to guess them based on given tree lengths.
+        scalar : bool
+            If |True| then do a scalar analysis by setting root age to 100.0.
+            If |False| then assume the given tree is extended with all
+            calibrations needed for convergence.
+
+    If a file was given, ignore all optional arguments and parse the file.
+
+    Returns
+    -------
+    string
+        The calculated chronogram in newick form, that is:
+        an ultrametric phylogenetic tree in which branch lengths
+        correspond to time durations along branches.
+
+    Example
+    -------
+    parse.quick(my_tree).print()
+    """
+    if tree is not None:
+        dendrotree = dendropy.Tree.get(data=tree,
+            schema="newick", suppress_internal_node_taxa=False)
+        analysis = core.RateAnalysis(dendrotree)
+        analysis.param.general.scalar = scalar
+        analysis.param.branch_length.persite = persite
+        if not persite:
+            analysis.param.branch_length.nsites = 1
+        elif nsites is not None:
+            analysis.param.branch_length.nsites = nsites
+        elif nsites is None:
+            max = 0
+            for node in dendrotree.postorder_node_iter():
+                if node.edge_length is not None and node.edge_length > max:
+                    max = node.edge_length
+            while max < 1000:
+                max *= 10
+            analysis.param.branch_length.nsites = int(max)
+            print('> GUESSING NSITES FROM BRANCH LENGTHS')
+            print('* NSITES: {0}'.format(int(max)))
+    elif file is not None:
+        analysis = parse(file, allow_run=False)
+    else:
+        raise TypeError("Must specify one of: 'tree' or 'file'")
+    res = analysis.run()
+    chrono = res.chronogram.as_string(schema='newick', suppress_rooting=True)
+    return chrono

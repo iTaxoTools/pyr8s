@@ -482,6 +482,12 @@ class RateAnalysis:
         else:
             self.tree = tree
 
+    def __getstate__(self):
+        return {}
+
+    def __setstate__(self, data):
+        return
+
     @property
     def tree(self):
         """User can edit tree before run()"""

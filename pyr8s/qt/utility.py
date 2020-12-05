@@ -5,7 +5,6 @@ from PyQt5.QtWidgets import QWidget, QToolBar
 
 from multiprocessing import Process, Pipe
 
-
 ##############################################################################
 ### Widgets
 
@@ -39,7 +38,7 @@ class UThread(QThread):
     Multithreaded function execution using PyQt5.
     Initialise with the function and parameters for execution.
     Signals are used to communicate with parent thread.
-    Use self.start() to fork.
+    Use self.start() to fork/spawn.
 
     Signals:
     ----------
@@ -92,9 +91,24 @@ class UProcess(UThread):
     """
     Multiprocess function execution using PyQt5.
     Unlike QtCore.QProcess, this launches python functions, not programs.
+    Use self.start() to fork/spawn.
     """
     done = pyqtSignal(object)
     fail = pyqtSignal(object)
+
+    def __getstate__(self):
+        """
+        Required for Windows process spawning.
+        Nothing is saved.
+        """
+        return {}
+
+    def __setstate__(self, data):
+        """
+        Required for Windows process spawning.
+        Nothing is restored.
+        """
+        return
 
     def __init__(self, function, *args, **kwargs):
         """
@@ -102,9 +116,9 @@ class UProcess(UThread):
         ----------
         function : function
             The function to run on the new process.
-        \*args : positional argument, optional
+        *args : positional argument, optional
             If given, it is passed on to the function.
-        \*\*kwargs : keyword arguments, optional
+        **kwargs : keyword arguments, optional
             If given, it is passed on to the function.
         """
         super().__init__(self.work)
@@ -112,13 +126,6 @@ class UProcess(UThread):
         (self.pipeIn, self.pipeOut) = Pipe()
         self.process = Process(target=self.target, daemon=True,
             args=(self.pipeIn,function,)+args, kwargs=kwargs)
-
-    def start(self):
-        """
-        Call this to fork.
-        """
-        super().start()
-        self.process.start()
 
     def target(self, connection, function, *args, **kwargs):
         """
@@ -138,6 +145,7 @@ class UProcess(UThread):
         This is executed as a new QThread.
         Fetches process results via pipe.
         """
+        self.process.start()
         #? catch EOFError? thrown by pipe end
         check = self.pipeOut.recv()
         if check == 'RESULT':

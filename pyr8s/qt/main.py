@@ -19,52 +19,8 @@ from multiprocessing import Process, Pipe
 
 from .utility import UProcess, SyncedWidget, UToolBar
 
-class Thread(QThread):
-    """Multithreaded function execution"""
-    done = pyqtSignal(object)
-    fail = pyqtSignal(object)
-
-    def __init__(self, function, *args, **kwargs):
-        super().__init__()
-        self.function = function
-        self.args = args
-        self.kwargs = kwargs
-        # self.kwargs['thread'] = self
-
-    def run(self):
-        try:
-            # print('inside', QThread.currentThread())
-            result = self.function(*self.args, **self.kwargs)
-        except Exception as exception:
-            print('>>> EXCEPT')
-            self.fail.emit(exception)
-        else:
-            print('>>> ALL GOOD')
-            self.done.emit(result)
-
-class SyncedWidget(QWidget):
-    """Sync height with other widgets"""
-    syncSignal = pyqtSignal()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if event.size().height() != event.oldSize().height():
-            self.syncSignal.emit()
-
-    def syncHandle(self):
-        other = self.sender().height()
-        self.setMinimumHeight(other)
-
-    def sync(self, widget):
-        self.syncSignal.connect(widget.syncHandle)
-        widget.syncSignal.connect(self.syncHandle)
-
-class SToolBar(QToolBar, SyncedWidget):
-    syncSignal = pyqtSignal()
-    pass
-
 class Main(QDialog):
-
+    """Main window, handles everything"""
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
 
@@ -73,6 +29,12 @@ class Main(QDialog):
         self.setWindowTitle("pyr8s")
         self.resize(854,480)
         self.draw()
+
+    def __getstate__(self):
+        return self.analysis
+
+    def __setstate__(self, data):
+        self.analysis = data
 
     def draw(self):
         """Draw all widgets"""
@@ -152,7 +114,7 @@ class Main(QDialog):
         labelWidget = QWidget()
         labelWidget.setLayout(labelLayout)
 
-        toolbar = SToolBar('Tools')
+        toolbar = UToolBar('Tools')
         toolbar.addWidget(labelWidget)
         toolbar.setStyleSheet("background-color:red;")
 
@@ -182,13 +144,12 @@ class Main(QDialog):
 
         return pane, toolbar
 
-    def run(self):
+    def _run_work(self, *args, **kwargs):
+        self.analysis.run()
+        self.analysis.results.print()
+        return self.analysis.results
 
-        def work(main, *args, **kwargs):
-            main.paramWidget.applyParams()
-            main.analysis.run()
-            main.analysis.results.print()
-            return main.analysis.results
+    def run(self):
 
         def done(result):
             # self.results.print()
@@ -203,7 +164,12 @@ class Main(QDialog):
             QMessageBox.critical(None, 'Exception occured',
                 str(exception), QMessageBox.Ok)
 
-        self.launcher = UProcess(work, self)
+        try:
+            self.paramWidget.applyParams()
+        except Exception as exception:
+            fail(exception)
+
+        self.launcher = UProcess(self._run_work)
         self.launcher.started.connect(lambda: print('Analysis start'))
         self.launcher.finished.connect(lambda: print('Analysis finish'))
         self.launcher.done.connect(done)

@@ -29,7 +29,7 @@ class Main(QDialog):
         self.setWindowTitle("pyr8s")
         self.resize(854,480)
         self.draw()
-        
+
     def __getstate__(self):
         return (self.analysis,)
 
@@ -143,7 +143,7 @@ class Main(QDialog):
         pane.setLayout(layout)
 
         return pane, toolbar
-        
+
     def run_work(self):
         self.analysis.run()
         return self.analysis.results

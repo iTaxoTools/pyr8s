@@ -89,6 +89,27 @@ class UProcess(UThread):
     Multiprocess function execution using PyQt5.
     Unlike QtCore.QProcess, this launches python functions, not programs.
     Use self.start() to fork/spawn.
+
+    Example
+    ----------
+
+    def work(number):
+        print('This runs on the child process.')
+        print('Trying to use PyQt in here won\'t work.')
+        return number * 2
+
+    def success(result):
+        print('This runs on the parent process.')
+        print('You can spawn dialog messages here.')
+        QMessageBox.information(None, 'Success',
+            'Result = '+str(result), QMessageBox.Ok)
+        print('This prints 42: ', result)
+
+    self.process = UProcess(work, 21)
+    self.process.done.connect(success)
+    self.process.start()
+    return
+
     """
     done = pyqtSignal(object)
     fail = pyqtSignal(object)

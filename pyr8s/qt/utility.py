@@ -78,13 +78,10 @@ class UThread(QThread):
         Do not call this directly, call self.start() instead.
         """
         try:
-            # print('inside', QThread.currentThread())
             result = self.function(*self.args, **self.kwargs)
         except Exception as exception:
-            # print('>>> EXCEPT')
             self.fail.emit(exception)
         else:
-            # print('>>> ALL GOOD')
             self.done.emit(result)
 
 class UProcess(UThread):
@@ -108,6 +105,7 @@ class UProcess(UThread):
         Required for Windows process spawning.
         Nothing is restored.
         """
+        super(UProcess, self).__init__(None)
         return
 
     def __init__(self, function, *args, **kwargs):

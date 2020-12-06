@@ -79,10 +79,20 @@ class ParamCategory(OrderedDict):
         return list(self.keys())
 
     def __init__(self, dictionary):
+        if dictionary is None:
+            return
         self.label = dictionary['label']
         for k in dictionary['fields'].keys():
             self[k] = ParamField(dictionary['fields'][k])
 
+    def __reduce__(self):
+        state = super().__reduce__()
+        newstate = (state[0],
+                    (None, ),
+                    None,
+                    None,
+                    state[4])
+        return newstate
 
 class ParamList(OrderedDict):
     """Dictionary of all categories."""
@@ -105,6 +115,19 @@ class ParamList(OrderedDict):
         return list(self.keys())
 
     def __init__(self, data):
+        super().__init__()
+        if data is None:
+            return
         dictionary = json.load(data, object_pairs_hook=OrderedDict)
+        #dictionary = json.load(data)
         for k in dictionary.keys():
             self[k] = ParamCategory(dictionary[k])
+
+    def __reduce__(self):
+        state = super().__reduce__()
+        newstate = (state[0],
+                    (None, ),
+                    None,
+                    None,
+                    state[4])
+        return newstate

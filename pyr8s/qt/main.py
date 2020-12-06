@@ -29,12 +29,12 @@ class Main(QDialog):
         self.setWindowTitle("pyr8s")
         self.resize(854,480)
         self.draw()
-
+        
     def __getstate__(self):
-        return self.analysis
+        return (self.analysis,)
 
-    def __setstate__(self, data):
-        self.analysis = data
+    def __setstate__(self, state):
+        (self.analysis,) = state
 
     def draw(self):
         """Draw all widgets"""
@@ -143,17 +143,14 @@ class Main(QDialog):
         pane.setLayout(layout)
 
         return pane, toolbar
-
-    def _run_work(self, *args, **kwargs):
+        
+    def run_work(self):
         self.analysis.run()
-        self.analysis.results.print()
         return self.analysis.results
 
     def run(self):
 
         def done(result):
-            # self.results.print()
-            print('IT IS DONE')
             result.print()
             QMessageBox.information(None, 'Success',
                 'Analysis performed successfully.', QMessageBox.Ok)
@@ -169,7 +166,7 @@ class Main(QDialog):
         except Exception as exception:
             fail(exception)
 
-        self.launcher = UProcess(self._run_work)
+        self.launcher = UProcess(self.run_work)
         self.launcher.started.connect(lambda: print('Analysis start'))
         self.launcher.finished.connect(lambda: print('Analysis finish'))
         self.launcher.done.connect(done)
@@ -190,6 +187,7 @@ def show(sys):
     """Entry point"""
     app = QApplication(sys.argv)
     main = Main()
+    main.setWindowFlags(Qt.Window)
     main.show()
     if len(sys.argv) >= 2:
         main.open(sys.argv[1])

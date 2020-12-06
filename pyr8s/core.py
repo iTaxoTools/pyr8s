@@ -483,10 +483,12 @@ class RateAnalysis:
             self.tree = tree
 
     def __getstate__(self):
-        return {}
+        return (self._tree,self.param,)
 
     def __setstate__(self, data):
-        return
+        (self._tree,self.param,) = data
+        self.results = None
+        self._array = Array(self.param)
 
     @property
     def tree(self):

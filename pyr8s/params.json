@@ -31,11 +31,15 @@
   "branch_length": {
     "label": "Branch Length",
     "fields": {
-      "persite": {
-        "label":    "Per Site",
-        "doc":      "Per site?",
-        "type":     "bool",
-        "default":  false
+      "format": {
+        "label":    "Format",
+        "doc":      "BLFormat.",
+        "type":     "list",
+        "default":  "persite",
+        "data": {
+          "items":  ["total", "persite", "guess"],
+          "labels": ["Total", "Per Site", "Guess"]
+          }
       },
       "nsites": {
         "label":    "Subs per site",

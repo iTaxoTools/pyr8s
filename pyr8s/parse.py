@@ -27,7 +27,7 @@ def parse_rates(tokenizer, analysis, allow_run=True):
         and not token==None:
         if token == 'BLFORMAT':
             token = tokenizer.require_next_token_ucase()
-            persite = None
+            format = None
             nsites = None
             while not (token == ';'):
                 if token == 'NSITES':
@@ -38,9 +38,11 @@ def parse_rates(tokenizer, analysis, allow_run=True):
                     token = parse_value(tokenizer)
                     print('* LENGTHS: {0}'.format(token))
                     if token == 'TOTAL':
-                        persite = False
+                        format = 'total'
                     elif token == 'PERSITE':
-                        persite = True
+                        format = 'persite'
+                    elif token == 'GUESS':
+                        format = 'guess'
                     else:
                         raise ValueError("BLFORMAT.LENGTHS: Unrecognised vale: '{}'".format(token))
                 elif token == 'ROUND':
@@ -64,16 +66,16 @@ def parse_rates(tokenizer, analysis, allow_run=True):
                 else:
                     raise ValueError("BLFORMAT: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
-            if persite is None:
+            if format is None:
                 raise ValueError("BLFORMAT: Expected parameter LENGTHS not given.")
-            elif persite:
+            elif format == 'persite':
                 if nsites is None:
                     raise ValueError("BLFORMAT: Expected parameter NSITES not given.")
-                else:
-                    analysis.param.branch_length.persite = True
-                    analysis.param.branch_length.nsites = nsites
-            elif not persite:
-                analysis.param.branch_length.persite = False
+            else:
+                if nsites is not None:
+                    raise ValueError("BLFORMAT: Unexpected parameter NSITES.")
+            analysis.param.branch_length.format = format
+            analysis.param.branch_length.nsites = nsites
 
         elif token == 'COLLAPSE':
             print('* COLLAPSE: automatic')
@@ -314,14 +316,14 @@ def parse(file, allow_run=True):
             parse_rates(tokenizer, analysis, allow_run=allow_run)
         else:
             while not (token == 'END' or token == 'ENDBLOCK') \
-                and not tokenizer.is_eof() \
-                and not token==None:
+                    and not tokenizer.is_eof() \
+                    and not token==None:
                 tokenizer.skip_to_semicolon()
                 token = tokenizer.next_token_ucase()
     return analysis
 
 
-def quick(tree=None, file=None, persite=True, nsites=None, scalar=True):
+def quick(tree=None, file=None, format='guess', nsites=None, scalar=True):
     """
     Run analysis without explicitly setting parameters and calibrations.
 
@@ -336,14 +338,14 @@ def quick(tree=None, file=None, persite=True, nsites=None, scalar=True):
 
     If a tree was given, the following optional keywords are supported:
 
-        persite: bool
-            If |True| then nsites must be provided.
-            If |False| then assume the branch lengths are given in
+        format: string
+            If 'persite' then nsites must be provided.
+            If 'total' then assume the branch lengths are given in
             units of total numbers of substitutions.
+            If 'guess' then try to guess nsites based on given tree lengths.
         nsites : int
             The number of sites in sequences that branch
             lengths on input trees were calculated from.
-            If |None| then try to guess them based on given tree lengths.
         scalar : bool
             If |True| then do a scalar analysis by setting root age to 100.0.
             If |False| then assume the given tree is extended with all
@@ -367,21 +369,8 @@ def quick(tree=None, file=None, persite=True, nsites=None, scalar=True):
             schema="newick", suppress_internal_node_taxa=False)
         analysis = core.RateAnalysis(dendrotree)
         analysis.param.general.scalar = scalar
-        analysis.param.branch_length.persite = persite
-        if not persite:
-            analysis.param.branch_length.nsites = 1
-        elif nsites is not None:
-            analysis.param.branch_length.nsites = nsites
-        elif nsites is None:
-            max = 0
-            for node in dendrotree.postorder_node_iter():
-                if node.edge_length is not None and node.edge_length > max:
-                    max = node.edge_length
-            while max < 1000:
-                max *= 10
-            analysis.param.branch_length.nsites = int(max)
-            print('> GUESSING NSITES FROM BRANCH LENGTHS')
-            print('* NSITES: {0}'.format(int(max)))
+        analysis.param.branch_length.format = format
+        analysis.param.branch_length.nsites = nsites
     elif file is not None:
         analysis = parse(file, allow_run=False)
     else:

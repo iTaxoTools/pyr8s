@@ -1,15 +1,15 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtCore import (Qt, QObject, QRunnable, QThread, QThreadPool,
-        pyqtSignal, pyqtSlot)
+from PyQt5.QtCore import (Qt, QObject, QFileInfo, QRunnable,
+        QThread, QThreadPool, pyqtSignal, pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
-        QMessageBox)
-from PyQt5.QtGui import QIcon
+        QMessageBox, QFileDialog)
+from PyQt5.QtGui import QIcon, QKeySequence
 
 from .. import core
 from .. import parse
@@ -65,13 +65,18 @@ class Main(QDialog):
         exitAct.setShortcut('Ctrl+Q')
         exitAct.triggered.connect(qApp.quit)
 
+        actionOpen = QAction('Open', self)
+        actionOpen.setShortcut('Ctrl+O')
+        actionOpen.setStatusTip('Open an existing file')
+        actionOpen.triggered.connect(self.actionOpen)
+
         toolbar = UToolBar('Tools')
-        toolbar.addAction('Open', lambda: print('GO FISH'))
+        toolbar.addAction(actionOpen)
         toolbar.addAction('Save', lambda: self.barButton.setMinimumHeight(68))
         toolbar.addAction('Export')
         toolbar.addAction(exitAct)
         toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        toolbar.setStyleSheet("background-color:red;")
+        #toolbar.setStyleSheet("background-color:red;")
 
         canvas = QGroupBox()
         canvas.setContentsMargins(0, 0, 0, 0)
@@ -112,16 +117,17 @@ class Main(QDialog):
 
         label = QLabel("Tree of Life")
         label.setAlignment(Qt.AlignCenter)
-        label.setStyleSheet("background-color:green;")
+        #label.setStyleSheet("background-color:green;")
         labelLayout = QHBoxLayout()
         labelLayout.addWidget(label, 1)
         labelLayout.setContentsMargins(1, 1, 1, 1)
         labelWidget = QWidget()
         labelWidget.setLayout(labelLayout)
+        self.labelTree = label
 
         toolbar = UToolBar('Tools')
         toolbar.addWidget(labelWidget)
-        toolbar.setStyleSheet("background-color:red;")
+        #toolbar.setStyleSheet("background-color:red;")
 
         tabWidget = QTabWidget()
 
@@ -173,18 +179,34 @@ class Main(QDialog):
         self.launcher.fail.connect(self.fail)
         self.launcher.start()
 
-    def open(self, file):
+    def actionOpen(self):
+        (fileName, _) = QFileDialog.getOpenFileName(self, 'Open File')
+        self.actionOpenFile(fileName)
+
+    def actionOpenFile(self, file):
         """Load tree from file"""
         try:
             self.analysis = parse.file(file)
             print("Loaded file: " + file)
-        except FileNotFoundError as e:
+        except FileNotFoundError as exception:
             QMessageBox.critical(self, 'Exception occured',
-                "Failed to load file: " + e.filename, QMessageBox.Ok)
+                "Failed to load file: " + exception.filename, QMessageBox.Ok)
+        except Exception as exception:
+            self.fail(exception)
+        else:
+            self.actionOpenUpdate(file)
+
+    def actionOpenUpdate(self, file):
         try:
             self.paramWidget.setParams(self.analysis.param)
-        except FileNotFoundError as e:
-            self.fail(e)
+            fileInfo = QFileInfo(file)
+            labelText = fileInfo.baseName()
+            treeName = self.analysis.tree.label
+            if len(treeName) > 0:
+                labelText += '/' + treeName
+            self.labelTree.setText(labelText)
+        except Exception as exception:
+            self.fail(exception)
 
 
 def show(sys):
@@ -194,5 +216,5 @@ def show(sys):
     main.setWindowFlags(Qt.Window)
     main.show()
     if len(sys.argv) >= 2:
-        main.open(sys.argv[1])
+        main.actionOpenFile(sys.argv[1])
     sys.exit(app.exec_())

@@ -298,7 +298,12 @@ def parse_rates(tokenizer, analysis, run=False):
 
 def file_nexus(file, run=False):
     """First get the tree and create RateAnalysis, then find and parse RATES commands"""
-    tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
+    treelist = dendropy.TreeList.get(path=file, schema="nexus",
+        suppress_internal_node_taxa=False)
+    #! if more than one trees are present: do something
+    if len(treelist) > 0:
+        tree = treelist[0]
+    #tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
     print("> TREE: from '{}'".format(file))
     tree.print_plot()
     analysis = core.RateAnalysis(tree)
@@ -331,9 +336,13 @@ def tree(newick):
     return analysis
 
 def file_newick(file):
-    newick = dendropy.Tree.get(path=file,
-        schema='newick', suppress_internal_node_taxa=False)
-    analysis = tree(newick)
+    try:
+        newick = dendropy.Tree.get(path=file,
+            schema='newick', suppress_internal_node_taxa=False)
+        analysis = tree(newick)
+    except Exception as exception:
+        raise RuntimeError('Error reading Newick file: {0}\n{1}'.
+            format(file, str(exception)))
     return analysis
 
 def file(file, run=False):

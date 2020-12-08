@@ -223,7 +223,7 @@ class ParamContainer(QWidget):
         docLayout.setContentsMargins(5, 5, 5, 5)
         doc.setLayout(docLayout)
 
-        object = QLabel("This is a very helpful string about parameters "
+        object = QLabel("This is a not so helpful string about parameters "
                         "and how to use placeholders effectively.")
         object.setWordWrap(True)
         docLayout.addWidget(object)

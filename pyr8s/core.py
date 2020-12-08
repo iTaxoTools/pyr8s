@@ -669,7 +669,7 @@ class RateAnalysis:
         if hasattr(self, '_build_objective_' + self.param.method.method):
             objective = getattr(self, '_build_objective_' + self.param.method.method)()
         else:
-            raise ValueError('No such algorithm: {0}'.format(self.param.method.method))
+            raise ValueError('No implementaion for method: {0}'.format(self.param.method.method))
 
         variable_tolerance = self.param.algorithm.variable_tolerance
         function_tolerance = self.param.algorithm.function_tolerance

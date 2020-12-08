@@ -36,6 +36,11 @@ class Main(QDialog):
     def __setstate__(self, state):
         (self.analysis,) = state
 
+    def fail(self, exception):
+        print(str(exception))
+        QMessageBox.critical(None, 'Exception occured',
+            str(exception), QMessageBox.Ok)
+
     def draw(self):
         """Draw all widgets"""
         self.leftPane, self.barLabel = self.createPaneEdit()
@@ -156,11 +161,6 @@ class Main(QDialog):
                 'Analysis performed successfully.', QMessageBox.Ok)
             pass
 
-        def fail(exception):
-            print(str(exception))
-            QMessageBox.critical(None, 'Exception occured',
-                str(exception), QMessageBox.Ok)
-
         try:
             self.paramWidget.applyParams()
         except Exception as exception:
@@ -170,7 +170,7 @@ class Main(QDialog):
         self.launcher.started.connect(lambda: print('Analysis start'))
         self.launcher.finished.connect(lambda: print('Analysis finish'))
         self.launcher.done.connect(done)
-        self.launcher.fail.connect(fail)
+        self.launcher.fail.connect(self.fail)
         self.launcher.start()
 
     def open(self, file):
@@ -181,6 +181,10 @@ class Main(QDialog):
         except FileNotFoundError as e:
             QMessageBox.critical(self, 'Exception occured',
                 "Failed to load file: " + e.filename, QMessageBox.Ok)
+        try:
+            self.paramWidget.setParams(self.analysis.param)
+        except FileNotFoundError as e:
+            self.fail(e)
 
 
 def show(sys):

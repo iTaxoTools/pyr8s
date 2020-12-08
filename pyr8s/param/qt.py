@@ -9,13 +9,14 @@ from PyQt5.QtGui import QIntValidator, QDoubleValidator
 
 
 class ParamField(QWidget):
-    def __init__(self, parent, field):
+    def __init__(self, parent, key, field):
         super().__init__()
 
         parent.fields.append(self)
+        self.key = key
         self.parent = parent
         self.field = field
-        self.set()
+        self.set(value=field.value)
         self.draw()
 
     def set(self, value=None):
@@ -34,13 +35,13 @@ class ParamList(QComboBox, ParamField):
 
     WIDTH = 100
 
-    def __init__(self, parent, field, validator=None):
-        super().__init__(parent, field)
+    def __init__(self, parent, key, field, validator=None):
+        super().__init__(parent, key, field)
 
         for i, l in enumerate(field.data['labels']):
             self.addItem(l, field.data['items'][i])
 
-        self.set()
+        # self.set()
 
     def draw(self):
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
@@ -76,8 +77,8 @@ class ParamList(QComboBox, ParamField):
 
 class ParamBool(QCheckBox, ParamField):
 
-    def __init__(self, parent, field, validator=None):
-        super().__init__(parent, field)
+    def __init__(self, parent, key, field, validator=None):
+        super().__init__(parent, key, field)
 
     def draw(self):
         self.setText(self.field.label)
@@ -98,8 +99,8 @@ class ParamEntry(QLineEdit, ParamField):
 
     WIDTH = 100
 
-    def __init__(self, parent, field, validator=None):
-        super().__init__(parent, field)
+    def __init__(self, parent, key, field, validator=None):
+        super().__init__(parent, key, field)
 
         if validator is not None:
             self.setValidator(validator(self))
@@ -131,8 +132,8 @@ class ParamEntry(QLineEdit, ParamField):
 
 class ParamInt(ParamEntry):
 
-    def __init__(self, parent, field):
-        super().__init__(parent, field, validator=QIntValidator)
+    def __init__(self, parent, key, field):
+        super().__init__(parent, key, field, validator=QIntValidator)
 
     def get(self):
         return int(self.text())
@@ -140,8 +141,8 @@ class ParamInt(ParamEntry):
 
 class ParamFloat(ParamEntry):
 
-    def __init__(self, parent, field):
-        super().__init__(parent, field, validator=QDoubleValidator)
+    def __init__(self, parent, key, field):
+        super().__init__(parent, key, field, validator=QDoubleValidator)
 
     def get(self):
         return float(self.text())
@@ -149,10 +150,11 @@ class ParamFloat(ParamEntry):
 
 class ParamCategory(QGroupBox):
     """Holds a group of parameters"""
-    def __init__(self, parent, category):
+    def __init__(self, parent, key, category):
         super().__init__(category.label)
 
         parent.categories.append(self)
+        self.key = key
         self.category = category
         self.parent = parent
         self.fields = []
@@ -238,7 +240,7 @@ class ParamContainer(QWidget):
         self.containerLayout.addWidget(box)
 
     def populate(self, param):
-        """Create categories and fields"""
+        """Create category and field widget"""
         widget_from_type = {
             'int': ParamInt,
             'float': ParamFloat,
@@ -247,17 +249,29 @@ class ParamContainer(QWidget):
             }
         self.param = param
         for category in param.keys():
-            new_category = ParamCategory(self, param[category])
+            new_category = ParamCategory(self, category, param[category])
             for field in param[category].keys():
                 widget_from_type[param[category][field].type](
-                    new_category, param[category][field])
+                    new_category, field, param[category][field])
+
+    def setParams(self, param):
+        """Show and match a new ParamList"""
+        for category in self.categories:
+            for field in category.fields:
+                param_field = param[category.key][field.key]
+                field.field = param_field
+                field.set(value=param_field.value)
+            category.category = param[category.key]
+        self.param = param
 
     def resetDefaults(self):
+        """Reset to defaults"""
         for category in self.categories:
             for field in category.fields:
                 field.set()
 
     def applyParams(self):
+        """Apply all widget values as ParamField values"""
         try:
             for category in self.categories:
                 for field in category.fields:

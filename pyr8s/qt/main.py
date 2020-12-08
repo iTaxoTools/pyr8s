@@ -176,7 +176,7 @@ class Main(QDialog):
     def open(self, file):
         """Load tree from file"""
         try:
-            self.analysis.tree_from_file(file)
+            self.analysis = parse.file(file)
             print("Loaded file: " + file)
         except FileNotFoundError as e:
             QMessageBox.critical(self, 'Exception occured',

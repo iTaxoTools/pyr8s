@@ -18,7 +18,7 @@ def parse_value(tokenizer):
     token = tokenizer.require_next_token_ucase()
     return token
 
-def parse_rates(tokenizer, analysis, allow_run=True):
+def parse_rates(tokenizer, analysis, run=False):
     results = None
     tokenizer.skip_to_semicolon()
     token = tokenizer.next_token_ucase()
@@ -197,7 +197,7 @@ def parse_rates(tokenizer, analysis, allow_run=True):
                     raise ValueError("DIVTIME: Unrecognised option: '{}'".format(token))
                 token = tokenizer.require_next_token_ucase()
             print('\n* BEGIN ANALYSIS: \n')
-            if allow_run:
+            if run:
                 results = analysis.run()
         elif token == 'SET':
             token = tokenizer.require_next_token_ucase()
@@ -243,11 +243,12 @@ def parse_rates(tokenizer, analysis, allow_run=True):
                 token = tokenizer.require_next_token_ucase()
         elif token == 'SHOWAGE':
             tokenizer.skip_to_semicolon()
-            print('* SHOWAGE:')
-            if results is not None:
-                results.print()
-            else:
-                raise ValueError("SHOWAGE: Called before DIVTIME, nothing to show.")
+            if run:
+                print('* SHOWAGE:')
+                if results is not None:
+                    results.print()
+                else:
+                    raise ValueError("SHOWAGE: Called before DIVTIME, nothing to show.")
         elif token == 'SCALAR':
             tokenizer.skip_to_semicolon()
             print('* SCALAR:')
@@ -257,28 +258,29 @@ def parse_rates(tokenizer, analysis, allow_run=True):
             while not (token == ';'):
                 if token == 'PLOT':
                     token = parse_value(tokenizer)
-                    if token == 'CLADOGRAM':
-                        print('* {}'.format(token))
-                        pass
-                    if token == 'PHYLOGRAM':
-                        print('* {}'.format(token))
-                        pass
-                    if token == 'CHRONOGRAM':
-                        print('* {} (unweighted branches):'.format(token))
-                        core.print_tree(results.chronogram)
-                    if token == 'RATOGRAM':
-                        print('* {}'.format(token))
-                        pass
-                    if token == 'TREE DESCRIPTION':
-                        print('* {}:'.format(token))
-                        print(results.chronogram.as_string(
-                            schema="newick",suppress_internal_node_labels=True))
-                    if token == 'PHYLO DESCRIPTION':
-                        print('* {}'.format(token))
-                        pass
-                    if token == 'RATO DESCRIPTION':
-                        print('* {}'.format(token))
-                        pass
+                    if run:
+                        if token == 'CLADOGRAM':
+                            print('* {}'.format(token))
+                            pass
+                        if token == 'PHYLOGRAM':
+                            print('* {}'.format(token))
+                            pass
+                        if token == 'CHRONOGRAM':
+                            print('* {} (unweighted branches):'.format(token))
+                            core.print_tree(results.chronogram)
+                        if token == 'RATOGRAM':
+                            print('* {}'.format(token))
+                            pass
+                        if token == 'TREE DESCRIPTION':
+                            print('* {}:'.format(token))
+                            print(results.chronogram.as_string(
+                                schema="newick",suppress_internal_node_labels=True))
+                        if token == 'PHYLO DESCRIPTION':
+                            print('* {}'.format(token))
+                            pass
+                        if token == 'RATO DESCRIPTION':
+                            print('* {}'.format(token))
+                            pass
                 elif token == 'PLOTWIDTH':
                     print('* {}'.format(token))
                     pass
@@ -294,7 +296,7 @@ def parse_rates(tokenizer, analysis, allow_run=True):
         token = tokenizer.next_token_ucase()
 
 
-def parse(file, allow_run=True):
+def file_nexus(file, run=False):
     """First get the tree and create RateAnalysis, then find and parse RATES commands"""
     tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
     print("> TREE: from '{}'".format(file))
@@ -313,13 +315,40 @@ def parse(file, allow_run=True):
         if token == 'RATES' or token=='R8S':
             print('> RATES BLOCK:')
             print(_SEPARATOR)
-            parse_rates(tokenizer, analysis, allow_run=allow_run)
+            parse_rates(tokenizer, analysis, run=run)
         else:
             while not (token == 'END' or token == 'ENDBLOCK') \
                     and not tokenizer.is_eof() \
                     and not token==None:
                 tokenizer.skip_to_semicolon()
                 token = tokenizer.next_token_ucase()
+    return analysis
+
+def tree(newick):
+    analysis = core.RateAnalysis(newick)
+    analysis.param.general.scalar = True
+    analysis.param.branch_length.format = 'guess'
+    return analysis
+
+def file_newick(file):
+    newick = dendropy.Tree.get(path=file,
+        schema='newick', suppress_internal_node_taxa=False)
+    analysis = tree(newick)
+    return analysis
+
+def file(file, run=False):
+    """Open and parse a Nexus/Newick file, run analysis if `run` is set"""
+    with open(file) as input:
+        line = input.readline()
+        is_nexus = (line.strip() == "#NEXUS")
+    if is_nexus:
+        # Allow analysis to be run according to nexus rates commands
+        analysis = file_nexus(file, run=run)
+    else:
+        analysis = file_newick(file)
+    # Force analysis if requested
+    if run is True and analysis.results is None:
+        analysis.run()
     return analysis
 
 
@@ -372,7 +401,7 @@ def quick(tree=None, file=None, format='guess', nsites=None, scalar=True):
         analysis.param.branch_length.format = format
         analysis.param.branch_length.nsites = nsites
     elif file is not None:
-        analysis = parse(file, allow_run=False)
+        analysis = parse(file, run=False)
     else:
         raise TypeError("Must specify one of: 'tree' or 'file'")
     res = analysis.run()

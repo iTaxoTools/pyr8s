@@ -521,10 +521,6 @@ class RateAnalysis:
         self._tree.ground()
         # self._tree.collapse()
 
-    def tree_from_file(self, file):
-        self.tree = dendropy.Tree.get(path=file,
-            schema='nexus', suppress_internal_node_taxa=False)
-
 
     ##########################################################################
     ### Method function generators

@@ -175,3 +175,8 @@ class UProcess(UThread):
             exception = self.pipeOut.recv()
             # self.process.join()
             raise exception
+
+    def quit(self):
+        """Clean exit"""
+        self.process.terminate()
+        super().quit()

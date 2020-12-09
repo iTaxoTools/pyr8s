@@ -305,7 +305,7 @@ def file_nexus(file, run=False):
         tree = treelist[0]
     #tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
     print("> TREE: from '{}'".format(file))
-    tree.print_plot()
+    # tree.print_plot()
     analysis = core.RateAnalysis(tree)
     file = open(file,'r')
     tokenizer = dendropy.dataio.nexusprocessing.NexusTokenizer(file)

@@ -215,6 +215,7 @@ class ParamContainer(QWidget):
         scroll.setWidget(container)
 
         self.scroll = scroll
+        self.container = container
         self.containerLayout = containerLayout
 
     def drawDoc(self):
@@ -233,6 +234,8 @@ class ParamContainer(QWidget):
     def drawResetButton(self):
         button = QPushButton('Reset to defaults')
         button.clicked.connect(self.resetDefaults)
+        button.setAutoDefault(False)
+        button.setFocusPolicy(Qt.NoFocus)
         layout = QVBoxLayout()
         layout.addWidget(button)
         box = QGroupBox()

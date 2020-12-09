@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtCore import (Qt, QObject, QFileInfo, QRunnable,
-        QThread, QThreadPool, pyqtSignal, pyqtSlot)
+from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine,
+        QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
@@ -21,6 +21,10 @@ from .utility import UProcess, SyncedWidget, UToolBar
 
 class Main(QDialog):
     """Main window, handles everything"""
+
+    signalRun = pyqtSignal()
+    signalIdle = pyqtSignal()
+
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
 
@@ -29,6 +33,7 @@ class Main(QDialog):
         self.setWindowTitle("pyr8s")
         self.resize(854,480)
         self.draw()
+        self.state()
 
     def __getstate__(self):
         return (self.analysis,)
@@ -40,6 +45,28 @@ class Main(QDialog):
         print(str(exception))
         QMessageBox.critical(None, 'Exception occured',
             str(exception), QMessageBox.Ok)
+
+    def state(self):
+        self.machine = QStateMachine(self)
+
+        idle = QState()
+        running = QState()
+
+        idle.assignProperty(self.cancelButton, 'visible', False)
+        idle.assignProperty(self.runButton, 'visible', True)
+        idle.assignProperty(self.paramWidget.container, 'enabled', True)
+        idle.addTransition(self.signalRun, running)
+
+        running.assignProperty(self.runButton, 'visible', False)
+        running.assignProperty(self.cancelButton, 'visible', True)
+        running.assignProperty(self.paramWidget.container, 'enabled', False)
+        running.addTransition(self.signalIdle, idle)
+
+        self.machine.addState(idle)
+        self.machine.addState(running)
+        self.machine.setInitialState(idle)
+        self.machine.start()
+
 
     def draw(self):
         """Draw all widgets"""
@@ -139,10 +166,15 @@ class Main(QDialog):
         tabWidget.addTab(tab2, "&Data")
         tabWidget.addTab(tab3, "&Params")
 
-        runButton = QPushButton('Run')
-        runButton.clicked.connect(self.run)
+        self.runButton = QPushButton('Run')
+        self.runButton.clicked.connect(self.actionRun)
+        self.runButton.setAutoDefault(True)
+        self.cancelButton = QPushButton('Cancel')
+        self.cancelButton.clicked.connect(self.actionCancel)
+        self.cancelButton.setAutoDefault(True)
         runLayout = QVBoxLayout()
-        runLayout.addWidget(runButton)
+        runLayout.addWidget(self.runButton)
+        runLayout.addWidget(self.cancelButton)
         runWidget = QGroupBox()
         runWidget.setLayout(runLayout)
 
@@ -155,33 +187,43 @@ class Main(QDialog):
 
         return pane, toolbar
 
-    def run_work(self):
+    def actionRunWork(self):
         self.analysis.run()
         return self.analysis.results
 
-    def run(self):
+    def actionRun(self):
 
         def done(result):
             result.print()
             QMessageBox.information(None, 'Success',
                 'Analysis performed successfully.', QMessageBox.Ok)
-            pass
+            self.signalIdle.emit()
+
+        def fail(exception):
+            self.fail(exception)
+            self.signalIdle.emit()
 
         try:
             self.paramWidget.applyParams()
         except Exception as exception:
-            fail(exception)
+            self.fail(exception)
 
-        self.launcher = UProcess(self.run_work)
-        self.launcher.started.connect(lambda: print('Analysis start'))
-        self.launcher.finished.connect(lambda: print('Analysis finish'))
+        self.launcher = UProcess(self.actionRunWork)
+        self.launcher.started.connect(self.signalRun.emit)
+        # self.launcher.finished.connect()
         self.launcher.done.connect(done)
-        self.launcher.fail.connect(self.fail)
+        self.launcher.fail.connect(fail)
         self.launcher.start()
+
+    def actionCancel(self):
+        print('Analysis aborted by user.')
+        self.launcher.quit()
+        self.signalIdle.emit()
 
     def actionOpen(self):
         (fileName, _) = QFileDialog.getOpenFileName(self, 'Open File')
-        self.actionOpenFile(fileName)
+        if len(fileName) > 0:
+            self.actionOpenFile(fileName)
 
     def actionOpenFile(self, file):
         """Load tree from file"""

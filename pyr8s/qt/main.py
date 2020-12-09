@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
-        QMessageBox, QFileDialog)
+        QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem)
 from PyQt5.QtGui import QIcon, QKeySequence
 
 from .. import core
@@ -18,6 +18,12 @@ from ..param import qt as pqt
 from multiprocessing import Process, Pipe
 
 from .utility import UProcess, SyncedWidget, UToolBar
+from . import icons
+
+
+class TreeNode(QTreeWidgetItem):
+    pass
+
 
 class Main(QDialog):
     """Main window, handles everything"""
@@ -56,11 +62,13 @@ class Main(QDialog):
         idle.assignProperty(self.runButton, 'visible', True)
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
         idle.addTransition(self.signalRun, running)
+        running.onEntry = lambda event: self.runButton.setFocus(True)
 
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
         running.addTransition(self.signalIdle, idle)
+        running.onEntry = lambda event: self.cancelButton.setFocus(True)
 
         self.machine.addState(idle)
         self.machine.addState(running)
@@ -118,11 +126,41 @@ class Main(QDialog):
 
     def createTabConstraints(self):
         tab = QWidget()
-        tableWidget = QTableWidget(10, 10)
 
+        treeWidget = QTreeWidget()
+        treeWidget.setColumnCount(2)
+        items = []
+        for i in range(10):
+            a = QTreeWidgetItem(['asdasd',str(i)])
+            b = QTreeWidgetItem(a, ['asdasd',str(i)+'.b'])
+            items.append(a)
+        treeWidget.insertTopLevelItems(0, items)
+        treeWidget.setStyleSheet(
+            """
+            QTreeView::branch:has-siblings:!adjoins-item {
+                border-image: url(:/icons/vline.png) 0;
+            }
+            QTreeView::branch:has-siblings:adjoins-item {
+                border-image: url(:/icons/branch-more.png) 0;
+            }
+            QTreeView::branch:!has-children:!has-siblings:adjoins-item {
+                border-image: url(:/icons/branch-end.png) 0;
+            }
+            QTreeView::branch:has-children:!has-siblings:closed,
+            QTreeView::branch:closed:has-children:has-siblings {
+                    border-image: none;
+                    image: url(:/icons/branch-closed.png);
+            }
+            QTreeView::branch:open:has-children:!has-siblings,
+            QTreeView::branch:open:has-children:has-siblings  {
+                    border-image: none;
+                    image: url(:/icons/branch-open.png);
+            }
+            """
+            )
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(tableWidget)
+        layout.addWidget(treeWidget)
         tab.setLayout(layout)
 
         return tab
@@ -172,6 +210,7 @@ class Main(QDialog):
         self.cancelButton = QPushButton('Cancel')
         self.cancelButton.clicked.connect(self.actionCancel)
         self.cancelButton.setAutoDefault(True)
+
         runLayout = QVBoxLayout()
         runLayout.addWidget(self.runButton)
         runLayout.addWidget(self.cancelButton)

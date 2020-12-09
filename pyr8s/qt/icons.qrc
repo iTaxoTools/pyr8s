@@ -1,0 +1,11 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource>
+    <file>icons/branch-open.png</file>
+    <file>icons/branch-closed.png</file>
+    <file>icons/branch-end.png</file>
+    <file>icons/branch-more.png</file>
+    <file>icons/vline.png</file>
+  </qresource>
+  <!-- To generate module: pyrcc5 icons.qrc -o icons.py -->
+</RCC>

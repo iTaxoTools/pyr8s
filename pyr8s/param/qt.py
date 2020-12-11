@@ -179,7 +179,6 @@ class ParamContainer(QWidget):
     """All Param widgets go here"""
     def __init__(self, param=None, doc=True, reset=True):
         super().__init__()
-
         self.categories = []
         self.param = None
 

@@ -490,7 +490,6 @@ class RateAnalysis:
     #? Consider locking attributes with __slots__ or @dataclass
 
     def __init__(self, tree=None):
-        random.seed()
         self.results = None
         with importlib.resources.open_text(__package__, 'params.json') as data:
             self.param = param.core.ParamList(data)
@@ -749,6 +748,13 @@ class RateAnalysis:
         kept_variable = None
         kept_rate = None
         number_of_guesses = self.param.general.number_of_guesses
+        seed = self.param.general.seed
+
+        if not seed > 0:
+            seed = None
+        else:
+            print('Using random generator seed: {}'.format(seed))
+        random.seed(seed)
 
         for g in range(number_of_guesses):
 

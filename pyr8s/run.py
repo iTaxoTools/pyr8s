@@ -11,7 +11,7 @@ from . import parse
 def main():
     if len(sys.argv) == 2:
         print(' ')
-        a = parse.file(sys.argv[1], run=True)
+        a = parse.from_file(sys.argv[1], run=True)
     else:
         print('Usage: pyr8s NEXUS_FILE')
         print('Ex:    pyr8s tests/legacy_1')

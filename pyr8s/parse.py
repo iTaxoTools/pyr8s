@@ -296,7 +296,7 @@ def parse_rates(tokenizer, analysis, run=False):
         token = tokenizer.next_token_ucase()
 
 
-def file_nexus(file, run=False):
+def from_file_nexus(file, run=False):
     """First get the tree and create RateAnalysis, then find and parse RATES commands"""
     treelist = dendropy.TreeList.get(path=file, schema="nexus",
         suppress_internal_node_taxa=False)
@@ -329,32 +329,32 @@ def file_nexus(file, run=False):
                 token = tokenizer.next_token_ucase()
     return analysis
 
-def tree(newick):
+def from_tree(newick):
     analysis = core.RateAnalysis(newick)
     analysis.param.general.scalar = True
     analysis.param.branch_length.format = 'guess'
     return analysis
 
-def file_newick(file):
+def from_file_newick(file):
     try:
         newick = dendropy.Tree.get(path=file,
             schema='newick', suppress_internal_node_taxa=False)
-        analysis = tree(newick)
+        analysis = from_tree(newick)
     except Exception as exception:
         raise RuntimeError('Error reading Newick file: {0}\n{1}'.
             format(file, str(exception)))
     return analysis
 
-def file(file, run=False):
+def from_file(file, run=False):
     """Open and parse a Nexus/Newick file, run analysis if `run` is set"""
     with open(file) as input:
         line = input.readline()
         is_nexus = (line.strip() == "#NEXUS")
     if is_nexus:
         # Allow analysis to be run according to nexus rates commands
-        analysis = file_nexus(file, run=run)
+        analysis = from_file_nexus(file, run=run)
     else:
-        analysis = file_newick(file)
+        analysis = from_file_newick(file)
     # Force analysis if requested
     if run is True and analysis.results is None:
         analysis.run()
@@ -410,7 +410,7 @@ def quick(tree=None, file=None, format='guess', nsites=None, scalar=True):
         analysis.param.branch_length.format = format
         analysis.param.branch_length.nsites = nsites
     elif file is not None:
-        analysis = parse(file, run=False)
+        analysis = from_file(file, run=False)
     else:
         raise TypeError("Must specify one of: 'tree' or 'file'")
     res = analysis.run()

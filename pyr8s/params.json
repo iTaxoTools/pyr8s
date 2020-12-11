@@ -20,6 +20,12 @@
         "type":     "float",
         "default":  1e30
       },
+      "seed": {
+        "label":    "Seed",
+        "doc":      "Seed for the random number generator. Used for initial guesses.",
+        "type":     "int",
+        "default":  0
+      },
       "scalar": {
         "label":    "Scalar",
         "doc":      "Force root age at 1.0.",

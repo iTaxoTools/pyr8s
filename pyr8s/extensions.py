@@ -149,7 +149,9 @@ class TreePlus(dendropy.Tree):
         ancestor = self.mrca(taxon_labels=labels)
         if ancestor.taxon == None:
             ancestor.taxon = self.taxon_namespace.new_taxon(str(mrca))
-        ancestor.taxon.label = mrca
+        ancestor.taxon.label = str(mrca)
+        ancestor.label = str(mrca)
+        ancestor.is_name_dummy = False
 
     def persite(self, nsites, round_flag=False):
         """

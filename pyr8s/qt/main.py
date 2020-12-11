@@ -8,8 +8,10 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
-        QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QStyle)
+        QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QStyle, QHeaderView)
 from PyQt5.QtGui import QIcon, QKeySequence
+
+import re
 
 from .. import core
 from .. import parse
@@ -27,24 +29,100 @@ class TreeWidgetNode(QTreeWidgetItem):
         """
         Creates a widget from a dendropy node and adds it to the parent.
         Recursively creates children widgets from children nodes.
+        Updates node when values are changed.
         """
         super().__init__(parent)
+        self.node = node
         label = str(node.label)
         label = '[' + label + ']' if node.is_name_dummy else label
         min = '-' if node.min is None else str(node.min)
-        fix = '-' if node.fix is None else str(node.fix)
         max = '-' if node.max is None else str(node.max)
+        fix = '-' if node.fix is None else str(node.fix)
         self.setText(0, label)
         self.setText(1, min)
-        self.setText(2, fix)
-        self.setText(3, max)
+        self.setText(2, max)
+        self.setText(3, fix)
         self.setTextAlignment(1, Qt.AlignCenter)
         self.setTextAlignment(2, Qt.AlignCenter)
         self.setTextAlignment(3, Qt.AlignCenter)
+        self.setFlags(Qt.ItemIsSelectable |
+                      Qt.ItemIsEnabled |
+                      Qt.ItemIsEditable)
+        # self.setIcon(0, QIcon(":/icons/branch-end.png"))
         for child in node.child_node_iter():
-            print(child)
+            # print(child)
             TreeWidgetNode(self, child)
         self.setExpanded(True)
+
+    def editFloat(self, value):
+        if value == '' or value == '-':
+            return (None, '-')
+        value = float(value)
+        label = str(int(value)) if value.is_integer() else str(value)
+        return (value, label)
+
+    def showWarning(self, message):
+        QMessageBox.warning(None, 'Warning',
+            message, QMessageBox.Ok)
+
+    def showException(self, message):
+        print(message)
+        QMessageBox.critical(None, 'Error',
+            message, QMessageBox.Ok)
+
+    def checkConstraints(self):
+        if self.node.fix is not None:
+            if self.node.min is not None or self.node.max is not None:
+                self.showWarning('Min/Max constraints are ignored if node is Fixed.')
+        if (self.node.min is not None and
+            self.node.max is not None and
+            self.node.min > self.node.max):
+            self.showWarning('Impossible constraints: Min > Max.')
+
+    def setNodeLabel(self, value):
+        indexString = '[' + str(self.node.index) + ']'
+        if value == '' or value == indexString:
+            self.node.label = str(self.node.index)
+            self.node.is_name_dummy = True
+            return indexString
+        if re.match('^[^,;()\[\]\r\n]*$', value) is None:
+            raise ValueError('Label contains invalid characters.')
+        self.node.is_name_dummy = False
+        self.node.label = value
+        return value
+
+    def setNodeMin(self, value):
+        (self.node.min, label) = self.editFloat(value)
+        self.checkConstraints()
+        return label
+
+    def setNodeMax(self, value):
+        (self.node.max, label) = self.editFloat(value)
+        self.checkConstraints()
+        return label
+
+    def setNodeFix(self, value):
+        (self.node.fix, label) = self.editFloat(value)
+        self.checkConstraints()
+        return label
+
+    def setData(self, column, role, value):
+        # print('DATA',self, column, role, value)
+        # if role == Qt.ItemDataRole.DisplayRole or \
+        try:
+            if role == Qt.ItemDataRole.EditRole:
+                if column == 0:
+                    value = self.setNodeLabel(value)
+                elif column == 1:
+                    value = self.setNodeMin(value)
+                elif column == 2:
+                    value = self.setNodeMax(value)
+                elif column == 3:
+                    value = self.setNodeFix(value)
+        except Exception as exception:
+            self.showException('Error: ' + str(exception))
+        else:
+            super().setData(column, role, value)
 
 
 class Main(QDialog):
@@ -151,18 +229,92 @@ class Main(QDialog):
     def createTabConstraints(self):
         tab = QWidget()
 
+
+        def onDoubleClick(item, index):
+            self.constraintsWidget.editItem(item, index)
+
+        # def onItemChanged(item, column):
+        #     item.updateNode(column)
+
         self.constraintsWidget = QTreeWidget()
-        self.constraintsWidget.setColumnCount(2)
-        items = []
-        for i in range(10):
-            a = QTreeWidgetItem(None)
-            a.setText(0, 'Cities')
-            b = QTreeWidgetItem(a, ['asdasd',str(i)+'.b'])
-            items.append(a)
-        self.constraintsWidget.insertTopLevelItems(0, items)
-        self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Fix', 'Max'])
+        self.constraintsWidget.itemActivated.connect(onDoubleClick)
+        # self.constraintsWidget.itemChanged.connect(onItemChanged)
+        self.constraintsWidget.setColumnCount(4)
+        self.constraintsWidget.setAlternatingRowColors(True)
+        self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Max', 'Fix'])
+        header = self.constraintsWidget.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        headerItem = self.constraintsWidget.headerItem()
+        headerItem.setTextAlignment(0, Qt.AlignLeft)
+        headerItem.setTextAlignment(1, Qt.AlignCenter)
+        headerItem.setTextAlignment(2, Qt.AlignCenter)
+        headerItem.setTextAlignment(3, Qt.AlignCenter)
+        # self.constraintsWidget.setIndentation(10)
+        self.constraintsWidget.setUniformRowHeights(True)
         self.constraintsWidget.setStyleSheet(
             """
+            QTreeView {
+                show-decoration-selected: 1;
+            }
+
+            QTreeView::item {
+                 border: 1px solid #d9d9d9;
+                border-top-color: transparent;
+                border-bottom-color: transparent;
+            }
+
+            QTreeView::item:hover {
+                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #e7effd, stop: 1 #cbdaf1);
+                border: 1px solid #bfcde4;
+            }
+
+            QTreeView::item:selected {
+                border: 1px solid #567dbc;
+            }
+
+            QTreeView::item:selected:active{
+                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #6ea1f1, stop: 1 #567dbc);
+            }
+            QTreeView::branch {
+                    background: palette(base);
+            }
+
+            QTreeView::branch:has-siblings:!adjoins-item {
+                    background: cyan;
+            }
+
+            QTreeView::branch:has-siblings:adjoins-item {
+                    background: red;
+            }
+
+            QTreeView::branch:!has-children:!has-siblings:adjoins-item {
+                    background: blue;
+            }
+
+            QTreeView::branch:closed:has-children:has-siblings {
+                    background: pink;
+            }
+
+            QTreeView::branch:has-children:!has-siblings:closed {
+                    background: gray;
+            }
+
+            QTreeView::branch:open:has-children:has-siblings {
+                    background: magenta;
+            }
+
+            QTreeView::branch:open:has-children:!has-siblings {
+                    background: green;
+            }
+            QTreeView::item:selected:!active {
+                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #6b9be8, stop: 1 #577fbf);
+            }
             QTreeView::branch:has-siblings:!adjoins-item {
                 border-image: url(:/icons/vline.png) 0;
             }
@@ -313,13 +465,13 @@ class Main(QDialog):
                 labelText += '/' + treeName
             self.labelTree.setText(labelText)
             self.constraintsWidget.clear()
-            self.analysis.tree.print_plot(show_internal_node_labels=True)
+            # self.analysis.tree.print_plot(show_internal_node_labels=True)
             TreeWidgetNode(self.constraintsWidget, self.analysis.tree.seed_node)
-            self.constraintsWidget.resizeColumnToContents(0)
-            self.constraintsWidget.resizeColumnToContents(1)
-            self.constraintsWidget.resizeColumnToContents(2)
-            self.constraintsWidget.resizeColumnToContents(3)
+
+            header = self.constraintsWidget.header()
+            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
             widthTree = self.constraintsWidget.viewportSizeHint().width()
+            header.setSectionResizeMode(0, QHeaderView.Stretch)
             widthScrollbar = qApp.style().pixelMetric(QStyle.PM_ScrollBarExtent)
             widthPadding = 10
             self.splitter.setSizes([widthTree+widthScrollbar+widthPadding, 1])

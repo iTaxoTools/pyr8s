@@ -518,6 +518,7 @@ class RateAnalysis:
         extensions.extend(self._tree)
         self._tree.is_rooted = True
         self._tree.ground()
+        self._tree.index()
         # self._tree.collapse()
 
 

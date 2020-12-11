@@ -108,6 +108,9 @@ class TreePlus(dendropy.Tree):
             node.index = count
             if node.taxon == None:
                 node.taxon = self.taxon_namespace.new_taxon(str(count))
+                node.is_name_dummy = True
+            else:
+                node.is_name_dummy = False
             # print(node.taxon.label)
             node.label = node.taxon.label
         self._indexed = True
@@ -200,6 +203,7 @@ def extend(tree):
         node.max = None
         node.rate = None
         node.subs = None
+        node.is_name_dummy = None
 
 def strip(tree):
     """
@@ -214,3 +218,4 @@ def strip(tree):
         del node.max
         del node.rate
         del node.subs
+        del node.is_name_dummy

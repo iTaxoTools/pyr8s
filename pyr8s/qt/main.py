@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
-        QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem)
+        QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QStyle)
 from PyQt5.QtGui import QIcon, QKeySequence
 
 from .. import core
@@ -21,8 +21,30 @@ from .utility import UProcess, SyncedWidget, UToolBar
 from . import icons
 
 
-class TreeNode(QTreeWidgetItem):
-    pass
+class TreeWidgetNode(QTreeWidgetItem):
+    """Linked to a dendropy tree"""
+    def __init__(self, parent, node):
+        """
+        Creates a widget from a dendropy node and adds it to the parent.
+        Recursively creates children widgets from children nodes.
+        """
+        super().__init__(parent)
+        label = str(node.label)
+        label = '[' + label + ']' if node.is_name_dummy else label
+        min = '-' if node.min is None else str(node.min)
+        fix = '-' if node.fix is None else str(node.fix)
+        max = '-' if node.max is None else str(node.max)
+        self.setText(0, label)
+        self.setText(1, min)
+        self.setText(2, fix)
+        self.setText(3, max)
+        self.setTextAlignment(1, Qt.AlignCenter)
+        self.setTextAlignment(2, Qt.AlignCenter)
+        self.setTextAlignment(3, Qt.AlignCenter)
+        for child in node.child_node_iter():
+            print(child)
+            TreeWidgetNode(self, child)
+        self.setExpanded(True)
 
 
 class Main(QDialog):
@@ -87,6 +109,8 @@ class Main(QDialog):
         splitter.addWidget(self.rightPane)
         splitter.setStretchFactor(0,0)
         splitter.setStretchFactor(1,1)
+        splitter.setCollapsible(0,False)
+        self.splitter = splitter
 
         layout = QHBoxLayout(self)
         layout.addWidget(splitter)
@@ -127,15 +151,17 @@ class Main(QDialog):
     def createTabConstraints(self):
         tab = QWidget()
 
-        treeWidget = QTreeWidget()
-        treeWidget.setColumnCount(2)
+        self.constraintsWidget = QTreeWidget()
+        self.constraintsWidget.setColumnCount(2)
         items = []
         for i in range(10):
-            a = QTreeWidgetItem(['asdasd',str(i)])
+            a = QTreeWidgetItem(None)
+            a.setText(0, 'Cities')
             b = QTreeWidgetItem(a, ['asdasd',str(i)+'.b'])
             items.append(a)
-        treeWidget.insertTopLevelItems(0, items)
-        treeWidget.setStyleSheet(
+        self.constraintsWidget.insertTopLevelItems(0, items)
+        self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Fix', 'Max'])
+        self.constraintsWidget.setStyleSheet(
             """
             QTreeView::branch:has-siblings:!adjoins-item {
                 border-image: url(:/icons/vline.png) 0;
@@ -160,7 +186,7 @@ class Main(QDialog):
             )
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(treeWidget)
+        layout.addWidget(self.constraintsWidget)
         tab.setLayout(layout)
 
         return tab
@@ -196,13 +222,13 @@ class Main(QDialog):
 
         tabWidget = QTabWidget()
 
-        tab1 = self.createTabParams()
-        tab2 = self.createTabConstraints()
-        tab3 = self.createTabConstraints()
+        tab1 = self.createTabConstraints()
+        tab2 = self.createTabParams()
+        # tab3 = self.createTabConstraints()
 
-        tabWidget.addTab(tab1, "&Contraints")
-        tabWidget.addTab(tab2, "&Data")
-        tabWidget.addTab(tab3, "&Params")
+        tabWidget.addTab(tab1, "&Constraints")
+        tabWidget.addTab(tab2, "&Params")
+        # tabWidget.addTab(tab3, "&Data")
 
         self.runButton = QPushButton('Run')
         self.runButton.clicked.connect(self.actionRun)
@@ -286,6 +312,17 @@ class Main(QDialog):
             if len(treeName) > 0:
                 labelText += '/' + treeName
             self.labelTree.setText(labelText)
+            self.constraintsWidget.clear()
+            self.analysis.tree.print_plot(show_internal_node_labels=True)
+            TreeWidgetNode(self.constraintsWidget, self.analysis.tree.seed_node)
+            self.constraintsWidget.resizeColumnToContents(0)
+            self.constraintsWidget.resizeColumnToContents(1)
+            self.constraintsWidget.resizeColumnToContents(2)
+            self.constraintsWidget.resizeColumnToContents(3)
+            widthTree = self.constraintsWidget.viewportSizeHint().width()
+            widthScrollbar = qApp.style().pixelMetric(QStyle.PM_ScrollBarExtent)
+            widthPadding = 10
+            self.splitter.setSizes([widthTree+widthScrollbar+widthPadding, 1])
         except Exception as exception:
             self.fail(exception)
 

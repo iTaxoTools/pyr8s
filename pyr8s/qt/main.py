@@ -49,7 +49,7 @@ class TreeWidgetNode(QTreeWidgetItem):
         self.setFlags(Qt.ItemIsSelectable |
                       Qt.ItemIsEnabled |
                       Qt.ItemIsEditable)
-        self.setIcon(0, QIcon(":/icons/branch-end.png"))
+        # self.setIcon(0, QIcon(":/icons/branch-end.png"))
         for child in node.child_node_iter():
             # print(child)
             TreeWidgetNode(self, child)
@@ -163,15 +163,21 @@ class Main(QDialog):
         idle.assignProperty(self.runButton, 'visible', True)
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
         idle.assignProperty(self.constraintsWidget, 'enabled', True)
+        idle.assignProperty(self.findWidget, 'enabled', True)
         idle.addTransition(self.signalRun, running)
-        idle.onEntry = lambda event: self.runButton.setFocus(True)
+        def onIdleEntry(event):
+            self.runButton.setFocus(True)
+        idle.onEntry = onIdleEntry
 
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
         running.assignProperty(self.constraintsWidget, 'enabled', False)
+        running.assignProperty(self.findWidget, 'enabled', False)
         running.addTransition(self.signalIdle, idle)
-        running.onEntry = lambda event: self.cancelButton.setFocus(True)
+        def onRunningEntry(event):
+            self.cancelButton.setFocus(True)
+        idle.onEntry = onRunningEntry
 
         self.machine.addState(idle)
         self.machine.addState(running)
@@ -249,7 +255,6 @@ class Main(QDialog):
         header.setStretchLastSection(False)
         header.setSectionResizeMode(QHeaderView.Stretch)
         header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
@@ -415,9 +420,9 @@ class Main(QDialog):
         findLayout.setContentsMargins(0, 0, 0, 0)
         findWidget.setLayout(findLayout)
         findWidget.setStyleSheet(
+            # background: palette(Light);
         """
         QGroupBox {
-            background: palette(Light);
             border: 1px solid palette(dark);
             border-bottom: none;
             border-top-left-radius: 4px;
@@ -427,7 +432,22 @@ class Main(QDialog):
             margin: 0px;
             width: 150px;
         }
+        QGroupBox:enabled  {
+            background: palette(Light);
+        }
+        QGroupBox:!enabled  {
+            background: palette(Window);
+        }
         """)
+        self.findWidget = findWidget
+
+        def onTabChange():
+            if tabWidget.currentIndex() == 0:
+                findWidget.setEnabled(True)
+            else:
+                findWidget.setEnabled(False)
+
+        tabWidget.currentChanged.connect(onTabChange)
 
         tabWidget.setCornerWidget(findWidget)
 

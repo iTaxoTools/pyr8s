@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine, QRect, QPoint,
-        QSize, QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot)
+        QSize, QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot, QEvent)
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
@@ -24,15 +24,23 @@ from .utility import UProcess, SyncedWidget, UToolBar
 from . import icons
 
 class QTreeWidgetCustom(QTreeWidget):
-    def drawBranches(self, painter, rect, index):
-        # print('>>>',rect)
+    """
+    Styled to draw the branches of phylogenetic trees.
+    """
 
+    def __init__(self):
+        super().__init__()
+        self.solidColor = QColor('#555555')
+        self.radiusLeaf = 3
+        self.radiusInternal = 5
+        self.setIndentation(16)
+
+    def drawBranches(self, painter, rect, index):
         super().drawBranches(painter, rect, index)
 
-        solidColor = self.palette().color(QPalette.Shadow)
-        solidPen = QPen(solidColor)
+        solidPen = QPen(self.solidColor)
         solidPen.setWidth(2)
-        painter.setBrush(solidColor)
+        painter.setBrush(self.solidColor)
         painter.setPen(solidPen)
         painter.setRenderHint(QPainter.Antialiasing)
 
@@ -49,43 +57,34 @@ class QTreeWidgetCustom(QTreeWidget):
         hasChildren = child is not None
         hasMoreSiblings = next is not None
 
-        # color = QColor('yellow')
-        # if hasChildren:
-        #     color = QColor('green')
-        # elif hasMoreSiblings:
-        #     color = QColor('red')
-
         # Node view for self first
         segment = QRect(rect)
         segment.setLeft(rect.width() - indent)
         rect.setWidth(indent)
         if not hasChildren:
+            radius = self.radiusLeaf
             center = segment.center()
-            painter.drawEllipse(center, 4, 4)
+            painter.drawEllipse(center, radius, radius)
             left = QPoint(center.x()-segment.width()/2, center.y())
-            painter.drawLine(left, center)
+            leftMid = QPoint(center.x()-radius, center.y())
+            painter.drawLine(left, leftMid)
         else:
+            radius = self.radiusInternal
+            center = segment.center()
+            painter.setBrush(Qt.NoBrush)
+            painter.drawEllipse(center, radius, radius)
             if isExpanded:
-                radius = 5
-                center = segment.center()
-                painter.setBrush(Qt.NoBrush)
-                painter.drawEllipse(center, radius, radius)
-                left = QPoint(center.x()-segment.width()/2, center.y())
-                leftMid = QPoint(center.x()-radius, center.y())
-                painter.drawLine(left, leftMid)
                 bottom = QPoint(center.x(), center.y()+segment.height()/2)
                 bottomMid = QPoint(center.x(), center.y()+radius)
                 painter.drawLine(bottom, bottomMid)
             else:
-                radius = 5
-                center = segment.center()
-                painter.setBrush(Qt.NoBrush)
-                painter.drawEllipse(center, radius, radius)
-                left = QPoint(center.x()-segment.width()/2, center.y())
-                painter.setBrush(solidColor)
+                painter.setBrush(self.solidColor)
                 painter.drawEllipse(center, 1, 1)
-                leftMid = QPoint(center.x()-radius, center.y())
-                painter.drawLine(left, leftMid)
+            if parent is None:
+                return
+            left = QPoint(center.x()-segment.width()/2, center.y())
+            leftMid = QPoint(center.x()-radius, center.y())
+            painter.drawLine(left, leftMid)
 
         # Branch view from direct parent
         segment.moveLeft(segment.left() - indent)
@@ -302,6 +301,14 @@ class Main(QDialog):
         self.machine.start()
 
 
+    def eventFilter(self, source, event):
+        if event.type() == QEvent.KeyPress:
+            if source == self.constraintsWidget and \
+                event.key() == Qt.Key_Return:
+                self.actionRun()
+                return True
+        return QObject.eventFilter(self, source, event)
+
     def draw(self):
         """Draw all widgets"""
         self.leftPane, self.barLabel = self.createPaneEdit()
@@ -380,50 +387,23 @@ class Main(QDialog):
         headerItem.setTextAlignment(1, Qt.AlignCenter)
         headerItem.setTextAlignment(2, Qt.AlignCenter)
         headerItem.setTextAlignment(3, Qt.AlignCenter)
-        # self.constraintsWidget.setIndentation(8)
         self.constraintsWidget.setUniformRowHeights(True)
         self.constraintsWidget.setStyleSheet(
             """
-            QTreeView {
-                show-decoration-selected: 1;
-            }
-
-            QTreeView::item {
-                border: 1px solid palette(Window);
-                border-top-color: transparent;
-                border-bottom-color: transparent;
-            }
-
-            QTreeView::item:hover {
-                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #e7effd, stop: 1 #cbdaf1);
-                border: 1px solid #bfcde4;
-            }
-
-            QTreeView::item:selected {
-                border: 1px solid #567dbc;
-            }
-
-            QTreeView::item:selected:active{
-                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #6ea1f1, stop: 1 #567dbc);
-            }
             QTreeView::branch:has-siblings:!adjoins-item {
                 border-image: none;
             }
-
             QTreeView::branch:has-siblings:adjoins-item {
                 border-image: none;
             }
-
             QTreeView::branch:!has-children:!has-siblings:adjoins-item {
                 border-image: none;
             }
-
             QTreeView::branch:has-children:!has-siblings:closed,
             QTreeView::branch:closed:has-children:has-siblings {
                     border-image: none;
                     image: none;
             }
-
             QTreeView::branch:open:has-children:!has-siblings,
             QTreeView::branch:open:has-children:has-siblings  {
                     border-image: none;
@@ -431,6 +411,8 @@ class Main(QDialog):
             }
             """
             )
+        self.constraintsWidget.installEventFilter(self)
+        
         layout = QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
         layout.addWidget(self.constraintsWidget)
@@ -453,7 +435,7 @@ class Main(QDialog):
     def createPaneEdit(self):
         pane = QWidget()
 
-        label = QLabel("Tree of Life")
+        label = QLabel("Time & Rate Divergence Analysis")
         label.setAlignment(Qt.AlignCenter)
         #label.setStyleSheet("background-color:green;")
         labelLayout = QHBoxLayout()
@@ -483,6 +465,7 @@ class Main(QDialog):
         def find():
             what = findEdit.text()
             if what == '':
+                self.constraintsWidget.clearSelection()
                 return
             self.constraintsWidget.clearSelection()
             found = self.constraintsWidget.findItems(what, Qt.MatchContains | Qt.MatchRecursive)
@@ -499,7 +482,7 @@ class Main(QDialog):
         findAction = QAction(QIcon(pixmap), 'Search', self)
         findAction.triggered.connect(find)
         findEdit.addAction(findAction, QLineEdit.TrailingPosition)
-
+        findEdit.returnPressed.connect(find)
         # btn.setStyleSheet("QLineEdit { border: none; background: transparent }")
         findWidget = QGroupBox()
         findLayout = QHBoxLayout()
@@ -635,7 +618,7 @@ class Main(QDialog):
             widthTree = self.constraintsWidget.viewportSizeHint().width()
             header.setSectionResizeMode(0, QHeaderView.Stretch)
             widthScrollbar = qApp.style().pixelMetric(QStyle.PM_ScrollBarExtent)
-            widthPadding = 10
+            widthPadding = 30
             self.splitter.setSizes([widthTree+widthScrollbar+widthPadding, 1])
         except Exception as exception:
             self.fail(exception)

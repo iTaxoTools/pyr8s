@@ -234,7 +234,6 @@ class ParamContainer(QWidget):
         button = QPushButton('Reset to defaults')
         button.clicked.connect(self.resetDefaults)
         button.setAutoDefault(False)
-        button.setFocusPolicy(Qt.NoFocus)
         layout = QVBoxLayout()
         layout.addWidget(button)
         box = QGroupBox()

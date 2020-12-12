@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine,
+from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine, QRect,
         QSize, QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
         QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QStyle, QHeaderView)
 from PyQt5.QtGui import (QGuiApplication, QPalette, QIcon, QPixmap,
-        QColor, QKeySequence)
+        QColor, QBrush, QKeySequence)
 
 import re
 
@@ -23,6 +23,99 @@ from multiprocessing import Process, Pipe
 from .utility import UProcess, SyncedWidget, UToolBar
 from . import icons
 
+class QTreeWidgetCustom(QTreeWidget):
+    def drawBranches(self, painter, rect, index):
+        # print('>>>',rect)
+
+        super().drawBranches(painter, rect, index)
+
+        indent = self.indentation()
+        item = self.itemFromIndex(index)
+        parent = item.parent()
+        next = None
+        if parent is not None:
+            i = parent.indexOfChild(item)
+            next = parent.child(i+1)
+        child = item.child(0)
+
+        isExpanded = item.isExpanded()
+        hasChildren = child is not None
+        hasMoreSiblings = next is not None
+
+        # color = QColor('yellow')
+        # if hasChildren:
+        #     color = QColor('green')
+        # elif hasMoreSiblings:
+        #     color = QColor('red')
+
+        # Node view for self first
+        segment = QRect(rect)
+        segment.setLeft(rect.width() - indent)
+        rect.setWidth(indent)
+        if not hasChildren:
+            color = QColor('blue')
+            brush = QBrush(color)
+            painter.fillRect(segment, brush)
+        else:
+            if isExpanded:
+                color = QColor('green')
+                brush = QBrush(color)
+                painter.fillRect(segment, brush)
+            else:
+                color = QColor('red')
+                brush = QBrush(color)
+                painter.fillRect(segment, brush)
+
+        # Branch view from direct parent
+        segment.setLeft(segment.left() - indent)
+        segment.setWidth(indent)
+        if segment.left() < 0:
+            return
+        if hasMoreSiblings:
+            color = QColor('cyan')
+            brush = QBrush(color)
+            painter.fillRect(segment, brush)
+        else:
+            color = QColor('magenta')
+            brush = QBrush(color)
+            painter.fillRect(segment, brush)
+
+        # Branch extensions for ancestors
+        segment.setLeft(segment.left() - indent)
+        segment.setWidth(indent)
+        item = parent
+        while parent is not None:
+            parent = item.parent()
+            next = None
+            if parent is not None:
+                i = parent.indexOfChild(item)
+                next = parent.child(i+1)
+            hasMoreSiblings = next is not None
+            if hasMoreSiblings:
+                color = QColor('yellow')
+                brush = QBrush(color)
+                painter.fillRect(segment, brush)
+            segment.setLeft(segment.left() - indent)
+            segment.setWidth(indent)
+            item = parent
+
+
+        color = self.palette().color(QPalette.Shadow)
+        # if isExpanded:
+        #     color = self.palette().color(QPalette.Mid)
+
+        brush = QBrush()
+        brush.setColor(color)
+        brush.setStyle(Qt.SolidPattern)
+
+        # rect.setLeft(rect.width() - 2*indent)
+        # rect.setWidth(indent)
+        # painter.fillRect(rect, brush)
+
+        # opt = self.viewOptions()
+        # opt.rect = rect
+        # opt.state = QStyle.State_Item | QStyle.State_Sibling
+        # self.style().drawPrimitive(QStyle.PE_IndicatorBranch, opt, painter, self)
 
 class TreeWidgetNode(QTreeWidgetItem):
     """Linked to a dendropy tree"""
@@ -49,7 +142,7 @@ class TreeWidgetNode(QTreeWidgetItem):
         self.setFlags(Qt.ItemIsSelectable |
                       Qt.ItemIsEnabled |
                       Qt.ItemIsEditable)
-        # self.setIcon(0, QIcon(":/icons/branch-end.png"))
+        # self.setIcon(0, QIcon(":/icons/search.png"))
         for child in node.child_node_iter():
             # print(child)
             TreeWidgetNode(self, child)
@@ -245,7 +338,7 @@ class Main(QDialog):
         # def onItemChanged(item, column):
         #     print('CHANGE', self.analysis.param.general.scalar )
 
-        self.constraintsWidget = QTreeWidget()
+        self.constraintsWidget = QTreeWidgetCustom()
         self.constraintsWidget.itemActivated.connect(onDoubleClick)
         # self.constraintsWidget.itemChanged.connect(onItemChanged)
         self.constraintsWidget.setColumnCount(4)

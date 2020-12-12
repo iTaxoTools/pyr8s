@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine, QRect,
+from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine, QRect, QPoint,
         QSize, QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot)
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
@@ -9,8 +9,8 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
         QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QStyle, QHeaderView)
-from PyQt5.QtGui import (QGuiApplication, QPalette, QIcon, QPixmap,
-        QColor, QBrush, QKeySequence)
+from PyQt5.QtGui import (QGuiApplication, QPalette, QIcon, QPixmap, QImage,
+        QColor, QBrush, QKeySequence, QPainter, QPen)
 
 import re
 
@@ -28,6 +28,13 @@ class QTreeWidgetCustom(QTreeWidget):
         # print('>>>',rect)
 
         super().drawBranches(painter, rect, index)
+
+        solidColor = self.palette().color(QPalette.Shadow)
+        solidPen = QPen(solidColor)
+        solidPen.setWidth(2)
+        painter.setBrush(solidColor)
+        painter.setPen(solidPen)
+        painter.setRenderHint(QPainter.Antialiasing)
 
         indent = self.indentation()
         item = self.itemFromIndex(index)
@@ -53,36 +60,53 @@ class QTreeWidgetCustom(QTreeWidget):
         segment.setLeft(rect.width() - indent)
         rect.setWidth(indent)
         if not hasChildren:
-            color = QColor('blue')
-            brush = QBrush(color)
-            painter.fillRect(segment, brush)
+            center = segment.center()
+            painter.drawEllipse(center, 4, 4)
+            left = QPoint(center.x()-segment.width()/2, center.y())
+            painter.drawLine(left, center)
         else:
             if isExpanded:
-                color = QColor('green')
-                brush = QBrush(color)
-                painter.fillRect(segment, brush)
+                radius = 5
+                center = segment.center()
+                painter.setBrush(Qt.NoBrush)
+                painter.drawEllipse(center, radius, radius)
+                left = QPoint(center.x()-segment.width()/2, center.y())
+                leftMid = QPoint(center.x()-radius, center.y())
+                painter.drawLine(left, leftMid)
+                bottom = QPoint(center.x(), center.y()+segment.height()/2)
+                bottomMid = QPoint(center.x(), center.y()+radius)
+                painter.drawLine(bottom, bottomMid)
             else:
-                color = QColor('red')
-                brush = QBrush(color)
-                painter.fillRect(segment, brush)
+                radius = 5
+                center = segment.center()
+                painter.setBrush(Qt.NoBrush)
+                painter.drawEllipse(center, radius, radius)
+                left = QPoint(center.x()-segment.width()/2, center.y())
+                painter.setBrush(solidColor)
+                painter.drawEllipse(center, 1, 1)
+                leftMid = QPoint(center.x()-radius, center.y())
+                painter.drawLine(left, leftMid)
 
         # Branch view from direct parent
-        segment.setLeft(segment.left() - indent)
-        segment.setWidth(indent)
+        segment.moveLeft(segment.left() - indent)
         if segment.left() < 0:
             return
         if hasMoreSiblings:
-            color = QColor('cyan')
-            brush = QBrush(color)
-            painter.fillRect(segment, brush)
+            center = segment.center()
+            right = QPoint(center.x()+segment.width()/2, center.y())
+            painter.drawLine(center, right)
+            top = QPoint(center.x(), segment.top())
+            bottom = QPoint(center.x(), segment.bottom())
+            painter.drawLine(top, bottom)
         else:
-            color = QColor('magenta')
-            brush = QBrush(color)
-            painter.fillRect(segment, brush)
+            center = segment.center()
+            right = QPoint(center.x()+segment.width()/2, center.y())
+            painter.drawLine(center, right)
+            top = QPoint(center.x(), segment.top())
+            painter.drawLine(top, center)
 
         # Branch extensions for ancestors
-        segment.setLeft(segment.left() - indent)
-        segment.setWidth(indent)
+        segment.moveLeft(segment.left() - indent)
         item = parent
         while parent is not None:
             parent = item.parent()
@@ -92,11 +116,11 @@ class QTreeWidgetCustom(QTreeWidget):
                 next = parent.child(i+1)
             hasMoreSiblings = next is not None
             if hasMoreSiblings:
-                color = QColor('yellow')
-                brush = QBrush(color)
-                painter.fillRect(segment, brush)
-            segment.setLeft(segment.left() - indent)
-            segment.setWidth(indent)
+                center = segment.center()
+                top = QPoint(center.x(), segment.top())
+                bottom = QPoint(center.x(), segment.bottom())
+                painter.drawLine(top, bottom)
+            segment.moveLeft(segment.left() - indent)
             item = parent
 
 
@@ -365,7 +389,7 @@ class Main(QDialog):
             }
 
             QTreeView::item {
-                 border: 1px solid #d9d9d9;
+                border: 1px solid palette(Window);
                 border-top-color: transparent;
                 border-bottom-color: transparent;
             }
@@ -382,58 +406,28 @@ class Main(QDialog):
             QTreeView::item:selected:active{
                 background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #6ea1f1, stop: 1 #567dbc);
             }
-            QTreeView::branch {
-                    background: palette(base);
-            }
-
             QTreeView::branch:has-siblings:!adjoins-item {
-                    background: cyan;
+                border-image: none;
             }
 
             QTreeView::branch:has-siblings:adjoins-item {
-                    background: red;
+                border-image: none;
             }
 
             QTreeView::branch:!has-children:!has-siblings:adjoins-item {
-                    background: blue;
+                border-image: none;
             }
 
-            QTreeView::branch:closed:has-children:has-siblings {
-                    background: pink;
-            }
-
-            QTreeView::branch:has-children:!has-siblings:closed {
-                    background: gray;
-            }
-
-            QTreeView::branch:open:has-children:has-siblings {
-                    background: magenta;
-            }
-
-            QTreeView::branch:open:has-children:!has-siblings {
-                    background: green;
-            }
-            QTreeView::item:selected:!active {
-                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #6b9be8, stop: 1 #577fbf);
-            }
-            QTreeView::branch:has-siblings:!adjoins-item {
-                border-image: url(:/icons/vline.png) 0;
-            }
-            QTreeView::branch:has-siblings:adjoins-item {
-                border-image: url(:/icons/branch-more.png) 0;
-            }
-            QTreeView::branch:!has-children:!has-siblings:adjoins-item {
-                border-image: url(:/icons/branch-end.png) 0;
-            }
             QTreeView::branch:has-children:!has-siblings:closed,
             QTreeView::branch:closed:has-children:has-siblings {
                     border-image: none;
-                    image: url(:/icons/branch-closed.png);
+                    image: none;
             }
+
             QTreeView::branch:open:has-children:!has-siblings,
             QTreeView::branch:open:has-children:has-siblings  {
                     border-image: none;
-                    image: url(:/icons/branch-open.png);
+                    image: none;
             }
             """
             )

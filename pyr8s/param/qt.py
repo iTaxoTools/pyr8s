@@ -1,14 +1,11 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
+"""Param Widgets for PyQt5"""
 
-from PyQt5.QtWidgets import (QWidget, QLabel, QScrollArea, QGroupBox,
-        QLineEdit, QComboBox, QCheckBox, QPushButton, QMessageBox,
-        QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy)
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QIntValidator, QDoubleValidator
+import PyQt5.QtCore as QtCore
+import PyQt5.QtWidgets as QtWidgets
+import PyQt5.QtGui as QtGui
 
 
-class ParamField(QWidget):
+class ParamField(QtWidgets.QWidget):
     def __init__(self, parent, key, field):
         super().__init__()
 
@@ -31,7 +28,7 @@ class ParamField(QWidget):
         pass
 
 
-class ParamList(QComboBox, ParamField):
+class ParamList(QtWidgets.QComboBox, ParamField):
 
     WIDTH = 100
 
@@ -44,11 +41,13 @@ class ParamList(QComboBox, ParamField):
         # self.set()
 
     def draw(self):
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
-        self.setFocusPolicy(Qt.StrongFocus)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
-        label = QLabel(self.field.label + ': ')
-        label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        label = QtWidgets.QLabel(self.field.label + ': ')
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
 
         layout = self.parent.layout()
         row = self.parent.nextRow()
@@ -63,7 +62,7 @@ class ParamList(QComboBox, ParamField):
 
     def sizeHint(self):
         s = super().sizeHint()
-        return QSize(self.WIDTH, s.height())
+        return QtCore.QSize(self.WIDTH, s.height())
 
     def set(self, value=None):
         if value is None:
@@ -75,7 +74,7 @@ class ParamList(QComboBox, ParamField):
         return self.currentData()
 
 
-class ParamBool(QCheckBox, ParamField):
+class ParamBool(QtWidgets.QCheckBox, ParamField):
 
     def __init__(self, parent, key, field, validator=None):
         super().__init__(parent, key, field)
@@ -95,7 +94,7 @@ class ParamBool(QCheckBox, ParamField):
         return self.isChecked()
 
 
-class ParamEntry(QLineEdit, ParamField):
+class ParamEntry(QtWidgets.QLineEdit, ParamField):
 
     WIDTH = 100
 
@@ -107,10 +106,12 @@ class ParamEntry(QLineEdit, ParamField):
 
 
     def draw(self):
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Preferred)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
 
-        label = QLabel(self.field.label + ': ')
-        label.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        label = QtWidgets.QLabel(self.field.label + ': ')
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
 
         layout = self.parent.layout()
         row = self.parent.nextRow()
@@ -119,7 +120,7 @@ class ParamEntry(QLineEdit, ParamField):
 
     def sizeHint(self):
         s = super().sizeHint()
-        return QSize(self.WIDTH, s.height())
+        return QtCore.QSize(self.WIDTH, s.height())
 
     def set(self, value=None):
         if value is None:
@@ -133,7 +134,7 @@ class ParamEntry(QLineEdit, ParamField):
 class ParamInt(ParamEntry):
 
     def __init__(self, parent, key, field):
-        super().__init__(parent, key, field, validator=QIntValidator)
+        super().__init__(parent, key, field, validator=QtGui.QIntValidator)
 
     def get(self):
         return int(self.text())
@@ -142,13 +143,13 @@ class ParamInt(ParamEntry):
 class ParamFloat(ParamEntry):
 
     def __init__(self, parent, key, field):
-        super().__init__(parent, key, field, validator=QDoubleValidator)
+        super().__init__(parent, key, field, validator=QtGui.QDoubleValidator)
 
     def get(self):
         return float(self.text())
 
 
-class ParamCategory(QGroupBox):
+class ParamCategory(QtWidgets.QGroupBox):
     """Holds a group of parameters"""
     def __init__(self, parent, key, category):
         super().__init__(category.label)
@@ -158,9 +159,8 @@ class ParamCategory(QGroupBox):
         self.category = category
         self.parent = parent
         self.fields = []
-        # self.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Preferred)
 
-        layout = QGridLayout()
+        layout = QtWidgets.QGridLayout()
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setColumnStretch(0, 1)
         layout.setColumnStretch(1, 1000)
@@ -175,7 +175,7 @@ class ParamCategory(QGroupBox):
         self.row += 1
         return row
 
-class ParamContainer(QWidget):
+class ParamContainer(QtWidgets.QWidget):
     """All Param widgets go here"""
     def __init__(self, param=None, doc=True, reset=True):
         super().__init__()
@@ -184,7 +184,7 @@ class ParamContainer(QWidget):
 
         self.drawContainer()
 
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.scroll)
         layout.setContentsMargins(5, 5, 5, 5)
 
@@ -201,15 +201,16 @@ class ParamContainer(QWidget):
         self.setLayout(layout)
 
     def drawContainer(self):
-        container = QWidget()
-        containerLayout = QVBoxLayout()
+        container = QtWidgets.QWidget()
+        containerLayout = QtWidgets.QVBoxLayout()
         containerLayout.setContentsMargins(5, 5, 5, 5)
         container.setLayout(containerLayout)
-        container.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred)
+        container.setSizePolicy(
+            QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
 
-        scroll = QScrollArea()
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll = QtWidgets.QScrollArea()
+        scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         scroll.setWidgetResizable(True)
         scroll.setWidget(container)
 
@@ -218,25 +219,26 @@ class ParamContainer(QWidget):
         self.containerLayout = containerLayout
 
     def drawDoc(self):
-        doc = QGroupBox()
-        docLayout = QVBoxLayout()
+        doc = QtWidgets.QGroupBox()
+        docLayout = QtWidgets.QVBoxLayout()
         docLayout.setContentsMargins(5, 5, 5, 5)
         doc.setLayout(docLayout)
 
-        object = QLabel("This is a not so helpful string about parameters "
-                        "and how to use placeholders effectively.")
+        object = QtWidgets.QLabel(
+            "This is a not so helpful string about parameters "
+            "and how to use placeholders effectively.")
         object.setWordWrap(True)
         docLayout.addWidget(object)
 
         self.doc = doc
 
     def drawResetButton(self):
-        button = QPushButton('Reset to defaults')
+        button = QtWidgets.QPushButton('Reset to defaults')
         button.clicked.connect(self.resetDefaults)
         button.setAutoDefault(False)
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.addWidget(button)
-        box = QGroupBox()
+        box = QtWidgets.QGroupBox()
         box.setLayout(layout)
         self.containerLayout.addWidget(box)
 

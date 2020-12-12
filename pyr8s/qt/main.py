@@ -2,35 +2,25 @@
 # -*- coding: utf-8 -*-
 
 import PyQt5.QtCore as QtCore
-from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine, QRect, QPoint,
-        QSize, QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot, QEvent)
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar, QAbstractItemView,
-        QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-        QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
-        QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
-        QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
-        QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QStyle, QHeaderView)
-from PyQt5.QtGui import (QGuiApplication, QPalette, QIcon, QPixmap, QImage,
-        QColor, QBrush, QKeySequence, QPainter, QPen)
+import PyQt5.QtWidgets as QtWidgets
+import PyQt5.QtGui as QtGui
 
 import re
 
 from .. import core
 from .. import parse
-from ..param import qt as pqt
+from ..param import qt as param_qt
 
-from multiprocessing import Process, Pipe
-
-from .utility import UProcess
+from . import utility
 from . import widgets
 from . import icons
 
 
-class Main(QDialog):
+class Main(QtWidgets.QDialog):
     """Main window, handles everything"""
 
-    signalRun = pyqtSignal()
-    signalIdle = pyqtSignal()
+    signalRun = QtCore.pyqtSignal()
+    signalIdle = QtCore.pyqtSignal()
 
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
@@ -49,16 +39,15 @@ class Main(QDialog):
         (self.analysis,) = state
 
     def fail(self, exception):
-        raise exception
         print(str(exception))
-        QMessageBox.critical(None, 'Exception occured',
-            str(exception), QMessageBox.Ok)
+        QtWidgets.QMessageBox.critical(None, 'Exception occured',
+            str(exception), QtWidgets.QMessageBox.Ok)
 
     def state(self):
-        self.machine = QStateMachine(self)
+        self.machine = QtCore.QStateMachine(self)
 
-        idle = QState()
-        running = QState()
+        idle = QtCore.QState()
+        running = QtCore.QState()
 
         idle.assignProperty(self.cancelButton, 'visible', False)
         idle.assignProperty(self.runButton, 'visible', True)
@@ -87,14 +76,14 @@ class Main(QDialog):
 
 
     def eventFilter(self, source, event):
-        if event.type() == QEvent.KeyPress:
+        if event.type() == QtCore.QEvent.KeyPress:
             if (source == self.constraintsWidget and
                 event.key() == QtCore.Qt.Key_Return and
                 self.constraintsWidget.state() !=
-                    QAbstractItemView.EditingState):
+                    QtWidgets.QAbstractItemView.EditingState):
                 self.actionRun()
                 return True
-        return QObject.eventFilter(self, source, event)
+        return QtCore.QObject.eventFilter(self, source, event)
 
     def draw(self):
         """Draw all widgets"""
@@ -102,7 +91,7 @@ class Main(QDialog):
         self.rightPane, self.barButton  = self.createPaneCanvas()
         self.barButton.sync(self.barLabel)
 
-        splitter = QSplitter(QtCore.Qt.Horizontal)
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         splitter.addWidget(self.leftPane)
         splitter.addWidget(self.rightPane)
         splitter.setStretchFactor(0,0)
@@ -110,19 +99,19 @@ class Main(QDialog):
         splitter.setCollapsible(0,False)
         self.splitter = splitter
 
-        layout = QHBoxLayout(self)
+        layout = QtWidgets.QHBoxLayout(self)
         layout.addWidget(splitter)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
     def createPaneCanvas(self):
-        pane = QWidget()
+        pane = QtWidgets.QWidget()
 
-        exitAct = QAction('Exit', self)
+        exitAct = QtWidgets.QAction('Exit', self)
         exitAct.setShortcut('Ctrl+Q')
-        exitAct.triggered.connect(qApp.quit)
+        exitAct.triggered.connect(QtWidgets.qApp.quit)
 
-        actionOpen = QAction('Open', self)
+        actionOpen = QtWidgets.QAction('Open', self)
         actionOpen.setShortcut('Ctrl+O')
         actionOpen.setStatusTip('Open an existing file')
         actionOpen.triggered.connect(self.actionOpen)
@@ -135,10 +124,10 @@ class Main(QDialog):
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         #toolbar.setStyleSheet("background-color:red;")
 
-        canvas = QGroupBox()
+        canvas = QtWidgets.QGroupBox()
         canvas.setContentsMargins(0, 0, 0, 0)
 
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)
         layout.addWidget(canvas)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -147,7 +136,7 @@ class Main(QDialog):
         return pane, toolbar
 
     def createTabConstraints(self):
-        tab = QWidget()
+        tab = QtWidgets.QWidget()
 
 
         def onDoubleClick(item, index):
@@ -164,11 +153,11 @@ class Main(QDialog):
         self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Max', 'Fix'])
         header = self.constraintsWidget.header()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(QHeaderView.Stretch)
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeToContents)
         headerItem = self.constraintsWidget.headerItem()
         headerItem.setTextAlignment(0, QtCore.Qt.AlignLeft)
         headerItem.setTextAlignment(1, QtCore.Qt.AlignCenter)
@@ -200,7 +189,7 @@ class Main(QDialog):
             )
         self.constraintsWidget.installEventFilter(self)
 
-        layout = QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
         layout.addWidget(self.constraintsWidget)
         tab.setLayout(layout)
@@ -208,10 +197,10 @@ class Main(QDialog):
         return tab
 
     def createTabParams(self):
-        tab = QWidget()
-        paramWidget = pqt.ParamContainer(self.analysis.param)
+        tab = QtWidgets.QWidget()
+        paramWidget = param_qt.ParamContainer(self.analysis.param)
 
-        layout = QHBoxLayout()
+        layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(paramWidget)
         tab.setLayout(layout)
@@ -220,15 +209,15 @@ class Main(QDialog):
         return tab
 
     def createPaneEdit(self):
-        pane = QWidget()
+        pane = QtWidgets.QWidget()
 
-        label = QLabel("Time & Rate Divergence Analysis")
+        label = QtWidgets.QLabel("Time & Rate Divergence Analysis")
         label.setAlignment(QtCore.Qt.AlignCenter)
         #label.setStyleSheet("background-color:green;")
-        labelLayout = QHBoxLayout()
+        labelLayout = QtWidgets.QHBoxLayout()
         labelLayout.addWidget(label, 1)
         labelLayout.setContentsMargins(1, 1, 1, 1)
-        labelWidget = QWidget()
+        labelWidget = QtWidgets.QWidget()
         labelWidget.setLayout(labelLayout)
         self.labelTree = label
 
@@ -236,10 +225,11 @@ class Main(QDialog):
         toolbar.addWidget(labelWidget)
         #toolbar.setStyleSheet("background-color:red;")
 
-        tabWidget = QTabWidget()
+        tabWidget = QtWidgets.QTabWidget()
 
-        findEdit = QLineEdit()
-        label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        findEdit = QtWidgets.QLineEdit()
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
         findEdit.setStyleSheet(
         """
         QLineEdit {
@@ -260,19 +250,19 @@ class Main(QDialog):
                 item.setSelected(True)
                 self.constraintsWidget.scrollToItem(item)
 
-        pixmap = QPixmap(':/icons/search.png')
-        mask = pixmap.createMaskFromColor(QColor('black'), QtCore.Qt.MaskOutColor)
-        palette = QGuiApplication.palette()
-        pixmap.fill(palette.color(QPalette.Shadow))
+        pixmap = QtGui.QPixmap(':/icons/search.png')
+        mask = pixmap.createMaskFromColor(QtGui.QColor('black'), QtCore.Qt.MaskOutColor)
+        palette = QtGui.QGuiApplication.palette()
+        pixmap.fill(palette.color(QtGui.QPalette.Shadow))
         pixmap.setMask(mask)
 
-        findAction = QAction(QIcon(pixmap), 'Search', self)
+        findAction = QtWidgets.QAction(QtGui.QIcon(pixmap), 'Search', self)
         findAction.triggered.connect(find)
-        findEdit.addAction(findAction, QLineEdit.TrailingPosition)
+        findEdit.addAction(findAction, QtWidgets.QLineEdit.TrailingPosition)
         findEdit.returnPressed.connect(find)
         # btn.setStyleSheet("QLineEdit { border: none; background: transparent }")
-        findWidget = QGroupBox()
-        findLayout = QHBoxLayout()
+        findWidget = QtWidgets.QGroupBox()
+        findLayout = QtWidgets.QHBoxLayout()
         findLayout.addWidget(findEdit)
         findLayout.setContentsMargins(0, 0, 0, 0)
         findWidget.setLayout(findLayout)
@@ -313,20 +303,20 @@ class Main(QDialog):
         tabWidget.addTab(tab1, "&Constraints")
         tabWidget.addTab(tab2, "&Params")
 
-        self.runButton = QPushButton('Run')
+        self.runButton = QtWidgets.QPushButton('Run')
         self.runButton.clicked.connect(self.actionRun)
         self.runButton.setAutoDefault(False)
-        self.cancelButton = QPushButton('Cancel')
+        self.cancelButton = QtWidgets.QPushButton('Cancel')
         self.cancelButton.clicked.connect(self.actionCancel)
         self.cancelButton.setAutoDefault(True)
 
-        runLayout = QVBoxLayout()
+        runLayout = QtWidgets.QVBoxLayout()
         runLayout.addWidget(self.runButton)
         runLayout.addWidget(self.cancelButton)
-        runWidget = QGroupBox()
+        runWidget = QtWidgets.QGroupBox()
         runWidget.setLayout(runLayout)
 
-        layout = QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)
         layout.addWidget(tabWidget)
         layout.addWidget(runWidget)
@@ -343,8 +333,8 @@ class Main(QDialog):
 
         def done(result):
             result.print()
-            QMessageBox.information(None, 'Success',
-                'Analysis performed successfully.', QMessageBox.Ok)
+            QtWidgets.QMessageBox.information(None, 'Success',
+                'Analysis performed successfully.', QtWidgets.QMessageBox.Ok)
             self.signalIdle.emit()
 
         def fail(exception):
@@ -357,7 +347,7 @@ class Main(QDialog):
             self.fail(exception)
             return
 
-        self.launcher = UProcess(self.actionRunWork)
+        self.launcher = utility.UProcess(self.actionRunWork)
         self.launcher.started.connect(self.signalRun.emit)
         # self.launcher.finished.connect()
         self.launcher.done.connect(done)
@@ -370,7 +360,7 @@ class Main(QDialog):
         self.signalIdle.emit()
 
     def actionOpen(self):
-        (fileName, _) = QFileDialog.getOpenFileName(self, 'Open File')
+        (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File')
         if len(fileName) > 0:
             self.actionOpenFile(fileName)
 
@@ -380,8 +370,8 @@ class Main(QDialog):
             self.analysis = parse.from_file(file)
             print("Loaded file: " + file)
         except FileNotFoundError as exception:
-            QMessageBox.critical(self, 'Exception occured',
-                "Failed to load file: " + exception.filename, QMessageBox.Ok)
+            QtWidgets.QMessageBox.critical(self, 'Exception occured',
+                "Failed to load file: " + exception.filename, QtWidgets.QMessageBox.Ok)
         except Exception as exception:
             self.fail(exception)
         else:
@@ -390,7 +380,7 @@ class Main(QDialog):
     def actionOpenUpdate(self, file):
         try:
             self.paramWidget.setParams(self.analysis.param)
-            fileInfo = QFileInfo(file)
+            fileInfo = QtCore.QFileInfo(file)
             labelText = fileInfo.baseName()
             treeName = self.analysis.tree.label
             if len(treeName) > 0:
@@ -401,10 +391,11 @@ class Main(QDialog):
             widgets.TreeWidgetNodeConstraints(self.constraintsWidget, self.analysis.tree.seed_node)
 
             header = self.constraintsWidget.header()
-            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
             widthTree = self.constraintsWidget.viewportSizeHint().width()
-            header.setSectionResizeMode(0, QHeaderView.Stretch)
-            widthScrollbar = qApp.style().pixelMetric(QStyle.PM_ScrollBarExtent)
+            header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+            widthScrollbar = QtWidgets.qApp.style().pixelMetric(
+                QtWidgets.QStyle.PM_ScrollBarExtent)
             widthPadding = 30
             self.splitter.setSizes([widthTree+widthScrollbar+widthPadding, 1])
         except Exception as exception:
@@ -413,7 +404,7 @@ class Main(QDialog):
 
 def show(sys):
     """Entry point"""
-    app = QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     main = Main()
     main.setWindowFlags(QtCore.Qt.Window)
     main.show()

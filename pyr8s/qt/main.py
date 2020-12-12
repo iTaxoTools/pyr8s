@@ -9,7 +9,8 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget, QSplitter, QMainWindow, QAction, qApp, QToolBar,
         QMessageBox, QFileDialog, QTreeWidget, QTreeWidgetItem, QStyle, QHeaderView)
-from PyQt5.QtGui import QIcon, QKeySequence
+from PyQt5.QtGui import (QGuiApplication, QPalette, QIcon, QPixmap,
+        QColor, QKeySequence)
 
 import re
 
@@ -48,7 +49,7 @@ class TreeWidgetNode(QTreeWidgetItem):
         self.setFlags(Qt.ItemIsSelectable |
                       Qt.ItemIsEnabled |
                       Qt.ItemIsEditable)
-        # self.setIcon(0, QIcon(":/icons/branch-end.png"))
+        self.setIcon(0, QIcon(":/icons/branch-end.png"))
         for child in node.child_node_iter():
             # print(child)
             TreeWidgetNode(self, child)
@@ -161,12 +162,14 @@ class Main(QDialog):
         idle.assignProperty(self.cancelButton, 'visible', False)
         idle.assignProperty(self.runButton, 'visible', True)
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
+        idle.assignProperty(self.constraintsWidget, 'enabled', True)
         idle.addTransition(self.signalRun, running)
-        running.onEntry = lambda event: self.runButton.setFocus(True)
+        idle.onEntry = lambda event: self.runButton.setFocus(True)
 
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
+        running.assignProperty(self.constraintsWidget, 'enabled', False)
         running.addTransition(self.signalIdle, idle)
         running.onEntry = lambda event: self.cancelButton.setFocus(True)
 
@@ -255,7 +258,7 @@ class Main(QDialog):
         headerItem.setTextAlignment(1, Qt.AlignCenter)
         headerItem.setTextAlignment(2, Qt.AlignCenter)
         headerItem.setTextAlignment(3, Qt.AlignCenter)
-        # self.constraintsWidget.setIndentation(10)
+        # self.constraintsWidget.setIndentation(8)
         self.constraintsWidget.setUniformRowHeights(True)
         self.constraintsWidget.setStyleSheet(
             """
@@ -374,22 +377,14 @@ class Main(QDialog):
 
         tabWidget = QTabWidget()
 
-        class QFindEdit(QLineEdit):
-            WIDTH = 50
-            def sizeHint(self):
-                s = super().sizeHint()
-                return QSize(self.WIDTH, s.height())
-
-        findEdit = QFindEdit()
-        # findEdit = QLineEdit()
-        # findEdit.sizeHint = lambda: QSize(100, findEdit.HEIGHT)
+        findEdit = QLineEdit()
         label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
         findEdit.setStyleSheet(
         """
         QLineEdit {
             border: none;
-            background: red;
-            padding: 0 0px;
+            background: transparent;
+            padding: 0 4px;
         }
         """)
 
@@ -403,76 +398,47 @@ class Main(QDialog):
                 item.setSelected(True)
                 self.constraintsWidget.scrollToItem(item)
 
-        findAction = QAction(QIcon(':/icons/search.png'), 'Search', self)
+        pixmap = QPixmap(':/icons/search.png')
+        mask = pixmap.createMaskFromColor(QColor('black'), Qt.MaskOutColor)
+        palette = QGuiApplication.palette()
+        pixmap.fill(palette.color(QPalette.Shadow))
+        pixmap.setMask(mask)
+
+        findAction = QAction(QIcon(pixmap), 'Search', self)
         findAction.triggered.connect(find)
         findEdit.addAction(findAction, QLineEdit.TrailingPosition)
 
         # btn.setStyleSheet("QLineEdit { border: none; background: transparent }")
-        newbar = QTabBar()
-        newbar.addTab('')
-        newbar.setTabButton(0, 1, findEdit)
-        newbar.setCurrentIndex(0)
-        findWidget = QWidget()
+        findWidget = QGroupBox()
         findLayout = QHBoxLayout()
-        findLayout.addWidget(newbar)
-        findLayout.setContentsMargins(2, 2, 0, 0)
+        findLayout.addWidget(findEdit)
+        findLayout.setContentsMargins(0, 0, 0, 0)
         findWidget.setLayout(findLayout)
-        newbar.setStyleSheet(
-        # padding-top: 2px;
-        # margin-top: 0px;
-        # margin-bottom: 0px;
+        findWidget.setStyleSheet(
         """
-        QTabBar::tab {
-            alignment: right;
-            background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                        stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,
-                                        stop: 0.5 #D8D8D8, stop: 1.0 #D3D3D3);
-            border: 2px solid #C4C4C3;
-            border-bottom-color: #C2C7CB; /* same as the pane color */
+        QGroupBox {
+            background: palette(Light);
+            border: 1px solid palette(dark);
+            border-bottom: none;
             border-top-left-radius: 4px;
             border-top-right-radius: 4px;
             min-width: 1ex;
             padding: 2px;
-            margin: 1px;
-            width: 50px;
+            margin: 0px;
+            width: 150px;
         }
         """)
-        # findWidget = QGroupBox()
-        # findWidget.setStyleSheet(
-        # """
-        # QGroupBox {
-        #     border-top: 1px solid gray;
-        #     border-left: 1px solid gray;
-        #     border-right: 1px solid gray;
-        #     border-radius: 3px;
-        #     margin-top: 4px;
-        #     margin-left: 4px;
-        #     margin-right: 4px;
-        # }
-        # """
-        # )
-        # findLayout = QHBoxLayout()
-        # findEntry = QLineEdit()
-        # findEntry.addAction(findAction, QLineEdit.TrailingPosition)
-        # findLayout.addWidget(findEntry)
-        # findLayout.setContentsMargins(0, -10, 0, 0)
-        # findWidget.setLayout(findLayout)
 
         tabWidget.setCornerWidget(findWidget)
 
-        # tabWidget.tabBar().setContentsMargins(0, -10, 0, 0)
-
         tab1 = self.createTabConstraints()
         tab2 = self.createTabParams()
-        # tab3 = self.createTabConstraints()
-
         tabWidget.addTab(tab1, "&Constraints")
         tabWidget.addTab(tab2, "&Params")
-        # tabWidget.addTab(tab3, "&Data")
 
         self.runButton = QPushButton('Run')
         self.runButton.clicked.connect(self.actionRun)
-        self.runButton.setAutoDefault(True)
+        self.runButton.setAutoDefault(False)
         self.cancelButton = QPushButton('Cancel')
         self.cancelButton.clicked.connect(self.actionCancel)
         self.cancelButton.setAutoDefault(True)

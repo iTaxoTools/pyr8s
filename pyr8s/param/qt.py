@@ -3,7 +3,7 @@
 
 from PyQt5.QtWidgets import (QWidget, QLabel, QScrollArea, QGroupBox,
         QLineEdit, QComboBox, QCheckBox, QPushButton, QMessageBox,
-        QHBoxLayout, QVBoxLayout, QFormLayout, QGridLayout, QSizePolicy)
+        QHBoxLayout, QVBoxLayout, QGridLayout, QSizePolicy)
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QIntValidator, QDoubleValidator
 
@@ -279,9 +279,5 @@ class ParamContainer(QWidget):
                 for field in category.fields:
                     field.field.value = field.get()
         except ValueError:
-            QMessageBox.warning(
-                self, 'Invalid parameter',
-                'Invalid value for parameter:\n' +
-                category.category.label + ': ' + field.field.label,
-                QMessageBox.Ok
-            )
+            raise ValueError('Invalid value for parameter: ' +
+                category.category.label + ': ' + field.field.label)

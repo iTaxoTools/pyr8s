@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from PyQt5.QtCore import (Qt, QObject, QFileInfo, QState, QStateMachine,
-        QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot)
-from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox,
+        QSize, QRunnable, QThread, QThreadPool, pyqtSignal, pyqtSlot)
+from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QTabBar,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
         QProgressBar, QPushButton, QRadioButton, QScrollBar, QSizePolicy,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
@@ -210,7 +210,7 @@ class Main(QDialog):
         toolbar = UToolBar('Tools')
         toolbar.addAction(actionOpen)
         toolbar.addAction('Save', lambda: self.barButton.setMinimumHeight(68))
-        toolbar.addAction('Export')
+        # toolbar.addAction('Export', find)
         toolbar.addAction(exitAct)
         toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         #toolbar.setStyleSheet("background-color:red;")
@@ -234,7 +234,7 @@ class Main(QDialog):
             self.constraintsWidget.editItem(item, index)
 
         # def onItemChanged(item, column):
-        #     item.updateNode(column)
+        #     print('CHANGE', self.analysis.param.general.scalar )
 
         self.constraintsWidget = QTreeWidget()
         self.constraintsWidget.itemActivated.connect(onDoubleClick)
@@ -337,7 +337,7 @@ class Main(QDialog):
             """
             )
         layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(5, 5, 5, 5)
         layout.addWidget(self.constraintsWidget)
         tab.setLayout(layout)
 
@@ -373,6 +373,94 @@ class Main(QDialog):
         #toolbar.setStyleSheet("background-color:red;")
 
         tabWidget = QTabWidget()
+
+        class QFindEdit(QLineEdit):
+            WIDTH = 50
+            def sizeHint(self):
+                s = super().sizeHint()
+                return QSize(self.WIDTH, s.height())
+
+        findEdit = QFindEdit()
+        # findEdit = QLineEdit()
+        # findEdit.sizeHint = lambda: QSize(100, findEdit.HEIGHT)
+        label.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        findEdit.setStyleSheet(
+        """
+        QLineEdit {
+            border: none;
+            background: red;
+            padding: 0 0px;
+        }
+        """)
+
+        def find():
+            what = findEdit.text()
+            if what == '':
+                return
+            self.constraintsWidget.clearSelection()
+            found = self.constraintsWidget.findItems(what, Qt.MatchContains | Qt.MatchRecursive)
+            for item in found:
+                item.setSelected(True)
+                self.constraintsWidget.scrollToItem(item)
+
+        findAction = QAction(QIcon(':/icons/search.png'), 'Search', self)
+        findAction.triggered.connect(find)
+        findEdit.addAction(findAction, QLineEdit.TrailingPosition)
+
+        # btn.setStyleSheet("QLineEdit { border: none; background: transparent }")
+        newbar = QTabBar()
+        newbar.addTab('')
+        newbar.setTabButton(0, 1, findEdit)
+        newbar.setCurrentIndex(0)
+        findWidget = QWidget()
+        findLayout = QHBoxLayout()
+        findLayout.addWidget(newbar)
+        findLayout.setContentsMargins(2, 2, 0, 0)
+        findWidget.setLayout(findLayout)
+        newbar.setStyleSheet(
+        # padding-top: 2px;
+        # margin-top: 0px;
+        # margin-bottom: 0px;
+        """
+        QTabBar::tab {
+            alignment: right;
+            background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                        stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,
+                                        stop: 0.5 #D8D8D8, stop: 1.0 #D3D3D3);
+            border: 2px solid #C4C4C3;
+            border-bottom-color: #C2C7CB; /* same as the pane color */
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            min-width: 1ex;
+            padding: 2px;
+            margin: 1px;
+            width: 50px;
+        }
+        """)
+        # findWidget = QGroupBox()
+        # findWidget.setStyleSheet(
+        # """
+        # QGroupBox {
+        #     border-top: 1px solid gray;
+        #     border-left: 1px solid gray;
+        #     border-right: 1px solid gray;
+        #     border-radius: 3px;
+        #     margin-top: 4px;
+        #     margin-left: 4px;
+        #     margin-right: 4px;
+        # }
+        # """
+        # )
+        # findLayout = QHBoxLayout()
+        # findEntry = QLineEdit()
+        # findEntry.addAction(findAction, QLineEdit.TrailingPosition)
+        # findLayout.addWidget(findEntry)
+        # findLayout.setContentsMargins(0, -10, 0, 0)
+        # findWidget.setLayout(findLayout)
+
+        tabWidget.setCornerWidget(findWidget)
+
+        # tabWidget.tabBar().setContentsMargins(0, -10, 0, 0)
 
         tab1 = self.createTabConstraints()
         tab2 = self.createTabParams()
@@ -424,6 +512,7 @@ class Main(QDialog):
             self.paramWidget.applyParams()
         except Exception as exception:
             self.fail(exception)
+            return
 
         self.launcher = UProcess(self.actionRunWork)
         self.launcher.started.connect(self.signalRun.emit)

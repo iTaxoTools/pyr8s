@@ -59,9 +59,8 @@ class Main(QtWidgets.QDialog):
         idle.assignProperty(self.findWidget, 'enabled', True)
         idle.addTransition(self.signalRun, running)
         def onIdleEntry(event):
+            self.constraintsWidget.setItemsDisabled(False)
             self.constraintsWidget.setFocus()
-            topItem = self.constraintsWidget.topLevelItem(0)
-            topItem.setDisabled(False)
         idle.onEntry = onIdleEntry
 
         running.assignProperty(self.runButton, 'visible', False)
@@ -70,9 +69,8 @@ class Main(QtWidgets.QDialog):
         running.assignProperty(self.findWidget, 'enabled', False)
         running.addTransition(self.signalIdle, idle)
         def onRunningEntry(event):
+            self.constraintsWidget.setItemsDisabled(True)
             self.cancelButton.setFocus(True)
-            topItem = self.constraintsWidget.topLevelItem(0)
-            topItem.setDisabled(True)
         running.onEntry = onRunningEntry
 
         self.machine.addState(idle)
@@ -96,6 +94,9 @@ class Main(QtWidgets.QDialog):
         self.leftPane, self.barLabel = self.createPaneEdit()
         self.rightPane, self.barButton  = self.createPaneCanvas()
         self.barButton.sync(self.barLabel)
+
+        self.leftPane.setDisabled(True)
+        self.barLabel.setDisabled(False)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         splitter.addWidget(self.leftPane)
@@ -143,7 +144,6 @@ class Main(QtWidgets.QDialog):
 
     def createTabConstraints(self):
         tab = QtWidgets.QWidget()
-
 
         def onDoubleClick(item, index):
             self.constraintsWidget.editItem(item, index)
@@ -409,6 +409,7 @@ class Main(QtWidgets.QDialog):
                 QtWidgets.QStyle.PM_ScrollBarExtent)
             widthPadding = 30
             self.splitter.setSizes([widthTree+widthScrollbar+widthPadding, 1])
+            self.leftPane.setDisabled(False)
         except Exception as exception:
             self.fail(exception)
 

@@ -18,6 +18,11 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         self.radiusInternal = 5
         self.setIndentation(16)
 
+    def setItemsDisabled(self, disable):
+        topItem = self.topLevelItem(0)
+        if topItem is not None:
+            topItem.setDisabled(disable)
+
     def drawBranches(self, painter, rect, index):
         """Manually paint branches and nodes"""
         super().drawBranches(painter, rect, index)

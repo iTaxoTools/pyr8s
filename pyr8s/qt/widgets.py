@@ -16,16 +16,47 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         self.solidColor = QtGui.QColor('#555555')
         self.radiusLeaf = 3
         self.radiusInternal = 5
+        self.branchOffset = 1
         self.setIndentation(16)
+        self.header().setStretchLastSection(False)
+        self.header().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeToContents)
+        # self.header().setSectionResizeMode(0,
+        #     QtWidgets.QHeaderView.Stretch)
+        # QtCore.QTimer.singleShot(0, lambda:
+        #     self.header().setSectionResizeMode(0,
+        #         QtWidgets.QHeaderView.Interactive))
+
+    def scrollTo(self, index, hint):
+        # Overloaded to prevent horizontal scroll on item select
+        pass
 
     def setItemsDisabled(self, disable):
+        """Disabled items but scrollbars remain enabled"""
         topItem = self.topLevelItem(0)
         if topItem is not None:
             topItem.setDisabled(disable)
 
+    def idealWidth(self):
+        """How much space is needed for all contents to be shown"""
+        self.header().setSectionResizeMode(0,
+            QtWidgets.QHeaderView.ResizeToContents)
+        widthTree = self.viewportSizeHint().width()
+        # self.header().setSectionResizeMode(0,
+        #     QtWidgets.QHeaderView.Stretch)
+        # QtCore.QTimer.singleShot(0, lambda:
+        #     self.header().setSectionResizeMode(0,
+        #         QtWidgets.QHeaderView.Interactive))
+        widthScrollbar = QtWidgets.qApp.style().pixelMetric(
+            QtWidgets.QStyle.PM_ScrollBarExtent)
+        widthPadding = 30
+        return widthTree+widthScrollbar+widthPadding
+
     def drawBranches(self, painter, rect, index):
         """Manually paint branches and nodes"""
         super().drawBranches(painter, rect, index)
+
+        rect.setRight(rect.right() + self.branchOffset)
 
         solidPen = QtGui.QPen(self.solidColor)
         solidPen.setWidth(2)
@@ -48,8 +79,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
 
         # Paint own Node first
         segment = QtCore.QRect(rect)
-        segment.setLeft(rect.width() - indent)
-        rect.setWidth(indent)
+        segment.setLeft(rect.right() - indent)
         if not hasChildren:
             radius = self.radiusLeaf
             center = segment.center()
@@ -77,7 +107,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
 
         # Branch towards direct parent
         segment.moveLeft(segment.left() - indent)
-        if segment.left() < 0:
+        if segment.right() < 0:
             return
         if hasMoreSiblings:
             center = segment.center()
@@ -97,6 +127,8 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         segment.moveLeft(segment.left() - indent)
         item = parent
         while parent is not None:
+            if segment.right() < 0:
+                return
             parent = item.parent()
             next = None
             if parent is not None:
@@ -212,6 +244,66 @@ class TreeWidgetNodeConstraints(QtWidgets.QTreeWidgetItem):
 
 ##############################################################################
 ### Layout
+
+class TabWidget(QtWidgets.QGroupBox):
+    """Tab-like to be used as corner widget of QTabWidget"""
+    def __init__(self, widget):
+        """Add widget to self"""
+        super().__init__()
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+        self.setStyleSheet(
+        """
+        QGroupBox {
+            border: 1px solid palette(dark);
+            border-bottom: none;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            min-width: 1ex;
+            padding: 2px;
+            margin: 0px;
+        }
+        QGroupBox:enabled  {
+            background: palette(Light);
+        }
+        QGroupBox:!enabled  {
+            background: palette(Window);
+        }
+        """)
+
+class TabWidgetSearch(TabWidget):
+    """Tab-like line edit with search button"""
+    def __init__(self):
+        self.lineEdit = QtWidgets.QLineEdit()
+        super().__init__(self.lineEdit)
+        self.lineEdit.setFixedWidth(80)
+        self.lineEdit.setStyleSheet(
+        """
+        QLineEdit {
+            border: none;
+            background: transparent;
+            padding: 0 4px;
+        }
+        """)
+
+    def setSearchAction(self, icon, function):
+        """Icon is the path to a black solid image"""
+        pixmap = QtGui.QPixmap(icon)
+        mask = pixmap.createMaskFromColor(QtGui.QColor('black'), QtCore.Qt.MaskOutColor)
+        palette = QtGui.QGuiApplication.palette()
+        pixmap.fill(palette.color(QtGui.QPalette.Shadow))
+        pixmap.setMask(mask)
+
+        def search():
+            function(self.lineEdit.text())
+
+        searchAction = QtWidgets.QAction(QtGui.QIcon(pixmap), 'Search', self)
+        searchAction.triggered.connect(search)
+        self.lineEdit.returnPressed.connect(search)
+        self.lineEdit.addAction(searchAction, QtWidgets.QLineEdit.TrailingPosition)
+
 
 class SyncedWidget(QtWidgets.QWidget):
     """Sync height with other widgets"""

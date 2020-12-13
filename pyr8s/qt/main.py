@@ -157,13 +157,9 @@ class Main(QtWidgets.QDialog):
         self.constraintsWidget.setColumnCount(4)
         self.constraintsWidget.setAlternatingRowColors(True)
         self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Max', 'Fix'])
-        header = self.constraintsWidget.header()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeToContents)
+        # header = self.constraintsWidget.header()
+        # header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        # header.setSectionResizeMode(0, QtWidgets.QHeaderView.Interactive)
         headerItem = self.constraintsWidget.headerItem()
         headerItem.setTextAlignment(0, QtCore.Qt.AlignLeft)
         headerItem.setTextAlignment(1, QtCore.Qt.AlignCenter)
@@ -219,7 +215,8 @@ class Main(QtWidgets.QDialog):
 
         label = QtWidgets.QLabel("Time & Rate Divergence Analysis")
         label.setAlignment(QtCore.Qt.AlignCenter)
-        #label.setStyleSheet("background-color:green;")
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
         labelLayout = QtWidgets.QHBoxLayout()
         labelLayout.addWidget(label, 1)
         labelLayout.setContentsMargins(1, 1, 1, 1)
@@ -229,24 +226,10 @@ class Main(QtWidgets.QDialog):
 
         toolbar = widgets.UToolBar('Tools')
         toolbar.addWidget(labelWidget)
-        #toolbar.setStyleSheet("background-color:red;")
 
         tabWidget = QtWidgets.QTabWidget()
 
-        findEdit = QtWidgets.QLineEdit()
-        label.setSizePolicy(
-            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
-        findEdit.setStyleSheet(
-        """
-        QLineEdit {
-            border: none;
-            background: transparent;
-            padding: 0 4px;
-        }
-        """)
-
-        def find():
-            what = findEdit.text()
+        def find(what):
             if what == '':
                 self.constraintsWidget.clearSelection()
                 return
@@ -256,43 +239,8 @@ class Main(QtWidgets.QDialog):
                 item.setSelected(True)
                 self.constraintsWidget.scrollToItem(item)
 
-        pixmap = QtGui.QPixmap(':/icons/search.png')
-        mask = pixmap.createMaskFromColor(QtGui.QColor('black'), QtCore.Qt.MaskOutColor)
-        palette = QtGui.QGuiApplication.palette()
-        pixmap.fill(palette.color(QtGui.QPalette.Shadow))
-        pixmap.setMask(mask)
-
-        findAction = QtWidgets.QAction(QtGui.QIcon(pixmap), 'Search', self)
-        findAction.triggered.connect(find)
-        findEdit.addAction(findAction, QtWidgets.QLineEdit.TrailingPosition)
-        findEdit.returnPressed.connect(find)
-        # btn.setStyleSheet("QLineEdit { border: none; background: transparent }")
-        findWidget = QtWidgets.QGroupBox()
-        findLayout = QtWidgets.QHBoxLayout()
-        findLayout.addWidget(findEdit)
-        findLayout.setContentsMargins(0, 0, 0, 0)
-        findWidget.setLayout(findLayout)
-        findWidget.setStyleSheet(
-            # background: palette(Light);
-        """
-        QGroupBox {
-            border: 1px solid palette(dark);
-            border-bottom: none;
-            border-top-left-radius: 4px;
-            border-top-right-radius: 4px;
-            min-width: 1ex;
-            padding: 2px;
-            margin: 0px;
-            width: 150px;
-        }
-        QGroupBox:enabled  {
-            background: palette(Light);
-        }
-        QGroupBox:!enabled  {
-            background: palette(Window);
-        }
-        """)
-        self.findWidget = findWidget
+        self.findWidget = widgets.TabWidgetSearch()
+        self.findWidget.setSearchAction(':/icons/search.png', find)
 
         def onTabChange():
             isRunning = False
@@ -301,13 +249,13 @@ class Main(QtWidgets.QDialog):
                 if state[0].objectName() == 'STATE_RUNNING':
                     isRunning = True
             if not isRunning and tabWidget.currentIndex() == 0:
-                findWidget.setEnabled(True)
+                self.findWidget.setEnabled(True)
             else:
-                findWidget.setEnabled(False)
+                self.findWidget.setEnabled(False)
 
         tabWidget.currentChanged.connect(onTabChange)
 
-        tabWidget.setCornerWidget(findWidget)
+        tabWidget.setCornerWidget(self.findWidget)
 
         tab1 = self.createTabConstraints()
         tab2 = self.createTabParams()
@@ -399,20 +347,14 @@ class Main(QtWidgets.QDialog):
             self.labelTree.setText(labelText)
             self.constraintsWidget.clear()
             # self.analysis.tree.print_plot(show_internal_node_labels=True)
-            widgets.TreeWidgetNodeConstraints(self.constraintsWidget, self.analysis.tree.seed_node)
-
-            header = self.constraintsWidget.header()
-            header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
-            widthTree = self.constraintsWidget.viewportSizeHint().width()
-            header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-            widthScrollbar = QtWidgets.qApp.style().pixelMetric(
-                QtWidgets.QStyle.PM_ScrollBarExtent)
-            widthPadding = 30
-            self.splitter.setSizes([widthTree+widthScrollbar+widthPadding, 1])
+            widgets.TreeWidgetNodeConstraints(
+                self.constraintsWidget, self.analysis.tree.seed_node)
+            idealWidth = self.constraintsWidget.idealWidth()
+            width = min([self.width()/3, idealWidth])
+            self.splitter.setSizes([width, 1])
             self.leftPane.setDisabled(False)
         except Exception as exception:
             self.fail(exception)
-
 
 def show(sys):
     """Entry point"""

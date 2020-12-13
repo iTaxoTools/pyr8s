@@ -91,19 +91,23 @@ class Main(QtWidgets.QDialog):
 
     def draw(self):
         """Draw all widgets"""
-        self.leftPane, self.barLabel = self.createPaneEdit()
-        self.rightPane, self.barButton  = self.createPaneCanvas()
-        self.barButton.sync(self.barLabel)
+        self.leftPane, self.barLabelTree = self.createPaneEdit()
+        self.middlePane, self.barButtons  = self.createPaneCanvas()
+        self.rightPane, self.barLabelResults  = self.createPaneResults()
+        self.barButtons.sync(self.barLabelTree)
+        self.barButtons.sync(self.barLabelResults)
 
         self.leftPane.setDisabled(True)
-        self.barLabel.setDisabled(False)
+        self.barLabelTree.setDisabled(False)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         splitter.addWidget(self.leftPane)
+        splitter.addWidget(self.middlePane)
         splitter.addWidget(self.rightPane)
         splitter.setStretchFactor(0,0)
         splitter.setStretchFactor(1,1)
         splitter.setCollapsible(0,False)
+        splitter.setCollapsible(2,False)
         self.splitter = splitter
 
         layout = QtWidgets.QHBoxLayout(self)
@@ -125,7 +129,7 @@ class Main(QtWidgets.QDialog):
 
         toolbar = widgets.UToolBar('Tools')
         toolbar.addAction(actionOpen)
-        toolbar.addAction('Save', lambda: self.barButton.setMinimumHeight(68))
+        toolbar.addAction('Save', lambda: self.barButtons.setMinimumHeight(68))
         # toolbar.addAction('Export', find)
         toolbar.addAction(exitAct)
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
@@ -244,6 +248,69 @@ class Main(QtWidgets.QDialog):
         layout.setMenuBar(toolbar)
         layout.addWidget(tabWidget)
         layout.addWidget(runWidget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        pane.setLayout(layout)
+
+        return pane, toolbar
+
+    def createTabResults(self):
+        tab = QtWidgets.QWidget()
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        # layout.addWidget(paramWidget)
+        tab.setLayout(layout)
+
+        return tab
+
+    def createTabTable(self):
+        tab = QtWidgets.QWidget()
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        # layout.addWidget(paramWidget)
+        tab.setLayout(layout)
+
+        return tab
+
+    def createTabLogs(self):
+        tab = QtWidgets.QWidget()
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        # layout.addWidget(paramWidget)
+        tab.setLayout(layout)
+
+        return tab
+
+    def createPaneResults(self):
+        pane = QtWidgets.QWidget()
+
+        label = QtWidgets.QLabel("Results")
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
+        labelLayout = QtWidgets.QHBoxLayout()
+        labelLayout.addWidget(label, 1)
+        labelLayout.setContentsMargins(1, 1, 1, 1)
+        labelWidget = QtWidgets.QWidget()
+        labelWidget.setLayout(labelLayout)
+
+        toolbar = widgets.UToolBar('Tools')
+        toolbar.addWidget(labelWidget)
+
+        tabWidget = QtWidgets.QTabWidget()
+
+        tab1 = self.createTabResults()
+        tab2 = self.createTabTable()
+        tab3 = self.createTabLogs()
+        tabWidget.addTab(tab1, "&Results")
+        tabWidget.addTab(tab2, "&Table")
+        tabWidget.addTab(tab3, "&Logs")
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setMenuBar(toolbar)
+        layout.addWidget(tabWidget)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 

@@ -13,6 +13,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
     """Styled to draw the branches of phylogenetic trees."""
     def __init__(self):
         super().__init__()
+        self.itemActivated.connect(self.editItem)
         self.solidColor = QtGui.QColor('#555555')
         self.radiusLeaf = 3
         self.radiusInternal = 5
@@ -26,6 +27,31 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         # QtCore.QTimer.singleShot(0, lambda:
         #     self.header().setSectionResizeMode(0,
         #         QtWidgets.QHeaderView.Interactive))
+        self.setUniformRowHeights(True)
+        self.setStyleSheet(
+            """
+            QTreeView::branch:has-siblings:!adjoins-item {
+                border-image: none;
+            }
+            QTreeView::branch:has-siblings:adjoins-item {
+                border-image: none;
+            }
+            QTreeView::branch:!has-children:!has-siblings:adjoins-item {
+                border-image: none;
+            }
+            QTreeView::branch:has-children:!has-siblings:closed,
+            QTreeView::branch:closed:has-children:has-siblings {
+                    border-image: none;
+                    image: none;
+            }
+            QTreeView::branch:open:has-children:!has-siblings,
+            QTreeView::branch:open:has-children:has-siblings  {
+                    border-image: none;
+                    image: none;
+            }
+            """
+            )
+
 
     def scrollTo(self, index, hint):
         # Overloaded to prevent horizontal scroll on item select
@@ -175,7 +201,7 @@ class TreeWidgetNodeConstraints(QtWidgets.QTreeWidgetItem):
 
     def showWarning(self, message):
         QtWidgets.QMessageBox.warning(None, 'Warning',
-            message, QWidgets.QtWidgets.Ok)
+            message, QtWidgets.QMessageBox.Ok)
 
     def showException(self, message):
         print(message)

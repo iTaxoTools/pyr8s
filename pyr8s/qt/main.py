@@ -145,50 +145,15 @@ class Main(QtWidgets.QDialog):
     def createTabConstraints(self):
         tab = QtWidgets.QWidget()
 
-        def onDoubleClick(item, index):
-            self.constraintsWidget.editItem(item, index)
-
-        # def onItemChanged(item, column):
-        #     print('CHANGE', self.analysis.param.general.scalar )
-
         self.constraintsWidget = widgets.TreeWidgetPhylogenetic()
-        self.constraintsWidget.itemActivated.connect(onDoubleClick)
-        # self.constraintsWidget.itemChanged.connect(onItemChanged)
         self.constraintsWidget.setColumnCount(4)
         self.constraintsWidget.setAlternatingRowColors(True)
         self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Max', 'Fix'])
-        # header = self.constraintsWidget.header()
-        # header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-        # header.setSectionResizeMode(0, QtWidgets.QHeaderView.Interactive)
         headerItem = self.constraintsWidget.headerItem()
         headerItem.setTextAlignment(0, QtCore.Qt.AlignLeft)
         headerItem.setTextAlignment(1, QtCore.Qt.AlignCenter)
         headerItem.setTextAlignment(2, QtCore.Qt.AlignCenter)
         headerItem.setTextAlignment(3, QtCore.Qt.AlignCenter)
-        self.constraintsWidget.setUniformRowHeights(True)
-        self.constraintsWidget.setStyleSheet(
-            """
-            QTreeView::branch:has-siblings:!adjoins-item {
-                border-image: none;
-            }
-            QTreeView::branch:has-siblings:adjoins-item {
-                border-image: none;
-            }
-            QTreeView::branch:!has-children:!has-siblings:adjoins-item {
-                border-image: none;
-            }
-            QTreeView::branch:has-children:!has-siblings:closed,
-            QTreeView::branch:closed:has-children:has-siblings {
-                    border-image: none;
-                    image: none;
-            }
-            QTreeView::branch:open:has-children:!has-siblings,
-            QTreeView::branch:open:has-children:has-siblings  {
-                    border-image: none;
-                    image: none;
-            }
-            """
-            )
         self.constraintsWidget.installEventFilter(self)
 
         layout = QtWidgets.QHBoxLayout()

@@ -60,6 +60,7 @@ class Main(QtWidgets.QDialog):
         idle.addTransition(self.signalRun, running)
         def onIdleEntry(event):
             self.constraintsWidget.setItemsDisabled(False)
+            self.resultsWidget.setItemsDisabled(False)
             self.constraintsWidget.setFocus()
         idle.onEntry = onIdleEntry
 
@@ -70,6 +71,7 @@ class Main(QtWidgets.QDialog):
         running.addTransition(self.signalIdle, idle)
         def onRunningEntry(event):
             self.constraintsWidget.setItemsDisabled(True)
+            self.resultsWidget.setItemsDisabled(True)
             self.cancelButton.setFocus(True)
         running.onEntry = onRunningEntry
 
@@ -256,9 +258,22 @@ class Main(QtWidgets.QDialog):
     def createTabResults(self):
         tab = QtWidgets.QWidget()
 
+        self.resultsWidget = widgets.TreeWidgetPhylogenetic()
+        self.resultsWidget.setColumnCount(3)
+        self.resultsWidget.setAlternatingRowColors(True)
+        self.resultsWidget.setHeaderLabels(['Taxon', 'Age', 'Rate', 'c'])
+        headerItem = self.resultsWidget.headerItem()
+        headerItem.setTextAlignment(0, QtCore.Qt.AlignLeft)
+        headerItem.setTextAlignment(1, QtCore.Qt.AlignCenter)
+        headerItem.setTextAlignment(2, QtCore.Qt.AlignCenter)
+        headerItem.setTextAlignment(3, QtCore.Qt.AlignCenter)
+        self.resultsWidget.installEventFilter(self)
+        self.resultsWidget.setEditTriggers(
+            QtWidgets.QAbstractItemView.NoEditTriggers)
+
         layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        # layout.addWidget(paramWidget)
+        layout.setContentsMargins(5, 5, 5, 5)
+        layout.addWidget(self.resultsWidget)
         tab.setLayout(layout)
 
         return tab
@@ -324,6 +339,9 @@ class Main(QtWidgets.QDialog):
 
         def done(result):
             result.print()
+            self.resultsWidget.clear()
+            widgets.TreeWidgetNodeResults(
+                self.resultsWidget, result.tree.seed_node)
             QtWidgets.QMessageBox.information(None, 'Success',
                 'Analysis performed successfully.', QtWidgets.QMessageBox.Ok)
             self.signalIdle.emit()
@@ -383,7 +401,7 @@ class Main(QtWidgets.QDialog):
                 self.constraintsWidget, self.analysis.tree.seed_node)
             idealWidth = self.constraintsWidget.idealWidth()
             width = min([self.width()/3, idealWidth])
-            self.splitter.setSizes([width, 1])
+            self.splitter.setSizes([width, 1, self.width()/3])
             self.leftPane.setDisabled(False)
         except Exception as exception:
             self.fail(exception)

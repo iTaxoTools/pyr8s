@@ -13,7 +13,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
     """Styled to draw the branches of phylogenetic trees."""
     def __init__(self):
         super().__init__()
-        self.itemActivated.connect(self.editItem)
+        # self.itemActivated.connect(self.editItem)
         self.solidColor = QtGui.QColor('#555555')
         self.radiusLeaf = 3
         self.radiusInternal = 5
@@ -22,8 +22,8 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         self.header().setStretchLastSection(False)
         self.header().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeToContents)
-        # self.header().setSectionResizeMode(0,
-        #     QtWidgets.QHeaderView.Stretch)
+        self.header().setSectionResizeMode(0,
+            QtWidgets.QHeaderView.Stretch)
         # QtCore.QTimer.singleShot(0, lambda:
         #     self.header().setSectionResizeMode(0,
         #         QtWidgets.QHeaderView.Interactive))
@@ -68,8 +68,8 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         self.header().setSectionResizeMode(0,
             QtWidgets.QHeaderView.ResizeToContents)
         widthTree = self.viewportSizeHint().width()
-        # self.header().setSectionResizeMode(0,
-        #     QtWidgets.QHeaderView.Stretch)
+        self.header().setSectionResizeMode(0,
+            QtWidgets.QHeaderView.Stretch)
         # QtCore.QTimer.singleShot(0, lambda:
         #     self.header().setSectionResizeMode(0,
         #         QtWidgets.QHeaderView.Interactive))
@@ -168,6 +168,42 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
                 painter.drawLine(top, bottom)
             segment.moveLeft(segment.left() - indent)
             item = parent
+
+
+class TreeWidgetNodeResults(QtWidgets.QTreeWidgetItem):
+    """Analysis results on an extended dendropy tree"""
+    def __init__(self, parent, node):
+        """
+        Creates a widget from a dendropy node and adds it to the parent.
+        Recursively creates children widgets from children nodes.
+        """
+        super().__init__(parent)
+        self.node = node
+        label = str(node.label)
+        label = '[' + label + ']' if node.is_name_dummy else label
+        age = '-' if node.age is None else '{:.4f}'.format(node.age)
+        rate = '-' if node.rate is None else '{:.4e}'.format(node.rate)
+        isMinMax = node.min is not None or node.max is not None
+        isFixed = node.fix is not None
+        if isFixed:
+            type = '\u2219'
+        elif isMinMax:
+            type = '\u2217'
+        else:
+            type = ' '
+        self.setText(0, label)
+        self.setText(1, age)
+        self.setText(2, rate)
+        self.setText(3, type)
+        self.setTextAlignment(1, QtCore.Qt.AlignRight)
+        self.setTextAlignment(2, QtCore.Qt.AlignRight)
+        self.setTextAlignment(3, QtCore.Qt.AlignCenter)
+        self.setFlags(QtCore.Qt.ItemIsSelectable |
+                      QtCore.Qt.ItemIsEnabled |
+                      QtCore.Qt.ItemIsEditable)
+        for child in node.child_node_iter():
+            TreeWidgetNodeResults(self, child)
+        self.setExpanded(True)
 
 
 class TreeWidgetNodeConstraints(QtWidgets.QTreeWidgetItem):

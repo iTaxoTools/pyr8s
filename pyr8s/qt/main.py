@@ -29,6 +29,7 @@ class Main(QtWidgets.QDialog):
 
         self.setWindowTitle("pyr8s")
         self.resize(854,480)
+        self.machine = None
         self.draw()
         self.state()
 
@@ -49,24 +50,29 @@ class Main(QtWidgets.QDialog):
         idle = QtCore.QState()
         running = QtCore.QState()
 
+        idle.setObjectName('STATE_IDLE')
+        running.setObjectName('STATE_RUNNING')
+
         idle.assignProperty(self.cancelButton, 'visible', False)
         idle.assignProperty(self.runButton, 'visible', True)
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
-        idle.assignProperty(self.constraintsWidget, 'enabled', True)
         idle.assignProperty(self.findWidget, 'enabled', True)
         idle.addTransition(self.signalRun, running)
         def onIdleEntry(event):
             self.constraintsWidget.setFocus()
+            topItem = self.constraintsWidget.topLevelItem(0)
+            topItem.setDisabled(False)
         idle.onEntry = onIdleEntry
 
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
-        running.assignProperty(self.constraintsWidget, 'enabled', False)
         running.assignProperty(self.findWidget, 'enabled', False)
         running.addTransition(self.signalIdle, idle)
         def onRunningEntry(event):
             self.cancelButton.setFocus(True)
+            topItem = self.constraintsWidget.topLevelItem(0)
+            topItem.setDisabled(True)
         running.onEntry = onRunningEntry
 
         self.machine.addState(idle)
@@ -289,7 +295,12 @@ class Main(QtWidgets.QDialog):
         self.findWidget = findWidget
 
         def onTabChange():
-            if tabWidget.currentIndex() == 0:
+            isRunning = False
+            if self.machine is not None:
+                state = list(self.machine.configuration())
+                if state[0].objectName() == 'STATE_RUNNING':
+                    isRunning = True
+            if not isRunning and tabWidget.currentIndex() == 0:
                 findWidget.setEnabled(True)
             else:
                 findWidget.setEnabled(False)

@@ -14,7 +14,9 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
     def __init__(self):
         super().__init__()
         # self.itemActivated.connect(self.editItem)
-        self.solidColor = QtGui.QColor('#555555')
+        palette = QtGui.QGuiApplication.palette()
+        self.solidColor = palette.color(QtGui.QPalette.Shadow)
+        self.disabledColor = palette.color(QtGui.QPalette.Midlight)
         self.radiusLeaf = 3
         self.radiusInternal = 5
         self.branchOffset = 1
@@ -84,14 +86,22 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
 
         rect.setRight(rect.right() + self.branchOffset)
 
-        solidPen = QtGui.QPen(self.solidColor)
-        solidPen.setWidth(2)
-        painter.setBrush(self.solidColor)
-        painter.setPen(solidPen)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-
         indent = self.indentation()
         item = self.itemFromIndex(index)
+
+        if item.isDisabled():
+            solidPen = QtGui.QPen(self.disabledColor)
+            solidPen.setWidth(2)
+            painter.setBrush(self.disabledColor)
+            painter.setPen(solidPen)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        else:
+            solidPen = QtGui.QPen(self.solidColor)
+            solidPen.setWidth(2)
+            painter.setBrush(self.solidColor)
+            painter.setPen(solidPen)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
         parent = item.parent()
         next = None
         if parent is not None:

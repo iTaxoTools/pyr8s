@@ -342,9 +342,9 @@ class Main(QtWidgets.QDialog):
             self.resultsWidget.clear()
             widgets.TreeWidgetNodeResults(
                 self.resultsWidget, result.tree.seed_node)
+            self.signalIdle.emit()
             QtWidgets.QMessageBox.information(None, 'Success',
                 'Analysis performed successfully.', QtWidgets.QMessageBox.Ok)
-            self.signalIdle.emit()
 
         def fail(exception):
             self.fail(exception)

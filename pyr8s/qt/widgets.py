@@ -191,8 +191,10 @@ class TreeWidgetNodeResults(QtWidgets.QTreeWidgetItem):
         self.node = node
         label = str(node.label)
         label = '[' + label + ']' if node.is_name_dummy else label
-        age = '-' if node.age is None else '{:.4f}'.format(node.age)
-        rate = '-' if node.rate is None else '{:.4e}'.format(node.rate)
+        age = '-' if node.age is None else '{:>1.2f}'.format(node.age)
+        rate = '-' if node.rate is None else '{:>1.2e}'.format(node.rate)
+        if node.rate == 0:
+            rate = ' 0.00e-00'
         isMinMax = node.min is not None or node.max is not None
         isFixed = node.fix is not None
         if isFixed:

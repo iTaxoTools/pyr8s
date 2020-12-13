@@ -93,18 +93,15 @@ class Main(QtWidgets.QDialog):
 
     def draw(self):
         """Draw all widgets"""
-        self.leftPane, self.barLabelTree = self.createPaneEdit()
-        self.middlePane, self.barButtons  = self.createPaneCanvas()
-        self.rightPane, self.barLabelResults  = self.createPaneResults()
-        self.barButtons.sync(self.barLabelTree)
-        self.barButtons.sync(self.barLabelResults)
+        self.leftPane, self.barLabel = self.createPaneEdit()
+        self.rightPane, self.barButtons  = self.createPaneResults()
+        self.barButtons.sync(self.barLabel)
 
         self.leftPane.setDisabled(True)
-        self.barLabelTree.setDisabled(False)
+        self.barLabel.setDisabled(False)
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         splitter.addWidget(self.leftPane)
-        splitter.addWidget(self.middlePane)
         splitter.addWidget(self.rightPane)
         splitter.setStretchFactor(0,0)
         splitter.setStretchFactor(1,1)
@@ -116,37 +113,6 @@ class Main(QtWidgets.QDialog):
         layout.addWidget(splitter)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
-
-    def createPaneCanvas(self):
-        pane = QtWidgets.QWidget()
-
-        exitAct = QtWidgets.QAction('Exit', self)
-        exitAct.setShortcut('Ctrl+Q')
-        exitAct.triggered.connect(QtWidgets.qApp.quit)
-
-        actionOpen = QtWidgets.QAction('Open', self)
-        actionOpen.setShortcut('Ctrl+O')
-        actionOpen.setStatusTip('Open an existing file')
-        actionOpen.triggered.connect(self.actionOpen)
-
-        toolbar = widgets.UToolBar('Tools')
-        toolbar.addAction(actionOpen)
-        toolbar.addAction('Save', lambda: self.barButtons.setMinimumHeight(68))
-        # toolbar.addAction('Export', find)
-        toolbar.addAction(exitAct)
-        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        #toolbar.setStyleSheet("background-color:red;")
-
-        canvas = QtWidgets.QGroupBox()
-        canvas.setContentsMargins(0, 0, 0, 0)
-
-        layout = QtWidgets.QVBoxLayout()
-        layout.setMenuBar(toolbar)
-        layout.addWidget(canvas)
-        layout.setContentsMargins(0, 0, 0, 0)
-        pane.setLayout(layout)
-
-        return pane, toolbar
 
     def createTabConstraints(self):
         tab = QtWidgets.QWidget()
@@ -261,7 +227,7 @@ class Main(QtWidgets.QDialog):
         self.resultsWidget = widgets.TreeWidgetPhylogenetic()
         self.resultsWidget.setColumnCount(3)
         self.resultsWidget.setAlternatingRowColors(True)
-        self.resultsWidget.setHeaderLabels(['Taxon', 'Age', 'Rate', 'c'])
+        self.resultsWidget.setHeaderLabels(['Taxon', 'Age', 'Rate', 'C'])
         headerItem = self.resultsWidget.headerItem()
         headerItem.setTextAlignment(0, QtCore.Qt.AlignLeft)
         headerItem.setTextAlignment(1, QtCore.Qt.AlignCenter)
@@ -311,17 +277,33 @@ class Main(QtWidgets.QDialog):
         labelWidget = QtWidgets.QWidget()
         labelWidget.setLayout(labelLayout)
 
+        exitAct = QtWidgets.QAction('Exit', self)
+        exitAct.setShortcut('Ctrl+Q')
+        exitAct.triggered.connect(QtWidgets.qApp.quit)
+
+        actionOpen = QtWidgets.QAction('Open', self)
+        actionOpen.setShortcut('Ctrl+O')
+        actionOpen.setStatusTip('Open an existing file')
+        actionOpen.triggered.connect(self.actionOpen)
+
         toolbar = widgets.UToolBar('Tools')
-        toolbar.addWidget(labelWidget)
+        toolbar.addAction(actionOpen)
+        toolbar.addAction('Save', lambda: self.barButtons.setMinimumHeight(68))
+        # toolbar.addAction('Export', find)
+        toolbar.addAction(exitAct)
+        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        #toolbar.setStyleSheet("background-color:red;")
 
         tabWidget = QtWidgets.QTabWidget()
 
         tab1 = self.createTabResults()
         tab2 = self.createTabTable()
         tab3 = self.createTabLogs()
+        tab4 = self.createTabLogs()
         tabWidget.addTab(tab1, "&Results")
-        tabWidget.addTab(tab2, "&Table")
-        tabWidget.addTab(tab3, "&Logs")
+        tabWidget.addTab(tab2, "&Diagram")
+        tabWidget.addTab(tab3, "&Table")
+        tabWidget.addTab(tab4, "&Logs")
 
         layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)

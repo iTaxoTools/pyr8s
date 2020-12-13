@@ -109,7 +109,7 @@ class TreePlus(dendropy.Tree):
             if node.taxon == None:
                 node.taxon = self.taxon_namespace.new_taxon(str(count))
                 node.is_name_dummy = True
-            else:
+            elif node.is_name_dummy is None:
                 node.is_name_dummy = False
             # print(node.taxon.label)
             node.label = node.taxon.label

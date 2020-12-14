@@ -20,7 +20,10 @@ setup(name='pyr8s',
         'pyr8s_qt': ['pyqt5']
     },
     entry_points = {
-        'console_scripts': ['pyr8s=pyr8s.run:main'],
+        'console_scripts': [
+            'pyr8s=pyr8s.run:main'
+            'pq=pyr8s.run_qt:main' # quick debug for windows
+            ],
         'gui_scripts': [
             # 'pyr8s_tk=pyr8s.run_tk:main',
             'pyr8s_qt=pyr8s.run_qt:main'

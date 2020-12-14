@@ -154,6 +154,9 @@ class ParamCategory(QtWidgets.QGroupBox):
     def __init__(self, parent, key, category):
         super().__init__(category.label)
 
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
+
         parent.categories.append(self)
         self.key = key
         self.category = category
@@ -206,13 +209,17 @@ class ParamContainer(QtWidgets.QWidget):
         containerLayout.setContentsMargins(5, 5, 5, 5)
         container.setLayout(containerLayout)
         container.setSizePolicy(
-            QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
+            QtWidgets.QSizePolicy.Ignored,
+            QtWidgets.QSizePolicy.ExpandFlag | QtWidgets.QSizePolicy.ShrinkFlag)
 
         scroll = QtWidgets.QScrollArea()
         scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         scroll.setWidgetResizable(True)
         scroll.setWidget(container)
+        scroll.sizeHint = container.sizeHint
+        scroll.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
 
         self.scroll = scroll
         self.container = container
@@ -223,6 +230,9 @@ class ParamContainer(QtWidgets.QWidget):
         docLayout = QtWidgets.QVBoxLayout()
         docLayout.setContentsMargins(5, 5, 5, 5)
         doc.setLayout(docLayout)
+
+        doc.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
 
         object = QtWidgets.QLabel(
             "This is a not so helpful string about parameters "
@@ -240,6 +250,10 @@ class ParamContainer(QtWidgets.QWidget):
         layout.addWidget(button)
         box = QtWidgets.QGroupBox()
         box.setLayout(layout)
+
+        box.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
+
         self.containerLayout.addWidget(box)
 
     def populate(self, param):

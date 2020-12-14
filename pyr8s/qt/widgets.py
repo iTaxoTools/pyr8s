@@ -13,11 +13,14 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
     """Styled to draw the branches of phylogenetic trees."""
     def __init__(self):
         super().__init__()
+        self._searchSelecting = False
+        self.selectionModel().selectionChanged.connect(
+            self._onSelectionChanged)
         # self.itemActivated.connect(self.editItem)
         palette = QtGui.QGuiApplication.palette()
         self.colorSolid = palette.color(QtGui.QPalette.Shadow)
         self.colorDisabled = palette.color(QtGui.QPalette.Midlight)
-        self.colorSelected = palette.color(QtGui.QPalette.BrightText)
+        self.colorSelected = palette.color(QtGui.QPalette.HighlightedText)
         self.radiusLeaf = 3
         self.radiusInternal = 5
         self.branchOffset = 1
@@ -56,9 +59,9 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             )
 
 
-    def scrollTo(self, index, hint):
-        # Overloaded to prevent horizontal scroll on item select
-        pass
+    # def scrollTo(self, index, hint):
+    #     """Overloaded to prevent horizontal scroll on item select"""
+    #     pass
 
     def setItemsDisabled(self, disable):
         """Disabled items but scrollbars remain enabled"""
@@ -80,6 +83,32 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             QtWidgets.QStyle.PM_ScrollBarExtent)
         widthPadding = 30
         return widthTree+widthScrollbar+widthPadding
+
+    def _onSelectionChanged(self, selected, deselected):
+        """Calls onSelect with selected data"""
+        if not self._searchSelecting:
+            data = {}
+            for index in selected.indexes():
+                data[index.column()] = index.data()
+            if len(data) > 0:
+                self.onSelect(data)
+
+    def onSelect(self, data):
+        """Overload to do something with selection"""
+        pass
+
+    def searchSelect(self, what, flag=QtCore.Qt.MatchContains):
+        self._searchSelecting = True
+        if what == '':
+            self.clearSelection()
+        else:
+            self.clearSelection()
+            found = self.findItems(what, flag | QtCore.Qt.MatchRecursive)
+            for item in found:
+                item.setSelected(True)
+            if len(found) > 0:
+                self.scrollToItem(found[-1])
+        self._searchSelecting = False
 
     def drawBranches(self, painter, rect, index):
         """Manually paint branches and nodes"""

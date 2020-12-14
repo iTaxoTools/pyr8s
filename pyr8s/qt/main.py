@@ -56,7 +56,7 @@ class Main(QtWidgets.QDialog):
         idle.assignProperty(self.cancelButton, 'visible', False)
         idle.assignProperty(self.runButton, 'visible', True)
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
-        idle.assignProperty(self.findWidget, 'enabled', True)
+        idle.assignProperty(self.searchWidget, 'enabled', True)
         idle.addTransition(self.signalRun, running)
         def onIdleEntry(event):
             self.constraintsWidget.setItemsDisabled(False)
@@ -67,7 +67,7 @@ class Main(QtWidgets.QDialog):
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
-        running.assignProperty(self.findWidget, 'enabled', False)
+        running.assignProperty(self.searchWidget, 'enabled', False)
         running.addTransition(self.signalIdle, idle)
         def onRunningEntry(event):
             self.constraintsWidget.setItemsDisabled(True)
@@ -118,6 +118,9 @@ class Main(QtWidgets.QDialog):
         tab = QtWidgets.QWidget()
 
         self.constraintsWidget = widgets.TreeWidgetPhylogenetic()
+        self.constraintsWidget.onSelect = (lambda data:
+            self.resultsWidget.searchSelect(data[0],
+                flag=QtCore.Qt.MatchExactly))
         self.constraintsWidget.setColumnCount(4)
         self.constraintsWidget.setAlternatingRowColors(True)
         self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Max', 'Fix'])
@@ -166,18 +169,11 @@ class Main(QtWidgets.QDialog):
 
         tabWidget = QtWidgets.QTabWidget()
 
-        def find(what):
-            if what == '':
-                self.constraintsWidget.clearSelection()
-                return
-            self.constraintsWidget.clearSelection()
-            found = self.constraintsWidget.findItems(what, QtCore.Qt.MatchContains | QtCore.Qt.MatchRecursive)
-            for item in found:
-                item.setSelected(True)
-                self.constraintsWidget.scrollToItem(item)
-
-        self.findWidget = widgets.TabWidgetSearch()
-        self.findWidget.setSearchAction(':/icons/search.png', find)
+        def search(what):
+            self.constraintsWidget.searchSelect(what)
+            self.resultsWidget.searchSelect(what)
+        self.searchWidget = widgets.TabWidgetSearch()
+        self.searchWidget.setSearchAction(':/icons/search.png', search)
 
         def onTabChange():
             isRunning = False
@@ -186,13 +182,13 @@ class Main(QtWidgets.QDialog):
                 if state[0].objectName() == 'STATE_RUNNING':
                     isRunning = True
             if not isRunning and tabWidget.currentIndex() == 0:
-                self.findWidget.setEnabled(True)
+                self.searchWidget.setEnabled(True)
             else:
-                self.findWidget.setEnabled(False)
+                self.searchWidget.setEnabled(False)
 
         tabWidget.currentChanged.connect(onTabChange)
 
-        tabWidget.setCornerWidget(self.findWidget)
+        tabWidget.setCornerWidget(self.searchWidget)
 
         tab1 = self.createTabConstraints()
         tab2 = self.createTabParams()
@@ -225,9 +221,9 @@ class Main(QtWidgets.QDialog):
         tab = QtWidgets.QWidget()
 
         self.resultsWidget = widgets.TreeWidgetPhylogenetic()
-        def onDoubleclick(item, column):
-            print('KLIK')
-        self.resultsWidget.itemActivated.connect(onDoubleclick)
+        self.resultsWidget.onSelect = (lambda data:
+            self.constraintsWidget.searchSelect(data[0],
+            flag=QtCore.Qt.MatchExactly))
         self.resultsWidget.setColumnCount(3)
         self.resultsWidget.setAlternatingRowColors(True)
         self.resultsWidget.setHeaderLabels(['Taxon', 'Age', 'Rate', 'C'])

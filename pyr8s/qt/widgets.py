@@ -15,8 +15,9 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         super().__init__()
         # self.itemActivated.connect(self.editItem)
         palette = QtGui.QGuiApplication.palette()
-        self.solidColor = palette.color(QtGui.QPalette.Shadow)
-        self.disabledColor = palette.color(QtGui.QPalette.Midlight)
+        self.colorSolid = palette.color(QtGui.QPalette.Shadow)
+        self.colorDisabled = palette.color(QtGui.QPalette.Midlight)
+        self.colorSelected = palette.color(QtGui.QPalette.BrightText)
         self.radiusLeaf = 3
         self.radiusInternal = 5
         self.branchOffset = 1
@@ -89,18 +90,19 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         indent = self.indentation()
         item = self.itemFromIndex(index)
 
-        if item.isDisabled():
-            solidPen = QtGui.QPen(self.disabledColor)
-            solidPen.setWidth(2)
-            painter.setBrush(self.disabledColor)
-            painter.setPen(solidPen)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        color = None
+        if item.isSelected():
+            color = self.colorSelected
+        elif item.isDisabled():
+            color = self.colorDisabled
         else:
-            solidPen = QtGui.QPen(self.solidColor)
-            solidPen.setWidth(2)
-            painter.setBrush(self.solidColor)
-            painter.setPen(solidPen)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            color = self.colorSolid
+
+        solidPen = QtGui.QPen(color)
+        solidPen.setWidth(2)
+        painter.setBrush(color)
+        painter.setPen(solidPen)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         parent = item.parent()
         next = None
@@ -129,11 +131,11 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             painter.setBrush(QtCore.Qt.NoBrush)
             painter.drawEllipse(center, radius, radius)
             if isExpanded:
-                bottom = QtCore.QPoint(center.x(), center.y()+segment.height()/2)
+                bottom = QtCore.QPoint(center.x(), center.y()+segment.height()/2+1)
                 bottomMid = QtCore.QPoint(center.x(), center.y()+radius)
                 painter.drawLine(bottom, bottomMid)
             else:
-                painter.setBrush(self.solidColor)
+                painter.setBrush(color)
                 painter.drawEllipse(center, 1, 1)
             if parent is None:
                 return
@@ -149,14 +151,14 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             center = segment.center()
             right = QtCore.QPoint(center.x()+segment.width()/2, center.y())
             painter.drawLine(center, right)
-            top = QtCore.QPoint(center.x(), segment.top())
-            bottom = QtCore.QPoint(center.x(), segment.bottom())
+            top = QtCore.QPoint(center.x(), segment.top()+1)
+            bottom = QtCore.QPoint(center.x(), segment.bottom()+1)
             painter.drawLine(top, bottom)
         else:
             center = segment.center()
             right = QtCore.QPoint(center.x()+segment.width()/2, center.y())
             painter.drawLine(center, right)
-            top = QtCore.QPoint(center.x(), segment.top())
+            top = QtCore.QPoint(center.x(), segment.top()+1)
             painter.drawLine(top, center)
 
         # Branch extensions for ancestors
@@ -173,8 +175,8 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             hasMoreSiblings = next is not None
             if hasMoreSiblings:
                 center = segment.center()
-                top = QtCore.QPoint(center.x(), segment.top())
-                bottom = QtCore.QPoint(center.x(), segment.bottom())
+                top = QtCore.QPoint(center.x(), segment.top()+1)
+                bottom = QtCore.QPoint(center.x(), segment.bottom()+1)
                 painter.drawLine(top, bottom)
             segment.moveLeft(segment.left() - indent)
             item = parent

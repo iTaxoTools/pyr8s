@@ -225,6 +225,9 @@ class Main(QtWidgets.QDialog):
         tab = QtWidgets.QWidget()
 
         self.resultsWidget = widgets.TreeWidgetPhylogenetic()
+        def onDoubleclick(item, column):
+            print('KLIK')
+        self.resultsWidget.itemActivated.connect(onDoubleclick)
         self.resultsWidget.setColumnCount(3)
         self.resultsWidget.setAlternatingRowColors(True)
         self.resultsWidget.setHeaderLabels(['Taxon', 'Age', 'Rate', 'C'])

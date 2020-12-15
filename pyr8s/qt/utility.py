@@ -3,7 +3,7 @@
 from PyQt5.QtCore import QRunnable, QThread, pyqtSignal, pyqtSlot # <
 from PyQt5.QtWidgets import QWidget, QToolBar
 
-from multiprocessing import Process, Pipe
+import multiprocessing
 
 ##############################################################################
 ### Widgets
@@ -82,9 +82,11 @@ class UThread(QThread):
         except Exception as exception:
             self.fail.emit(exception)
         else:
+            print('WE ARE DONE')
             self.done.emit(result)
 
-class UProcess(UThread):
+
+class UProcess(QThread):
     """
     Multiprocess function execution using PyQt5.
     Unlike QtCore.QProcess, this launches python functions, not programs.
@@ -136,12 +138,14 @@ class UProcess(UThread):
         **kwargs : keyword arguments, optional
             If given, it is passed on to the function.
         """
-        super().__init__(self.work)
-        self.pipeData = Pipe(duplex=True)
-        self.pipeOut = Pipe(duplex=False)
-        self.pipeErr = Pipe(duplex=False)
-        self.pipeIn = Pipe(duplex=False)
-        self.process = Process(target=self.target, daemon=True,
+        super().__init__()
+        self.pipeControl = multiprocessing.Pipe(duplex=True)
+        self.pipeData = multiprocessing.Pipe(duplex=True)
+        self.pipeOut = multiprocessing.Pipe(duplex=False)
+        self.pipeErr = multiprocessing.Pipe(duplex=False)
+        self.pipeIn = multiprocessing.Pipe(duplex=False)
+        self.process = multiprocessing.Process(
+            target=self.target, daemon=True,
             args=(function,)+args, kwargs=kwargs)
 
     def target(self, function, *args, **kwargs):
@@ -150,46 +154,68 @@ class UProcess(UThread):
         Alerts parent process via pipe.
         """
         self.pipeIn[1].close()
+        self.pipeControl = self.pipeControl[1]
         self.pipeData = self.pipeData[1]
         self.pipeOut = self.pipeOut[1]
         self.pipeErr = self.pipeErr[1]
         self.pipeIn = self.pipeIn[0]
 
-        result = self.pipeIn.recv()
-        print('CHILD SAYS THAT', result)
         try:
             result = function(*args, **kwargs)
-            self.pipeData.send('RESULT')
+            self.pipeControl.send('RESULT')
             self.pipeData.send(result)
         except Exception as exception:
-            self.pipeData.send('EXCEPTION')
+            self.pipeControl.send('EXCEPTION')
             self.pipeData.send(exception)
 
-    def work(self, *args, **kwargs):
+    def run(self):
         """
-        This is executed as a new QThread.
+        Overloads QThread. This is run on a new thread.
+        Do not call this directly, call self.start() instead.
         Starts and watches the process.
-        Fetches process results via pipe.
         """
         self.process.start()
         self.pipeData[1].close()
         self.pipeOut[1].close()
         self.pipeErr[1].close()
+        self.pipeControl = self.pipeControl[0]
         self.pipeData = self.pipeData[0]
         self.pipeOut = self.pipeOut[0]
         self.pipeErr = self.pipeErr[0]
         self.pipeIn = self.pipeIn[1]
-        self.pipeIn.send('PARENT SAYS HI')
-        #? catch EOFError? thrown by pipe end
-        check = self.pipeData.recv()
-        if check == 'RESULT':
+
+        waitList = {
+            self.pipeControl: self.handleControl,
+            self.pipeOut: self.handleOut,
+            self.pipeErr: self.handleErr,
+            }
+        while waitList:
+            for pipe in multiprocessing.connection.wait(waitList.keys()):
+                try:
+                    data = pipe.recv()
+                except EOFError:
+                    waitList.pop(pipe)
+                else:
+                    waitList[pipe](data)
+        # Nothing left to do
+        return
+
+    def handleControl(self, data):
+        # Exceptions caught by UThread
+        if data == 'RESULT':
             result = self.pipeData.recv()
+            self.done.emit(result)
             self.process.join()
-            return result
-        elif check == 'EXCEPTION':
+        elif data == 'EXCEPTION':
             exception = self.pipeData.recv()
-            # self.process.join()
-            raise exception
+            self.fail.emit(exception)
+            self.process.join()
+
+    def handleOut(self, data):
+        print('OUT', data)
+
+    def handleErr(self, data):
+        print('ERR', data)
 
     def quit(self):
         """Clean exit"""

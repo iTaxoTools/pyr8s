@@ -115,18 +115,14 @@ class UProcess(UThread):
     fail = pyqtSignal(object)
 
     def __getstate__(self):
-        """
-        Required for Windows process spawning.
-        Nothing is saved.
-        """
-        return {}
+        """Required for process spawning."""
+        state = self.__dict__
+        return state
 
-    def __setstate__(self, data):
-        """
-        Required for Windows process spawning.
-        Nothing is restored.
-        """
-        super(UProcess, self).__init__(None)
+    def __setstate__(self, state):
+        """Required for process spawning."""
+        # super(UProcess, self).__init__(None)
+        self.__dict__ = state
         return
 
     def __init__(self, function, *args, **kwargs):
@@ -141,38 +137,57 @@ class UProcess(UThread):
             If given, it is passed on to the function.
         """
         super().__init__(self.work)
-
-        (self.pipeIn, self.pipeOut) = Pipe()
+        self.pipeData = Pipe(duplex=True)
+        self.pipeOut = Pipe(duplex=False)
+        self.pipeErr = Pipe(duplex=False)
+        self.pipeIn = Pipe(duplex=False)
         self.process = Process(target=self.target, daemon=True,
-            args=(self.pipeIn,function,)+args, kwargs=kwargs)
+            args=(function,)+args, kwargs=kwargs)
 
-    def target(self, connection, function, *args, **kwargs):
+    def target(self, function, *args, **kwargs):
         """
         This is executed as a new process.
         Alerts parent process via pipe.
         """
+        self.pipeIn[1].close()
+        self.pipeData = self.pipeData[1]
+        self.pipeOut = self.pipeOut[1]
+        self.pipeErr = self.pipeErr[1]
+        self.pipeIn = self.pipeIn[0]
+
+        result = self.pipeIn.recv()
+        print('CHILD SAYS THAT', result)
         try:
             result = function(*args, **kwargs)
-            connection.send('RESULT')
-            connection.send(result)
+            self.pipeData.send('RESULT')
+            self.pipeData.send(result)
         except Exception as exception:
-            connection.send('EXCEPTION')
-            connection.send(exception)
+            self.pipeData.send('EXCEPTION')
+            self.pipeData.send(exception)
 
     def work(self, *args, **kwargs):
         """
         This is executed as a new QThread.
+        Starts and watches the process.
         Fetches process results via pipe.
         """
         self.process.start()
+        self.pipeData[1].close()
+        self.pipeOut[1].close()
+        self.pipeErr[1].close()
+        self.pipeData = self.pipeData[0]
+        self.pipeOut = self.pipeOut[0]
+        self.pipeErr = self.pipeErr[0]
+        self.pipeIn = self.pipeIn[1]
+        self.pipeIn.send('PARENT SAYS HI')
         #? catch EOFError? thrown by pipe end
-        check = self.pipeOut.recv()
+        check = self.pipeData.recv()
         if check == 'RESULT':
-            result = self.pipeOut.recv()
+            result = self.pipeData.recv()
             self.process.join()
             return result
         elif check == 'EXCEPTION':
-            exception = self.pipeOut.recv()
+            exception = self.pipeData.recv()
             # self.process.join()
             raise exception
 

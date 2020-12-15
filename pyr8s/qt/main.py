@@ -40,7 +40,8 @@ class Main(QtWidgets.QDialog):
         (self.analysis,) = state
 
     def fail(self, exception):
-        print(str(exception))
+        # print(str(exception))
+        raise exception
         QtWidgets.QMessageBox.critical(None, 'Exception occured',
             str(exception), QtWidgets.QMessageBox.Ok)
 

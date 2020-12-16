@@ -360,12 +360,11 @@ class Main(QtWidgets.QDialog):
         # self.launcher.finished.connect()
         self.launcher.done.connect(done)
         self.launcher.fail.connect(fail)
-        self.launcher.out.connect(lambda data: print(data, end=''))
-        self.launcher.err.connect(lambda data: print(data, end=''))
+        self.launcher.setLogger(logging.getLogger())
         self.launcher.start()
 
     def actionCancel(self):
-        print('Analysis aborted by user.')
+        print('\nAnalysis aborted by user.')
         self.launcher.quit()
         self.signalIdle.emit()
         QtWidgets.QMessageBox.warning(None, 'Aborted',

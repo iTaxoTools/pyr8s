@@ -38,8 +38,8 @@ class UToolBar(QtWidgets.QToolBar, SyncedWidget):
 
 class PipeIO(io.IOBase):
     """File-like object that writes to a pipe connection"""
-    # There are possibly better waiys to do this
-    # using multiprocessing.connection.fileno()
+    #? There are possibly better waiys to do this
+    #? Todo- implement read
     def __init__(self, connection):
         super().__init__()
         self.connection = connection
@@ -65,10 +65,9 @@ class PipeIO(io.IOBase):
 
     def writelines(self, lines):
         for line in lines:
-            self.connection.send(line)
+            self.connection.send(line+'\n')
 
     def flush(self):
-        # print('FLUSH')
         if self.buffer != '':
             self.connection.send(self.buffer)
         self.buffer = ''
@@ -178,8 +177,6 @@ class UProcess(QtCore.QThread):
     """
     done = QtCore.pyqtSignal(object)
     fail = QtCore.pyqtSignal(object)
-    out = QtCore.pyqtSignal(object)
-    err = QtCore.pyqtSignal(object)
 
     def __getstate__(self):
         """Required for process spawning."""
@@ -204,6 +201,7 @@ class UProcess(QtCore.QThread):
             If given, it is passed on to the function.
         """
         super().__init__()
+        self.logger = None
         self.pipeControl = multiprocessing.Pipe(duplex=True)
         self.pipeData = multiprocessing.Pipe(duplex=True)
         self.pipeOut = multiprocessing.Pipe(duplex=False)
@@ -212,6 +210,25 @@ class UProcess(QtCore.QThread):
         self.process = multiprocessing.Process(
             target=self.target, daemon=True,
             args=(function,)+args, kwargs=kwargs)
+
+    def setLogger(self, logger):
+        """Send process output to given logger"""
+        self.logger = logger
+        if logger is not None:
+            self.handleOut = self._loggerOut
+            self.handleErr = self._loggerErr
+        else:
+            self.handleOut = self._loggerNone
+            self.handleErr = self._loggerNone
+
+    def _loggerNone(self, data):
+        pass
+
+    def _loggerOut(self, data):
+        self.logger.info(data)
+
+    def _loggerErr(self, data):
+        self.logger.error(data)
 
     def target(self, function, *args, **kwargs):
         """
@@ -225,21 +242,14 @@ class UProcess(QtCore.QThread):
         self.pipeErr = self.pipeErr[1]
         self.pipeIn = self.pipeIn[0]
 
-        self.pipeOut.send('THIS IS A TEST')
-        self.pipeOut.send('ANOTHER ONE\n')
-        self.pipeOut.send('SHOULD BE NEW LINE')
+        out = PipeIO(self.pipeOut)
+        err = PipeIO(self.pipeOut)
 
-        file = PipeIO(self.pipeOut)
-        file.write('AHA')
-        file.write('OHO')
-        file.write('NOLINE')
-        file.write('NA-AH')
+        # import sys
+        sys.stdout = out
+        sys.stderr = err
 
-        import sys
-        sys.stdout = file
-
-        print('TESTIN')
-
+        print('PROCESS CONFIGURED SUCCESSFULLY')
 
         try:
             result = function(*args, **kwargs)
@@ -282,7 +292,7 @@ class UProcess(QtCore.QThread):
         return
 
     def handleControl(self, data):
-        # Exceptions caught by UThread
+        """Handle control pipe signals"""
         if data == 'RESULT':
             result = self.pipeData.recv()
             self.done.emit(result)
@@ -293,10 +303,12 @@ class UProcess(QtCore.QThread):
             self.process.join()
 
     def handleOut(self, data):
-        self.out.emit(data)
+        """Overload this to handle process stdout"""
+        pass
 
     def handleErr(self, data):
-        self.err.emit(data)
+        """Overload this to handle process stderr"""
+        pass
 
     def quit(self):
         """Clean exit"""

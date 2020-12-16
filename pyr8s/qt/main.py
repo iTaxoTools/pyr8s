@@ -5,6 +5,8 @@ import PyQt5.QtCore as QtCore
 import PyQt5.QtWidgets as QtWidgets
 import PyQt5.QtGui as QtGui
 
+import sys
+import logging
 import re
 
 from .. import core
@@ -24,6 +26,10 @@ class Main(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
+
+        logger = logging.getLogger()
+        sys.stderr.write = logger.error
+        sys.stdout.write = logger.info
 
         self.analysis = core.RateAnalysis()
 
@@ -107,7 +113,7 @@ class Main(QtWidgets.QDialog):
         splitter.setStretchFactor(0,0)
         splitter.setStretchFactor(1,1)
         splitter.setCollapsible(0,False)
-        splitter.setCollapsible(2,False)
+        splitter.setCollapsible(1,False)
         self.splitter = splitter
 
         layout = QtWidgets.QHBoxLayout(self)
@@ -257,9 +263,20 @@ class Main(QtWidgets.QDialog):
     def createTabLogs(self):
         tab = QtWidgets.QWidget()
 
+        logWidget = utility.TextEditLogger()
+        fixedFont = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
+        logWidget.setFont(fixedFont)
+        # logWidget.handler.setFormatter(
+        #     logging.Formatter(
+        #         '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'))
+        logging.getLogger().addHandler(logWidget.handler)
+        logging.getLogger().setLevel(logging.DEBUG)
+        for i in range(100):
+            logging.debug('damn, a bug')
+
         layout = QtWidgets.QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-        # layout.addWidget(paramWidget)
+        layout.addWidget(logWidget)
+        layout.setContentsMargins(5, 5, 5, 5)
         tab.setLayout(layout)
 
         return tab
@@ -298,7 +315,7 @@ class Main(QtWidgets.QDialog):
 
         tab1 = self.createTabResults()
         tab2 = self.createTabTable()
-        tab3 = self.createTabLogs()
+        tab3 = self.createTabTable()
         tab4 = self.createTabLogs()
         tabWidget.addTab(tab1, "&Results")
         tabWidget.addTab(tab2, "&Diagram")
@@ -343,12 +360,16 @@ class Main(QtWidgets.QDialog):
         # self.launcher.finished.connect()
         self.launcher.done.connect(done)
         self.launcher.fail.connect(fail)
+        self.launcher.out.connect(lambda data: print(data, end=''))
+        self.launcher.err.connect(lambda data: print(data, end=''))
         self.launcher.start()
 
     def actionCancel(self):
         print('Analysis aborted by user.')
         self.launcher.quit()
         self.signalIdle.emit()
+        QtWidgets.QMessageBox.warning(None, 'Aborted',
+            'Analysis aborted by user.', QtWidgets.QMessageBox.Ok)
 
     def actionOpen(self):
         (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File')

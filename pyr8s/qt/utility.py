@@ -1,16 +1,20 @@
 """Utility functions for PyQt5"""
 
-from PyQt5.QtCore import QRunnable, QThread, pyqtSignal, pyqtSlot # <
-from PyQt5.QtWidgets import QWidget, QToolBar
+import PyQt5.QtCore as QtCore
+import PyQt5.QtWidgets as QtWidgets
+import PyQt5.QtGui as QtGui
 
+import sys
+import io
+import logging
 import multiprocessing
 
 ##############################################################################
 ### Widgets
 
-class SyncedWidget(QWidget):
+class SyncedWidget(QtWidgets.QWidget):
     """Sync height with other widgets"""
-    syncSignal = pyqtSignal()
+    syncSignal = QtCore.pyqtSignal()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -25,15 +29,74 @@ class SyncedWidget(QWidget):
         self.syncSignal.connect(widget.syncHandle)
         widget.syncSignal.connect(self.syncHandle)
 
-class UToolBar(QToolBar, SyncedWidget):
-    syncSignal = pyqtSignal()
+class UToolBar(QtWidgets.QToolBar, SyncedWidget):
+    syncSignal = QtCore.pyqtSignal()
     pass
 
+##############################################################################
+### Logging
+
+class PipeIO(io.IOBase):
+    """File-like object that writes to a pipe connection"""
+    # There are possibly better waiys to do this
+    # using multiprocessing.connection.fileno()
+    def __init__(self, connection):
+        super().__init__()
+        self.connection = connection
+        self.buffer = ''
+
+    def close(self):
+        self.connection.close()
+
+    def fileno(self):
+        return self.connection.fileno()
+
+    def writable(self):
+        return True
+
+    def write(self, text):
+        temp = self.buffer + text
+        self.buffer = ''
+        for line in temp.splitlines(True):
+            if line[-1] == '\n':
+                self.connection.send(line)
+            else:
+                self.buffer += line
+
+    def writelines(self, lines):
+        for line in lines:
+            self.connection.send(line)
+
+    def flush(self):
+        # print('FLUSH')
+        if self.buffer != '':
+            self.connection.send(self.buffer)
+        self.buffer = ''
+
+class TextEditLogger(QtWidgets.QPlainTextEdit):
+    """Thread-safe log display in a QPlainTextEdit"""
+    appendRecord = QtCore.pyqtSignal(object)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setReadOnly(True)
+        self.handler = logging.Handler()
+        self.handler.emit = self.emit
+        self.appendRecord.connect(self.appendTextInline)
+
+    def appendTextInline(self, text):
+        self.moveCursor(QtGui.QTextCursor.End);
+        self.insertPlainText(text);
+        self.moveCursor(QtGui.QTextCursor.End);
+
+    def emit(self, record):
+        text = self.handler.format(record)
+        self.appendRecord.emit(text)
 
 ##############################################################################
 ### Multiprocessing
 
-class UThread(QThread):
+class UThread(QtCore.QThread):
     """
     Multithreaded function execution using PyQt5.
     Initialise with the function and parameters for execution.
@@ -52,8 +115,8 @@ class UThread(QThread):
     fail(exception):
         Emitted if an exception occured. Passes the exception.
     """
-    done = pyqtSignal(object)
-    fail = pyqtSignal(object)
+    done = QtCore.pyqtSignal(object)
+    fail = QtCore.pyqtSignal(object)
 
     def __init__(self, function, *args, **kwargs):
         """
@@ -86,7 +149,7 @@ class UThread(QThread):
             self.done.emit(result)
 
 
-class UProcess(QThread):
+class UProcess(QtCore.QThread):
     """
     Multiprocess function execution using PyQt5.
     Unlike QtCore.QProcess, this launches python functions, not programs.
@@ -113,8 +176,10 @@ class UProcess(QThread):
     return
 
     """
-    done = pyqtSignal(object)
-    fail = pyqtSignal(object)
+    done = QtCore.pyqtSignal(object)
+    fail = QtCore.pyqtSignal(object)
+    out = QtCore.pyqtSignal(object)
+    err = QtCore.pyqtSignal(object)
 
     def __getstate__(self):
         """Required for process spawning."""
@@ -159,6 +224,22 @@ class UProcess(QThread):
         self.pipeOut = self.pipeOut[1]
         self.pipeErr = self.pipeErr[1]
         self.pipeIn = self.pipeIn[0]
+
+        self.pipeOut.send('THIS IS A TEST')
+        self.pipeOut.send('ANOTHER ONE\n')
+        self.pipeOut.send('SHOULD BE NEW LINE')
+
+        file = PipeIO(self.pipeOut)
+        file.write('AHA')
+        file.write('OHO')
+        file.write('NOLINE')
+        file.write('NA-AH')
+
+        import sys
+        sys.stdout = file
+
+        print('TESTIN')
+
 
         try:
             result = function(*args, **kwargs)
@@ -212,10 +293,10 @@ class UProcess(QThread):
             self.process.join()
 
     def handleOut(self, data):
-        print('OUT', data)
+        self.out.emit(data)
 
     def handleErr(self, data):
-        print('ERR', data)
+        self.err.emit(data)
 
     def quit(self):
         """Clean exit"""

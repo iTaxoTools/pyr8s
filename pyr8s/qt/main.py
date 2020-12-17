@@ -37,7 +37,7 @@ class Main(QtWidgets.QDialog):
         self.resize(854,480)
         self.machine = None
         self.draw()
-        self.state()
+        self.stateInit()
 
     def __getstate__(self):
         return (self.analysis,)
@@ -45,38 +45,62 @@ class Main(QtWidgets.QDialog):
     def __setstate__(self, state):
         (self.analysis,) = state
 
+    @property
+    def state(self):
+        """Get current machine state"""
+        if self.machine is not None:
+            state = list(self.machine.configuration())
+            return state[0].objectName()
+        return None
+
+    def reject(self):
+        """Called on dialog close or <ESC>"""
+        if self.state == 'STATE_RUNNING':
+            self.actionCancel()
+            return
+        confirm = QtWidgets.QMessageBox.question(
+            None, 'Quit?',
+            'Are you sure you want to quit?',
+            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
+            QtWidgets.QMessageBox.Ok)
+        print(confirm)
+        if confirm == QtWidgets.QMessageBox.Ok:
+            super().reject()
+
     def fail(self, exception):
         print(str(exception))
         # raise exception
         QtWidgets.QMessageBox.critical(None, 'Exception occured',
             str(exception), QtWidgets.QMessageBox.Ok)
 
-    def state(self):
+    def stateInit(self):
+        """Initialize state machine"""
         self.machine = QtCore.QStateMachine(self)
 
         idle = QtCore.QState()
         running = QtCore.QState()
 
         idle.setObjectName('STATE_IDLE')
-        running.setObjectName('STATE_RUNNING')
-
         idle.assignProperty(self.cancelButton, 'visible', False)
         idle.assignProperty(self.runButton, 'visible', True)
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
         idle.assignProperty(self.searchWidget, 'enabled', True)
         idle.addTransition(self.signalRun, running)
         def onIdleEntry(event):
+            # self.tabResultsWidget.setCurrentIndex(0)
             self.constraintsWidget.setItemsDisabled(False)
             self.resultsWidget.setItemsDisabled(False)
             self.constraintsWidget.setFocus()
         idle.onEntry = onIdleEntry
 
+        running.setObjectName('STATE_RUNNING')
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
         running.assignProperty(self.searchWidget, 'enabled', False)
         running.addTransition(self.signalIdle, idle)
         def onRunningEntry(event):
+            self.tabResultsWidget.setCurrentIndex(3)
             self.constraintsWidget.setItemsDisabled(True)
             self.resultsWidget.setItemsDisabled(True)
             self.cancelButton.setFocus(True)
@@ -86,7 +110,6 @@ class Main(QtWidgets.QDialog):
         self.machine.addState(running)
         self.machine.setInitialState(idle)
         self.machine.start()
-
 
     def eventFilter(self, source, event):
         if event.type() == QtCore.QEvent.KeyPress:
@@ -183,11 +206,7 @@ class Main(QtWidgets.QDialog):
         self.searchWidget.setSearchAction(':/icons/search.png', search)
 
         def onTabChange():
-            isRunning = False
-            if self.machine is not None:
-                state = list(self.machine.configuration())
-                if state[0].objectName() == 'STATE_RUNNING':
-                    isRunning = True
+            isRunning = self.state == 'STATE_RUNNING'
             if not isRunning and tabWidget.currentIndex() == 0:
                 self.searchWidget.setEnabled(True)
             else:
@@ -311,20 +330,20 @@ class Main(QtWidgets.QDialog):
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         #toolbar.setStyleSheet("background-color:red;")
 
-        tabWidget = QtWidgets.QTabWidget()
+        self.tabResultsWidget = QtWidgets.QTabWidget()
 
         tab1 = self.createTabResults()
         tab2 = self.createTabTable()
         tab3 = self.createTabTable()
         tab4 = self.createTabLogs()
-        tabWidget.addTab(tab1, "&Results")
-        tabWidget.addTab(tab2, "&Diagram")
-        tabWidget.addTab(tab3, "&Table")
-        tabWidget.addTab(tab4, "&Logs")
+        self.tabResultsWidget.addTab(tab1, "&Results")
+        self.tabResultsWidget.addTab(tab2, "&Diagram")
+        self.tabResultsWidget.addTab(tab3, "&Table")
+        self.tabResultsWidget.addTab(tab4, "&Logs")
 
         layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)
-        layout.addWidget(tabWidget)
+        layout.addWidget(self.tabResultsWidget)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
@@ -341,6 +360,7 @@ class Main(QtWidgets.QDialog):
             self.resultsWidget.clear()
             widgets.TreeWidgetNodeResults(
                 self.resultsWidget, result.tree.seed_node)
+            self.tabResultsWidget.setCurrentIndex(0)
             self.signalIdle.emit()
             QtWidgets.QMessageBox.information(None, 'Success',
                 'Analysis performed successfully.', QtWidgets.QMessageBox.Ok)
@@ -364,11 +384,17 @@ class Main(QtWidgets.QDialog):
         self.launcher.start()
 
     def actionCancel(self):
-        print('\nAnalysis aborted by user.')
-        self.launcher.quit()
-        self.signalIdle.emit()
-        QtWidgets.QMessageBox.warning(None, 'Aborted',
-            'Analysis aborted by user.', QtWidgets.QMessageBox.Ok)
+        confirm = QtWidgets.QMessageBox.question(
+            None, 'Abort?',
+            'Cancel ongoing analysis?',
+            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
+            QtWidgets.QMessageBox.Cancel)
+        if confirm == QtWidgets.QMessageBox.Ok:
+            print('\nAnalysis aborted by user.')
+            self.launcher.quit()
+            self.signalIdle.emit()
+        # QtWidgets.QMessageBox.warning(None, 'Aborted',
+        #     'Analysis aborted by user.', QtWidgets.QMessageBox.Ok)
 
     def actionOpen(self):
         (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File')

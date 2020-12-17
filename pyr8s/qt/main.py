@@ -28,12 +28,12 @@ class Main(QtWidgets.QDialog):
         super(Main, self).__init__(parent)
 
         logger = logging.getLogger()
-        # sys.stderr.write = logger.error
-        # sys.stdout.write = logger.info
+        sys.stderr.write = logger.error
+        sys.stdout.write = logger.info
 
         self.analysis = core.RateAnalysis()
 
-        self.setWindowTitle("pyr8s")
+        self.setWindowTitle("pyr8s") 
         self.resize(854,480)
         self.machine = None
         self.draw()
@@ -67,8 +67,8 @@ class Main(QtWidgets.QDialog):
             super().reject()
 
     def fail(self, exception):
-        # print(str(exception))
-        raise exception
+        logger.error(str(exception))
+        # raise exception
         QtWidgets.QMessageBox.critical(None, 'Exception occured',
             str(exception), QtWidgets.QMessageBox.Ok)
 
@@ -136,6 +136,7 @@ class Main(QtWidgets.QDialog):
         splitter.setStretchFactor(1,1)
         splitter.setCollapsible(0,False)
         splitter.setCollapsible(1,False)
+        splitter.setStyleSheet("QSplitter::handle { height: 8px; }")
         self.splitter = splitter
 
         layout = QtWidgets.QHBoxLayout(self)
@@ -436,6 +437,7 @@ class Main(QtWidgets.QDialog):
 def show(sys):
     """Entry point"""
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyle('Fusion')
     main = Main()
     main.setWindowFlags(QtCore.Qt.Window)
     main.setModal(True)

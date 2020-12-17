@@ -21,6 +21,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         self.colorSolid = palette.color(QtGui.QPalette.Shadow)
         self.colorDisabled = palette.color(QtGui.QPalette.Midlight)
         self.colorSelected = palette.color(QtGui.QPalette.HighlightedText)
+        self.colorAlter = palette.color(QtGui.QPalette.AlternateBase).lighter(105)
         self.radiusLeaf = 3
         self.radiusInternal = 5
         self.branchOffset = 1
@@ -36,20 +37,26 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         self.setUniformRowHeights(True)
         self.setStyleSheet(
             """
+            QTreeView {
+                show-decoration-selected: 1;
+            }
             QTreeView::branch:has-siblings:!adjoins-item {
                 border-image: none;
             }
-            QTreeView::branch:has-siblings:adjoins-item {
-                border-image: none;
+            QTreeView {
+                alternate-background-color: """+self.colorAlter.name()+""";
             }
-            QTreeView::branch:!has-children:!has-siblings:adjoins-item {
-                border-image: none;
+            QTreeView::item:selected:active,
+            QTreeView::item:selected:!active,
+            QTreeView::branch:selected:active,
+            QTreeView::branch:selected:!active {
+                color: """+self.colorSelected.name()+""";
+                background: palette(Highlight);
             }
+            QTreeView::branch:has-siblings:adjoins-item,
+            QTreeView::branch:!has-children:!has-siblings:adjoins-item,
             QTreeView::branch:has-children:!has-siblings:closed,
-            QTreeView::branch:closed:has-children:has-siblings {
-                    border-image: none;
-                    image: none;
-            }
+            QTreeView::branch:closed:has-children:has-siblings,
             QTreeView::branch:open:has-children:!has-siblings,
             QTreeView::branch:open:has-children:has-siblings  {
                     border-image: none;

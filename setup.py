@@ -21,12 +21,13 @@ setup(name='pyr8s',
     },
     entry_points = {
         'console_scripts': [
-            'pyr8s=pyr8s.run:main'
-            'pq=pyr8s.run_qt:main' # quick debug for windows
+            'pyr8s=pyr8s.run:main',
+            'pyr8s_qt=pyr8s.run_qt:main'
             ],
         'gui_scripts': [
+            # These won't work as long as sys.stdio is referred in main
             # 'pyr8s_tk=pyr8s.run_tk:main',
-            'pyr8s_qt=pyr8s.run_qt:main'
+            # 'pyr8s_qt=pyr8s.run_qt:main'
             ],
     },
     license='All rights reserved',

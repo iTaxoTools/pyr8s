@@ -4,9 +4,8 @@ import PyQt5.QtCore as QtCore
 import PyQt5.QtWidgets as QtWidgets
 import PyQt5.QtGui as QtGui
 
-import sys
-import io
 import logging
+import sys, os, io
 import multiprocessing
 
 ##############################################################################
@@ -40,21 +39,67 @@ class PipeIO(io.IOBase):
     """File-like object that writes to a pipe connection"""
     #? There are possibly better waiys to do this
     #? Todo- implement read
-    def __init__(self, connection):
+    def __init__(self, connection, mode):
         super().__init__()
+        self._pid = os.getpid()
+        self._cache = ''
         self.connection = connection
         self.buffer = ''
+        if not (mode == 'r' or mode == 'w'):
+            raise ValueError("Invalid mode: '{}'".format(str(mode)))
+        self.mode = mode
+
+    @property
+    def cache(self):
+        """Fork-safe, discard cache, from multiprocessing doc"""
+        pid = os.getpid()
+        if pid != self._pid:
+            self._pid = pid
+            self._cache = ''
+        return self._cache
+
+    @cache.setter
+    def cache(self, value):
+        self._cache = value
 
     def close(self):
+        self.flush()
         self.connection.close()
+        self.closed = True
 
     def fileno(self):
         return self.connection.fileno()
 
+    def readable(self):
+        return self.mode == 'r'
+
+    def read(self, size=-1):
+        if not self.readable():
+            raise io.UnsupportedOperation('not readable')
+        if size < 0:
+            if self.cache == '':
+                self.cache = self.connection.recv()
+            result = self.cache
+            self.cache = ''
+            return result
+        while len(self.cache) < size:
+            self.cache += self.connection.recv()
+        result = self.cache[:size]
+        self.cache = self.cache[size:]
+        return result
+
+    # To do if required:
+    # def readline(size=-1):
+    #     pass
+    # def readlines(hint=-1):
+    #     pass
+
     def writable(self):
-        return True
+        return self.mode == 'w'
 
     def write(self, text):
+        if not self.writable():
+            raise io.UnsupportedOperation('not writable')
         temp = self.buffer + text
         self.buffer = ''
         for line in temp.splitlines(True):
@@ -144,7 +189,6 @@ class UThread(QtCore.QThread):
         except Exception as exception:
             self.fail.emit(exception)
         else:
-            print('WE ARE DONE')
             self.done.emit(result)
 
 
@@ -242,14 +286,16 @@ class UProcess(QtCore.QThread):
         self.pipeErr = self.pipeErr[1]
         self.pipeIn = self.pipeIn[0]
 
-        out = PipeIO(self.pipeOut)
-        err = PipeIO(self.pipeOut)
+        out = PipeIO(self.pipeOut, 'w')
+        err = PipeIO(self.pipeErr, 'w')
+        inp = PipeIO(self.pipeIn, 'r')
 
         # import sys
         sys.stdout = out
         sys.stderr = err
+        sys.stdin = inp
 
-        print('PROCESS CONFIGURED SUCCESSFULLY')
+        print('PROCESS STDIO CONFIGURED SUCCESSFULLY')
 
         try:
             result = function(*args, **kwargs)

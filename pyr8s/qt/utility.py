@@ -336,3 +336,30 @@ class UProcess(QtCore.QThread):
         """Clean exit"""
         self.process.terminate()
         super().quit()
+
+##############################################################################
+### States and Events
+
+class NamedEvent(QtCore.QEvent):
+    """Custom event for use in state machines"""
+    userEvent = QtCore.QEvent.User + 1042
+    def __init__(self, name, *args):
+        """Pass name and args"""
+        super().__init__(self.userEvent)
+        self.name = name
+        self.args = args
+
+class NamedTransition(QtCore.QAbstractTransition):
+    """Custom transition for use in state machines"""
+    def __init__(self, name):
+        """Only catch events with given name"""
+        super().__init__()
+        self.name = name
+    def eventTest(self, event):
+        """Check for NamedEvents"""
+        if event.type() == NamedEvent.userEvent:
+            return event.name == self.name
+        return False
+    def onTransition(self, event):
+        """Override virtual function"""
+        pass

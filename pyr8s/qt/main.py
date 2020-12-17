@@ -21,19 +21,16 @@ from . import icons
 class Main(QtWidgets.QDialog):
     """Main window, handles everything"""
 
-    signalRun = QtCore.pyqtSignal()
-    signalIdle = QtCore.pyqtSignal()
-
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
 
         logger = logging.getLogger()
-        sys.stderr.write = logger.error
-        sys.stdout.write = logger.info
+        # sys.stderr.write = logger.error
+        # sys.stdout.write = logger.info
 
         self.analysis = core.RateAnalysis()
 
-        self.setWindowTitle("pyr8s") 
+        self.setWindowTitle("pyr8s")
         self.resize(854,480)
         self.machine = None
         self.draw()
@@ -58,19 +55,35 @@ class Main(QtWidgets.QDialog):
         if self.state == 'STATE_RUNNING':
             self.actionCancel()
             return
-        confirm = QtWidgets.QMessageBox.question(
-            None, 'Quit?',
-            'Are you sure you want to quit?',
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-            QtWidgets.QMessageBox.Yes)
+        msgBox = QtWidgets.QMessageBox(self)
+        msgBox.setWindowTitle(self.windowTitle())
+        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+        msgBox.setText('Are you sure you want to quit?')
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.Yes)
+        confirm = msgBox.exec()
         if confirm == QtWidgets.QMessageBox.Yes:
             super().reject()
 
+    def closeMessages(self):
+        """Rejects any open QMessageBoxes"""
+        for widget in self.children():
+            if widget.__class__ == QtWidgets.QMessageBox:
+                widget.reject()
+
     def fail(self, exception):
-        logger.error(str(exception))
         # raise exception
-        QtWidgets.QMessageBox.critical(None, 'Exception occured',
-            str(exception), QtWidgets.QMessageBox.Ok)
+        self.closeMessages()
+        msgBox = QtWidgets.QMessageBox(self)
+        msgBox.setWindowTitle(self.windowTitle())
+        msgBox.setIcon(QtWidgets.QMessageBox.Critical)
+        msgBox.setText('An exception has occured:')
+        msgBox.setInformativeText(str(exception))
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        msgBox.exec()
+        logger = logging.getLogger()
+        logger.error(str(exception))
 
     def stateInit(self):
         """Initialize state machine"""
@@ -84,8 +97,8 @@ class Main(QtWidgets.QDialog):
         idle.assignProperty(self.runButton, 'visible', True)
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
         idle.assignProperty(self.searchWidget, 'enabled', True)
-        idle.addTransition(self.signalRun, running)
         def onIdleEntry(event):
+            print('IDLE', event.type())
             # self.tabResultsWidget.setCurrentIndex(0)
             self.constraintsWidget.setItemsDisabled(False)
             self.resultsWidget.setItemsDisabled(False)
@@ -97,13 +110,42 @@ class Main(QtWidgets.QDialog):
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
         running.assignProperty(self.searchWidget, 'enabled', False)
-        running.addTransition(self.signalIdle, idle)
         def onRunningEntry(event):
+            print('RUN', event.type())
             self.tabResultsWidget.setCurrentIndex(3)
             self.constraintsWidget.setItemsDisabled(True)
             self.resultsWidget.setItemsDisabled(True)
             self.cancelButton.setFocus(True)
         running.onEntry = onRunningEntry
+
+        transition = utility.NamedTransition('RUN')
+        transition.setTargetState(running)
+        idle.addTransition(transition)
+
+        transition = utility.NamedTransition('DONE')
+        def onTransitionDone(event):
+            self.closeMessages()
+            msgBox = QtWidgets.QMessageBox(self)
+            msgBox.setWindowTitle(self.windowTitle())
+            msgBox.setIcon(QtWidgets.QMessageBox.Information)
+            msgBox.setText('Analysis performed successfully.')
+            msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            msgBox.exec()
+        transition.onTransition = onTransitionDone
+        transition.setTargetState(idle)
+        running.addTransition(transition)
+
+        transition = utility.NamedTransition('FAIL')
+        def onTransitionFail(event):
+            self.fail(event.args[0])
+        transition.onTransition = onTransitionFail
+        transition.setTargetState(idle)
+        running.addTransition(transition)
+
+        transition = utility.NamedTransition('CANCEL')
+        transition.setTargetState(idle)
+        running.addTransition(transition)
 
         self.machine.addState(idle)
         self.machine.addState(running)
@@ -361,13 +403,10 @@ class Main(QtWidgets.QDialog):
             widgets.TreeWidgetNodeResults(
                 self.resultsWidget, result.tree.seed_node)
             self.tabResultsWidget.setCurrentIndex(0)
-            self.signalIdle.emit()
-            QtWidgets.QMessageBox.information(None, 'Success',
-                'Analysis performed successfully.', QtWidgets.QMessageBox.Ok)
+            self.machine.postEvent(utility.NamedEvent('DONE'))
 
         def fail(exception):
-            self.fail(exception)
-            self.signalIdle.emit()
+            self.machine.postEvent(utility.NamedEvent('FAIL', exception))
 
         try:
             self.paramWidget.applyParams()
@@ -376,25 +415,24 @@ class Main(QtWidgets.QDialog):
             return
 
         self.launcher = utility.UProcess(self.actionRunWork)
-        self.launcher.started.connect(self.signalRun.emit)
-        # self.launcher.finished.connect()
         self.launcher.done.connect(done)
         self.launcher.fail.connect(fail)
         self.launcher.setLogger(logging.getLogger())
         self.launcher.start()
+        self.machine.postEvent(utility.NamedEvent('RUN'))
 
     def actionCancel(self):
-        confirm = QtWidgets.QMessageBox.question(
-            None, 'Abort?',
-            'Cancel ongoing analysis?',
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-            QtWidgets.QMessageBox.No)
+        msgBox = QtWidgets.QMessageBox(self)
+        msgBox.setWindowTitle(self.windowTitle())
+        msgBox.setIcon(QtWidgets.QMessageBox.Question)
+        msgBox.setText('Cancel ongoing analysis?')
+        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
+        confirm = msgBox.exec()
         if confirm == QtWidgets.QMessageBox.Yes:
             print('\nAnalysis aborted by user.')
             self.launcher.quit()
-            self.signalIdle.emit()
-        # QtWidgets.QMessageBox.warning(None, 'Aborted',
-        #     'Analysis aborted by user.', QtWidgets.QMessageBox.Ok)
+            self.machine.postEvent(utility.NamedEvent('CANCEL'))
 
     def actionOpen(self):
         (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File')
@@ -407,8 +445,13 @@ class Main(QtWidgets.QDialog):
             self.analysis = parse.from_file(file)
             print("Loaded file: " + file)
         except FileNotFoundError as exception:
-            QtWidgets.QMessageBox.critical(self, 'Exception occured',
-                "Failed to load file: " + exception.filename, QtWidgets.QMessageBox.Ok)
+            msgBox = QtWidgets.QMessageBox(self)
+            msgBox.setIcon(QtWidgets.QMessageBox.Critical)
+            msgBox.setText('Failed to load file:')
+            msgBox.setDetailedText(str(exception.filename))
+            msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            confirm = msgBox.exec()
         except Exception as exception:
             self.fail(exception)
         else:

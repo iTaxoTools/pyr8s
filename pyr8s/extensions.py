@@ -12,18 +12,39 @@ import dendropy
 
 class NodePlus(dendropy.Node):
 
-    def extend(self):
-        """Convert a dendropy.Node"""
-        self.index = None
-        self.order = None
-        self.fix = None
-        self.min = None
-        self.max = None
-        self.rate = None
-        self.subs = None
-        self.is_name_dummy = None
+    decorator = '[{}]'
 
-    def strip(self):
+    @property
+    def label(self):
+        try:
+            return self.taxon.label
+        except:
+            if self._label is not None and self._label != '':
+                return self._label
+            elif self.index is not None:
+                return self.decorator.format(self.index)
+            else:
+                return self.decorator.format('?')
+
+    @label.setter
+    def label(self, value):
+        self._label = value
+
+    @classmethod
+    def extend(cls, node):
+        """Convert from dendropy.Node"""
+        node._label = node.label
+        node.__class__ = cls
+        node.index = None
+        node.order = None
+        node.fix = None
+        node.min = None
+        node.max = None
+        node.rate = None
+        node.subs = None
+
+    @classmethod
+    def strip(cls, node):
         """Revert to dendropy.Node"""
         del node.index
         del node.order
@@ -32,7 +53,9 @@ class NodePlus(dendropy.Node):
         del node.max
         del node.rate
         del node.subs
-        del node.is_name_dummy
+        node.__class__ = dendropy.Node
+        node.label = node._label
+        del node._label
 
     def child_node_reversed_iter(self, filter_fn=None):
         """Reversed order"""
@@ -64,7 +87,7 @@ class TreePlus(dendropy.Tree):
                 print('WARNING: Collapsed nodes with constraints:')
                 for n in collapsed_constraints:
                     print('* {0}: fix={1}, min={2}, max={3}'.
-                        format(n.taxon.label, n.fix, n.min, n.max))
+                        format(n.label, n.fix, n.min, n.max))
                 print('')
             else:
                 raise RuntimeError('Collapsed nodes with constraints: {}'.
@@ -138,23 +161,9 @@ class TreePlus(dendropy.Tree):
                 node.fix = 0
 
     def index(self):
-        """
-        Assign node indexes according to BF traversal order
-        Nodes without named taxa will be given a new taxon named with their index
-        Also label nodes with their taxon name
-        """
-
-        # Start from root and branch out
+        """Assign node indexes according to BF traversal order"""
         for count, node in enumerate(self.preorder_node_iter()):
-            # print('traversing node: {0}'.format(count))
             node.index = count
-            if node.taxon == None:
-                node.taxon = self.taxon_namespace.new_taxon(str(count))
-                node.is_name_dummy = True
-            elif node.is_name_dummy is None:
-                node.is_name_dummy = False
-            # print(node.taxon.label)
-            node.label = node.taxon.label
         self._indexed = True
 
     def order(self):
@@ -193,7 +202,6 @@ class TreePlus(dendropy.Tree):
             ancestor.taxon = self.taxon_namespace.new_taxon(str(mrca))
         ancestor.taxon.label = str(mrca)
         ancestor.label = str(mrca)
-        ancestor.is_name_dummy = False
 
     def persite(self, nsites, round_flag=False):
         """
@@ -240,14 +248,12 @@ def extend(tree):
     """
     tree.__class__ = TreePlus
     for node in tree.nodes():
-        node.__class__ = NodePlus
-        node.extend()
+        NodePlus.extend(node)
 
 def strip(tree):
     """
     Remove extensions, reverting to pure dendropy.Tree
     """
     for node in tree.nodes():
-        node.extend()
-        node.__class__ = dendropy.Node
+        NodePlus.strip(node)
     tree.__class__ = dendropy.Tree

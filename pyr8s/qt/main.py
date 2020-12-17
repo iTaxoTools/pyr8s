@@ -28,8 +28,8 @@ class Main(QtWidgets.QDialog):
         super(Main, self).__init__(parent)
 
         logger = logging.getLogger()
-        sys.stderr.write = logger.error
-        sys.stdout.write = logger.info
+        # sys.stderr.write = logger.error
+        # sys.stdout.write = logger.info
 
         self.analysis = core.RateAnalysis()
 
@@ -61,14 +61,14 @@ class Main(QtWidgets.QDialog):
         confirm = QtWidgets.QMessageBox.question(
             None, 'Quit?',
             'Are you sure you want to quit?',
-            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-            QtWidgets.QMessageBox.Ok)
-        if confirm == QtWidgets.QMessageBox.Ok:
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.Yes)
+        if confirm == QtWidgets.QMessageBox.Yes:
             super().reject()
 
     def fail(self, exception):
-        print(str(exception))
-        # raise exception
+        # print(str(exception))
+        raise exception
         QtWidgets.QMessageBox.critical(None, 'Exception occured',
             str(exception), QtWidgets.QMessageBox.Ok)
 
@@ -386,9 +386,9 @@ class Main(QtWidgets.QDialog):
         confirm = QtWidgets.QMessageBox.question(
             None, 'Abort?',
             'Cancel ongoing analysis?',
-            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-            QtWidgets.QMessageBox.Cancel)
-        if confirm == QtWidgets.QMessageBox.Ok:
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No)
+        if confirm == QtWidgets.QMessageBox.Yes:
             print('\nAnalysis aborted by user.')
             self.launcher.quit()
             self.signalIdle.emit()

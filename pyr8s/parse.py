@@ -299,11 +299,10 @@ def parse_rates(tokenizer, analysis, run=False):
 def from_file_nexus(file, run=False):
     """First get the tree and create RateAnalysis, then find and parse RATES commands"""
     treelist = dendropy.TreeList.get(path=file, schema="nexus",
-        suppress_internal_node_taxa=False)
+        suppress_internal_node_taxa=True, suppress_leaf_node_taxa=False)
     #! if more than one trees are present: do something
     if len(treelist) > 0:
         tree = treelist[0]
-    #tree = dendropy.Tree.get(path=file, schema="nexus", suppress_internal_node_taxa=False)
     print("> TREE: from '{}'".format(file))
     # tree.print_plot()
     analysis = core.RateAnalysis(tree)
@@ -337,8 +336,8 @@ def from_tree(newick):
 
 def from_file_newick(file):
     try:
-        newick = dendropy.Tree.get(path=file,
-            schema='newick', suppress_internal_node_taxa=False)
+        newick = dendropy.Tree.get(path=file, schema='newick',
+            suppress_internal_node_taxa=True, suppress_leaf_node_taxa=False)
         analysis = from_tree(newick)
     except Exception as exception:
         raise RuntimeError('Error reading Newick file: {0}\n{1}'.
@@ -403,8 +402,8 @@ def quick(tree=None, file=None, format='guess', nsites=None, scalar=True):
     parse.quick(my_tree).print()
     """
     if tree is not None:
-        dendrotree = dendropy.Tree.get(data=tree,
-            schema="newick", suppress_internal_node_taxa=False)
+        dendrotree = dendropy.Tree.get(data=tree, schema="newick",
+            suppress_internal_node_taxa=True, suppress_leaf_node_taxa=False)
         analysis = core.RateAnalysis(dendrotree)
         analysis.param.general.scalar = scalar
         analysis.param.branch_length.format = format

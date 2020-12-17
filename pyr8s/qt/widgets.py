@@ -221,7 +221,6 @@ class TreeWidgetNodeResults(QtWidgets.QTreeWidgetItem):
         super().__init__(parent)
         self.node = node
         label = str(node.label)
-        label = '[' + label + ']' if node.is_name_dummy else label
         age = '-' if node.age is None else '{:>1.2f}'.format(node.age)
         rate = '-' if node.rate is None else '{:>1.2e}'.format(node.rate)
         if node.rate == 0:
@@ -260,7 +259,6 @@ class TreeWidgetNodeConstraints(QtWidgets.QTreeWidgetItem):
         super().__init__(parent)
         self.node = node
         label = str(node.label)
-        label = '[' + label + ']' if node.is_name_dummy else label
         min = '-' if node.min is None else str(node.min)
         max = '-' if node.max is None else str(node.max)
         fix = '-' if node.fix is None else str(node.fix)
@@ -319,14 +317,12 @@ class TreeWidgetNodeConstraints(QtWidgets.QTreeWidgetItem):
         return label
 
     def setNodeLabel(self, value):
-        indexString = '[' + str(self.node.index) + ']'
+        indexString = self.node.decorator.format(self.node.index)
         if value == '' or value == indexString:
-            self.node.label = str(self.node.index)
-            self.node.is_name_dummy = True
+            self.node.label = ''
             return indexString
         if re.match('^[^,;()\[\]\r\n]*$', value) is None:
             raise ValueError('Label contains invalid characters.')
-        self.node.is_name_dummy = False
         self.node.label = value
         return value
 

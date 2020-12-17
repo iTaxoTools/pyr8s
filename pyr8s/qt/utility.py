@@ -9,30 +9,6 @@ import sys, os, io
 import multiprocessing
 
 ##############################################################################
-### Widgets
-
-class SyncedWidget(QtWidgets.QWidget):
-    """Sync height with other widgets"""
-    syncSignal = QtCore.pyqtSignal()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if event.size().height() != event.oldSize().height():
-            self.syncSignal.emit()
-
-    def syncHandle(self):
-        other = self.sender().height()
-        self.setMinimumHeight(other)
-
-    def sync(self, widget):
-        self.syncSignal.connect(widget.syncHandle)
-        widget.syncSignal.connect(self.syncHandle)
-
-class UToolBar(QtWidgets.QToolBar, SyncedWidget):
-    syncSignal = QtCore.pyqtSignal()
-    pass
-
-##############################################################################
 ### Logging
 
 class PipeIO(io.IOBase):

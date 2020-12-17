@@ -63,7 +63,6 @@ class Main(QtWidgets.QDialog):
             'Are you sure you want to quit?',
             QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
             QtWidgets.QMessageBox.Ok)
-        print(confirm)
         if confirm == QtWidgets.QMessageBox.Ok:
             super().reject()
 
@@ -421,7 +420,7 @@ class Main(QtWidgets.QDialog):
             labelText = fileInfo.baseName()
             treeName = self.analysis.tree.label
             if len(treeName) > 0:
-                labelText += '/' + treeName
+                labelText += ': ' + treeName
             self.labelTree.setText(labelText)
             self.constraintsWidget.clear()
             # self.analysis.tree.print_plot(show_internal_node_labels=True)
@@ -439,6 +438,7 @@ def show(sys):
     app = QtWidgets.QApplication(sys.argv)
     main = Main()
     main.setWindowFlags(QtCore.Qt.Window)
+    main.setModal(True)
     main.show()
     if len(sys.argv) >= 2:
         main.actionOpenFile(sys.argv[1])

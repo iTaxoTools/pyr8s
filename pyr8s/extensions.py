@@ -10,6 +10,47 @@ import dendropy
 ##############################################################################
 ### Utility function definitions
 
+class NodePlus(dendropy.Node):
+
+    def extend(self):
+        """Convert a dendropy.Node"""
+        self.index = None
+        self.order = None
+        self.fix = None
+        self.min = None
+        self.max = None
+        self.rate = None
+        self.subs = None
+        self.is_name_dummy = None
+
+    def strip(self):
+        """Revert to dendropy.Node"""
+        del node.index
+        del node.order
+        del node.fix
+        del node.min
+        del node.max
+        del node.rate
+        del node.subs
+        del node.is_name_dummy
+
+    def child_node_reversed_iter(self, filter_fn=None):
+        """Reversed order"""
+        for node in reversed(self._child_nodes):
+            if filter_fn is None or filter_fn(node):
+                yield node
+
+    def add_child_after(self, node, child):
+        """Insert child in list of children immediately after node index"""
+        assert child is not self, "Cannot add node as child of itself"
+        assert self._parent_node is not child, "Cannot add a node's parent as its child: remove the node from its parent's child set first"
+        index = self._child_nodes.index(node) + 1
+        child._parent_node = self
+        if child not in self._child_nodes:
+            self._child_nodes.insert(index, child)
+        return child
+
+
 class TreePlus(dendropy.Tree):
 
     def collapse(self, throw=False):
@@ -22,7 +63,8 @@ class TreePlus(dendropy.Tree):
             if not throw:
                 print('WARNING: Collapsed nodes with constraints:')
                 for n in collapsed_constraints:
-                    print('* {0}: fix={1}, min={2}, max={3}'.format(n.taxon.label, n.fix, n.min, n.max))
+                    print('* {0}: fix={1}, min={2}, max={3}'.
+                        format(n.taxon.label, n.fix, n.min, n.max))
                 print('')
             else:
                 raise RuntimeError('Collapsed nodes with constraints: {}'.
@@ -54,8 +96,8 @@ class TreePlus(dendropy.Tree):
                 inherit_up = node.max
                 inherit_down = node.min
             parent = node.parent_node
-            for child in node.child_node_iter():
-                parent.add_child(child)
+            for child in node.child_node_reversed_iter():
+                parent.add_child_after(node, child)
                 if inherit_down is not None:
                     if child.max is not None:
                         child.max = min(child.max, inherit_down)
@@ -198,26 +240,14 @@ def extend(tree):
     """
     tree.__class__ = TreePlus
     for node in tree.nodes():
-        node.index = None
-        node.order = None
-        node.fix = None
-        node.min = None
-        node.max = None
-        node.rate = None
-        node.subs = None
-        node.is_name_dummy = None
+        node.__class__ = NodePlus
+        node.extend()
 
 def strip(tree):
     """
     Remove extensions, reverting to pure dendropy.Tree
     """
-    tree.__class__ = dendropy.Tree
     for node in tree.nodes():
-        del node.index
-        del node.order
-        del node.fix
-        del node.min
-        del node.max
-        del node.rate
-        del node.subs
-        del node.is_name_dummy
+        node.extend()
+        node.__class__ = dendropy.Node
+    tree.__class__ = dendropy.Tree

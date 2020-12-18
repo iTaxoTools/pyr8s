@@ -20,7 +20,7 @@ from . import icons
 class Main(QtWidgets.QDialog):
     """Main window, handles everything"""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, init=None):
         super(Main, self).__init__(parent)
 
         logging.getLogger().setLevel(logging.DEBUG)
@@ -32,23 +32,18 @@ class Main(QtWidgets.QDialog):
         self.draw()
         self.stateInit()
 
+        if init is not None:
+            self.machine.started.connect(init)
+
     def __getstate__(self):
         return (self.analysis,)
 
     def __setstate__(self, state):
         (self.analysis,) = state
 
-    @property
-    def state(self):
-        """Get current machine state"""
-        if self.machine is not None:
-            state = list(self.machine.configuration())
-            return state[0].objectName()
-        return None
-
     def reject(self):
         """Called on dialog close or <ESC>"""
-        if self.state == 'STATE_RUNNING':
+        if self.stateCheck('STATE_RUNNING'):
             self.actionCancel()
             return
         msgBox = QtWidgets.QMessageBox(self)
@@ -81,45 +76,115 @@ class Main(QtWidgets.QDialog):
         logger = logging.getLogger()
         logger.error(str(exception))
 
+    def stateCheck(self, name):
+        """Check if given state is currently running"""
+        if self.machine is not None:
+            for state in list(self.machine.configuration()):
+                if state.objectName() == name:
+                    return True
+        return False
+
+    def _stateList(self):
+        """Check if given state is currently running"""
+        if self.machine is not None:
+            for state in list(self.machine.configuration()):
+                print(state, state.objectName())
+
     def stateInit(self):
         """Initialize state machine"""
         self.machine = QtCore.QStateMachine(self)
 
         idle = QtCore.QState()
+        idle_none = QtCore.QState(idle)
+        idle_open = QtCore.QState(idle)
+        idle_done = QtCore.QState(idle)
+        idle_last = QtCore.QHistoryState(idle)
+        idle.setInitialState(idle_none)
         running = QtCore.QState()
 
         idle.setObjectName('STATE_IDLE')
+        idle.assignProperty(self.paramWidget.container, 'enabled', True)
         idle.assignProperty(self.cancelButton, 'visible', False)
         idle.assignProperty(self.runButton, 'visible', True)
-        idle.assignProperty(self.paramWidget.container, 'enabled', True)
-        idle.assignProperty(self.searchWidget, 'enabled', True)
-        def onIdleEntry(event):
-            print('IDLE', event.type())
-            # self.tabResultsWidget.setCurrentIndex(0)
-            self.constraintsWidget.setItemsDisabled(False)
-            self.resultsWidget.setItemsDisabled(False)
-            self.constraintsWidget.setFocus()
-        idle.onEntry = onIdleEntry
+        def onEntry(event):
+            self.treeConstraints.setItemsDisabled(False)
+            self.treeResults.setItemsDisabled(False)
+            self.treeConstraints.setFocus()
+        idle.onEntry = onEntry
+
+        idle_none.setObjectName('STATE_IDLE_NONE')
+        idle_none.assignProperty(self.searchWidget, 'enabled', False)
+        idle_none.assignProperty(self.tabConstraints, 'enabled', False)
+        idle_none.assignProperty(self.tabParams, 'enabled', False)
+        idle_none.assignProperty(self.tabResults, 'enabled', False)
+        idle_none.assignProperty(self.tabDiagram, 'enabled', False)
+        idle_none.assignProperty(self.tabTable, 'enabled', False)
+        idle_none.assignProperty(self.runButton, 'enabled', False)
+
+        idle_open.setObjectName('STATE_IDLE_OPEN')
+        idle_open.assignProperty(self.searchWidget, 'enabled', True)
+        idle_open.assignProperty(self.tabConstraints, 'enabled', True)
+        idle_open.assignProperty(self.tabParams, 'enabled', True)
+        idle_open.assignProperty(self.tabResults, 'enabled', False)
+        idle_open.assignProperty(self.tabDiagram, 'enabled', False)
+        idle_open.assignProperty(self.tabTable, 'enabled', False)
+        idle_open.assignProperty(self.runButton, 'enabled', True)
+        def onEntry(event):
+            self.tabContainerAnalysis.setCurrentIndex(0)
+        idle_open.onEntry = onEntry
+
+        idle_done.setObjectName('STATE_IDLE_DONE')
+        idle_done.assignProperty(self.searchWidget, 'enabled', True)
+        idle_done.assignProperty(self.tabConstraints, 'enabled', True)
+        idle_done.assignProperty(self.tabParams, 'enabled', True)
+        idle_done.assignProperty(self.tabResults, 'enabled', True)
+        idle_done.assignProperty(self.tabDiagram, 'enabled', True)
+        idle_done.assignProperty(self.tabTable, 'enabled', True)
+        idle_done.assignProperty(self.runButton, 'enabled', True)
+        def onEntry(event):
+            self.tabContainerAnalysis.setCurrentIndex(0)
+            self.tabContainerResults.setCurrentIndex(0)
+        idle_done.onEntry = onEntry
 
         running.setObjectName('STATE_RUNNING')
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
-        running.assignProperty(self.searchWidget, 'enabled', False)
-        def onRunningEntry(event):
-            print('RUN', event.type())
-            self.tabResultsWidget.setCurrentIndex(3)
-            self.constraintsWidget.setItemsDisabled(True)
-            self.resultsWidget.setItemsDisabled(True)
+        def onEntry(event):
+            self.treeConstraints.setItemsDisabled(True)
+            self.treeResults.setItemsDisabled(True)
             self.cancelButton.setFocus(True)
-        running.onEntry = onRunningEntry
+        running.onEntry = onEntry
+
+        transition = utility.NamedTransition('OPEN')
+        def onTransition(event):
+            fileInfo = QtCore.QFileInfo(event.kwargs['file'])
+            labelText = fileInfo.baseName()
+            treeName = self.analysis.tree.label
+            if len(treeName) > 0:
+                labelText += ': ' + treeName
+            self.labelTree.setText(labelText)
+            self.treeResults.clear()
+            self.treeConstraints.clear()
+            widgets.TreeWidgetNodeConstraints(
+                self.treeConstraints, self.analysis.tree.seed_node)
+            idealWidth = self.treeConstraints.idealWidth()
+            width = min([self.width()/2, idealWidth])
+            self.splitter.setSizes([width, 1, self.width()/2])
+        transition.onTransition = onTransition
+        transition.setTargetState(idle_open)
+        idle.addTransition(transition)
 
         transition = utility.NamedTransition('RUN')
         transition.setTargetState(running)
         idle.addTransition(transition)
 
         transition = utility.NamedTransition('DONE')
-        def onTransitionDone(event):
+        def onTransition(event):
+            results = event.args[0]
+            self.treeResults.clear()
+            widgets.TreeWidgetNodeResults(
+                self.treeResults, results.tree.seed_node)
             self.closeMessages()
             msgBox = QtWidgets.QMessageBox(self)
             msgBox.setWindowTitle(self.windowTitle())
@@ -128,19 +193,19 @@ class Main(QtWidgets.QDialog):
             msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msgBox.exec()
-        transition.onTransition = onTransitionDone
-        transition.setTargetState(idle)
+        transition.onTransition = onTransition
+        transition.setTargetState(idle_done)
         running.addTransition(transition)
 
         transition = utility.NamedTransition('FAIL')
-        def onTransitionFail(event):
+        def onTransition(event):
             self.fail(event.args[0])
-        transition.onTransition = onTransitionFail
-        transition.setTargetState(idle)
+        transition.onTransition = onTransition
+        transition.setTargetState(idle_last)
         running.addTransition(transition)
 
         transition = utility.NamedTransition('CANCEL')
-        transition.setTargetState(idle)
+        transition.setTargetState(idle_last)
         running.addTransition(transition)
 
         self.machine.addState(idle)
@@ -150,9 +215,9 @@ class Main(QtWidgets.QDialog):
 
     def eventFilter(self, source, event):
         if event.type() == QtCore.QEvent.KeyPress:
-            if (source == self.constraintsWidget and
+            if (source == self.treeConstraints and
                 event.key() == QtCore.Qt.Key_Return and
-                self.constraintsWidget.state() !=
+                self.treeConstraints.state() !=
                     QtWidgets.QAbstractItemView.EditingState):
                 self.actionRun()
                 return True
@@ -164,58 +229,53 @@ class Main(QtWidgets.QDialog):
         self.rightPane, self.barButtons  = self.createPaneResults()
         self.barButtons.sync(self.barLabel)
 
-        self.leftPane.setDisabled(True)
-        self.barLabel.setDisabled(False)
-
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        splitter.addWidget(self.leftPane)
-        splitter.addWidget(self.rightPane)
-        splitter.setStretchFactor(0,0)
-        splitter.setStretchFactor(1,1)
-        splitter.setCollapsible(0,False)
-        splitter.setCollapsible(1,False)
-        splitter.setStyleSheet("QSplitter::handle { height: 8px; }")
-        self.splitter = splitter
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.splitter.addWidget(self.leftPane)
+        self.splitter.addWidget(self.rightPane)
+        self.splitter.setStretchFactor(0,0)
+        self.splitter.setStretchFactor(1,1)
+        self.splitter.setCollapsible(0,False)
+        self.splitter.setCollapsible(1,False)
+        self.splitter.setStyleSheet("QSplitter::handle { height: 8px; }")
 
         layout = QtWidgets.QHBoxLayout(self)
-        layout.addWidget(splitter)
+        layout.addWidget(self.splitter)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
     def createTabConstraints(self):
         tab = QtWidgets.QWidget()
 
-        self.constraintsWidget = widgets.TreeWidgetPhylogenetic()
-        self.constraintsWidget.onSelect = (lambda data:
-            self.resultsWidget.searchSelect(data[0],
+        self.treeConstraints = widgets.TreeWidgetPhylogenetic()
+        self.treeConstraints.onSelect = (lambda data:
+            self.treeResults.searchSelect(data[0],
                 flag=QtCore.Qt.MatchExactly))
-        self.constraintsWidget.setColumnCount(4)
-        self.constraintsWidget.setAlternatingRowColors(True)
-        self.constraintsWidget.setHeaderLabels(['Taxon', 'Min', 'Max', 'Fix'])
-        headerItem = self.constraintsWidget.headerItem()
+        self.treeConstraints.setColumnCount(4)
+        self.treeConstraints.setAlternatingRowColors(True)
+        self.treeConstraints.setHeaderLabels(['Taxon', 'Min', 'Max', 'Fix'])
+        headerItem = self.treeConstraints.headerItem()
         headerItem.setTextAlignment(0, QtCore.Qt.AlignLeft)
         headerItem.setTextAlignment(1, QtCore.Qt.AlignCenter)
         headerItem.setTextAlignment(2, QtCore.Qt.AlignCenter)
         headerItem.setTextAlignment(3, QtCore.Qt.AlignCenter)
-        self.constraintsWidget.installEventFilter(self)
+        self.treeConstraints.installEventFilter(self)
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
-        layout.addWidget(self.constraintsWidget)
+        layout.addWidget(self.treeConstraints)
         tab.setLayout(layout)
 
         return tab
 
     def createTabParams(self):
         tab = QtWidgets.QWidget()
-        paramWidget = param_qt.ParamContainer(self.analysis.param)
+        self.paramWidget = param_qt.ParamContainer(self.analysis.param)
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(paramWidget)
+        layout.addWidget(self.paramWidget)
         tab.setLayout(layout)
 
-        self.paramWidget = paramWidget
         return tab
 
     def createPaneEdit(self):
@@ -235,29 +295,20 @@ class Main(QtWidgets.QDialog):
         toolbar = widgets.UToolBar('Tools')
         toolbar.addWidget(labelWidget)
 
-        tabWidget = QtWidgets.QTabWidget()
+        self.tabContainerAnalysis = QtWidgets.QTabWidget()
 
         def search(what):
-            self.constraintsWidget.searchSelect(what)
-            self.resultsWidget.searchSelect(what)
+            self.treeConstraints.searchSelect(what)
+            self.treeResults.searchSelect(what)
         self.searchWidget = widgets.TabWidgetSearch()
         self.searchWidget.setSearchAction(':/icons/search.png', search)
 
-        def onTabChange():
-            isRunning = self.state == 'STATE_RUNNING'
-            if not isRunning and tabWidget.currentIndex() == 0:
-                self.searchWidget.setEnabled(True)
-            else:
-                self.searchWidget.setEnabled(False)
+        self.tabContainerAnalysis.setCornerWidget(self.searchWidget)
 
-        tabWidget.currentChanged.connect(onTabChange)
-
-        tabWidget.setCornerWidget(self.searchWidget)
-
-        tab1 = self.createTabConstraints()
-        tab2 = self.createTabParams()
-        tabWidget.addTab(tab1, "&Constraints")
-        tabWidget.addTab(tab2, "&Params")
+        self.tabConstraints = self.createTabConstraints()
+        self.tabParams = self.createTabParams()
+        self.tabContainerAnalysis.addTab(self.tabConstraints, "&Constraints")
+        self.tabContainerAnalysis.addTab(self.tabParams, "&Params")
 
         self.runButton = QtWidgets.QPushButton('Run')
         self.runButton.clicked.connect(self.actionRun)
@@ -274,7 +325,7 @@ class Main(QtWidgets.QDialog):
 
         layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)
-        layout.addWidget(tabWidget)
+        layout.addWidget(self.tabContainerAnalysis)
         layout.addWidget(runWidget)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
@@ -284,25 +335,25 @@ class Main(QtWidgets.QDialog):
     def createTabResults(self):
         tab = QtWidgets.QWidget()
 
-        self.resultsWidget = widgets.TreeWidgetPhylogenetic()
-        self.resultsWidget.onSelect = (lambda data:
-            self.constraintsWidget.searchSelect(data[0],
+        self.treeResults = widgets.TreeWidgetPhylogenetic()
+        self.treeResults.onSelect = (lambda data:
+            self.treeConstraints.searchSelect(data[0],
             flag=QtCore.Qt.MatchExactly))
-        self.resultsWidget.setColumnCount(3)
-        self.resultsWidget.setAlternatingRowColors(True)
-        self.resultsWidget.setHeaderLabels(['Taxon', 'Age', 'Rate', 'C'])
-        headerItem = self.resultsWidget.headerItem()
+        self.treeResults.setColumnCount(3)
+        self.treeResults.setAlternatingRowColors(True)
+        self.treeResults.setHeaderLabels(['Taxon', 'Age', 'Rate', 'C'])
+        headerItem = self.treeResults.headerItem()
         headerItem.setTextAlignment(0, QtCore.Qt.AlignLeft)
         headerItem.setTextAlignment(1, QtCore.Qt.AlignCenter)
         headerItem.setTextAlignment(2, QtCore.Qt.AlignCenter)
         headerItem.setTextAlignment(3, QtCore.Qt.AlignCenter)
-        self.resultsWidget.installEventFilter(self)
-        self.resultsWidget.setEditTriggers(
+        self.treeResults.installEventFilter(self)
+        self.treeResults.setEditTriggers(
             QtWidgets.QAbstractItemView.NoEditTriggers)
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
-        layout.addWidget(self.resultsWidget)
+        layout.addWidget(self.treeResults)
         tab.setLayout(layout)
 
         return tab
@@ -360,53 +411,52 @@ class Main(QtWidgets.QDialog):
         toolbar = widgets.UToolBar('Tools')
         toolbar.addAction(actionOpen)
         toolbar.addAction('Save', lambda: self.barButtons.setMinimumHeight(68))
+        toolbar.addAction('#States', lambda: self._stateList())
         # toolbar.addAction('Export', find)
         toolbar.addAction(exitAct)
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         #toolbar.setStyleSheet("background-color:red;")
 
-        self.tabResultsWidget = QtWidgets.QTabWidget()
+        self.tabContainerResults = QtWidgets.QTabWidget()
 
-        tab1 = self.createTabResults()
-        tab2 = self.createTabTable()
-        tab3 = self.createTabTable()
-        tab4 = self.createTabLogs()
-        self.tabResultsWidget.addTab(tab1, "&Results")
-        self.tabResultsWidget.addTab(tab2, "&Diagram")
-        self.tabResultsWidget.addTab(tab3, "&Table")
-        self.tabResultsWidget.addTab(tab4, "&Logs")
+        self.tabResults = self.createTabResults()
+        self.tabDiagram = self.createTabTable()
+        self.tabTable = self.createTabTable()
+        self.tabLogs = self.createTabLogs()
+        self.tabContainerResults.addTab(self.tabResults, "&Results")
+        self.tabContainerResults.addTab(self.tabDiagram , "&Diagram")
+        self.tabContainerResults.addTab(self.tabTable, "&Table")
+        self.tabContainerResults.addTab(self.tabLogs, "&Logs")
 
         layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)
-        layout.addWidget(self.tabResultsWidget)
+        layout.addWidget(self.tabContainerResults)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
         return pane, toolbar
 
     def actionRunWork(self):
+        """Runs on the UProcess, defined here for pickability"""
         self.analysis.run()
         return self.analysis.results
 
     def actionRun(self):
-
-        def done(result):
-            with utility.StdioLogger():
-                result.print()
-            self.resultsWidget.clear()
-            widgets.TreeWidgetNodeResults(
-                self.resultsWidget, result.tree.seed_node)
-            self.tabResultsWidget.setCurrentIndex(0)
-            self.machine.postEvent(utility.NamedEvent('DONE'))
-
-        def fail(exception):
-            self.machine.postEvent(utility.NamedEvent('FAIL', exception))
-
+        """Called by Run button"""
         try:
             self.paramWidget.applyParams()
         except Exception as exception:
             self.fail(exception)
             return
+
+        def done(result):
+            with utility.StdioLogger():
+                result.print()
+            self.analysis.results = result
+            self.machine.postEvent(utility.NamedEvent('DONE', result))
+
+        def fail(exception):
+            self.machine.postEvent(utility.NamedEvent('FAIL', exception))
 
         self.launcher = utility.UProcess(self.actionRunWork)
         self.launcher.done.connect(done)
@@ -416,6 +466,7 @@ class Main(QtWidgets.QDialog):
         self.machine.postEvent(utility.NamedEvent('RUN'))
 
     def actionCancel(self):
+        """Called by cancel button"""
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())
         msgBox.setIcon(QtWidgets.QMessageBox.Question)
@@ -429,6 +480,7 @@ class Main(QtWidgets.QDialog):
             self.machine.postEvent(utility.NamedEvent('CANCEL'))
 
     def actionOpen(self):
+        """Called by toolbar action"""
         (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File')
         if len(fileName) > 0:
             self.actionOpenFile(fileName)
@@ -439,39 +491,22 @@ class Main(QtWidgets.QDialog):
             with utility.StdioLogger():
                 self.analysis = parse.from_file(file)
                 print("Loaded file: " + file)
+            self.paramWidget.setParams(self.analysis.param)
         except Exception as exception:
             self.fail(exception)
         else:
-            self.actionOpenUpdate(file)
-
-    def actionOpenUpdate(self, file):
-        try:
-            self.paramWidget.setParams(self.analysis.param)
-            fileInfo = QtCore.QFileInfo(file)
-            labelText = fileInfo.baseName()
-            treeName = self.analysis.tree.label
-            if len(treeName) > 0:
-                labelText += ': ' + treeName
-            self.labelTree.setText(labelText)
-            self.constraintsWidget.clear()
-            # self.analysis.tree.print_plot(show_internal_node_labels=True)
-            widgets.TreeWidgetNodeConstraints(
-                self.constraintsWidget, self.analysis.tree.seed_node)
-            idealWidth = self.constraintsWidget.idealWidth()
-            width = min([self.width()/3, idealWidth])
-            self.splitter.setSizes([width, 1, self.width()/3])
-            self.leftPane.setDisabled(False)
-        except Exception as exception:
-            self.fail(exception)
+            self.machine.postEvent(utility.NamedEvent('OPEN',file=file))
 
 def show(sys):
     """Entry point"""
+    def init():
+        if len(sys.argv) >= 2:
+            main.actionOpenFile(sys.argv[1])
+
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle('Fusion')
-    main = Main()
+    main = Main(init=init)
     main.setWindowFlags(QtCore.Qt.Window)
     main.setModal(True)
     main.show()
-    if len(sys.argv) >= 2:
-        main.actionOpenFile(sys.argv[1])
     sys.exit(app.exec_())

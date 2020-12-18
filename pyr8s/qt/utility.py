@@ -360,11 +360,12 @@ class UProcess(QtCore.QThread):
 class NamedEvent(QtCore.QEvent):
     """Custom event for use in state machines"""
     userEvent = QtCore.QEvent.User + 1042
-    def __init__(self, name, *args):
+    def __init__(self, name, *args, **kwargs):
         """Pass name and args"""
         super().__init__(self.userEvent)
         self.name = name
         self.args = args
+        self.kwargs = kwargs
 
 class NamedTransition(QtCore.QAbstractTransition):
     """Custom transition for use in state machines"""

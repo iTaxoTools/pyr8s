@@ -3,7 +3,7 @@
 
 """
 Parse a NEXUS file and execute rate commands.
-Is a total mess right now.
+Is less of a mess right now.
 """
 
 import dendropy

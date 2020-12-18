@@ -2,7 +2,7 @@
 
 block_cipher = None
 
-
+# Could also use pyinstaller's Entrypoint()
 a = Analysis(['launcher.py'],
              pathex=['C:\\Users\\Lunet\\Desktop\\pyr8s'],
              binaries=[],

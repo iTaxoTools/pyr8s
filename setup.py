@@ -5,7 +5,7 @@ def readme():
         return f.read()
 
 setup(name='pyr8s',
-    version='0.1',
+    version='0.2',
     description='Calculate divergence times and rates of substitution for phylogenic trees',
     long_description=readme(),
     url='https://github.com/stefanpatman/pyr8s',

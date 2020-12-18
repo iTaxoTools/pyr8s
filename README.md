@@ -3,6 +3,21 @@
 Contains the core functionality for calculating divergence times and rates
 of substitution for phylogenic trees. Implements NPRS using Powell.
 
+
+## Quick start
+
+To launch the gui without installing:
+```
+$ python launcher.py
+```
+
+You may need to install the required libraries first:
+```
+$ pip install -r requirements.txt
+```
+
+## Installation
+
 Install using pip:
 ```
 $ pip install .
@@ -13,12 +28,24 @@ Try parsing a file using the console tool:
 $ pyr8s tests/legacy_1
 ```
 
-Or launch the graphical interface (under development):
+Or launch the graphical interface:
 ```
-$ pyr8s_tk
+$ pyr8s_qt tests/legacy_1
 ```
 
-## Python interactive example
+## Building
+
+Simply use PyInstaller on the launcher **spec** file:
+```
+$ pyinstaller launcher.spec
+```
+
+## Module
+
+You may import and use the pyr8s module in your python scripts.
+More examples to follow soon.
+
+### Python interactive example
 
 From the root directory, launch the Python interpreter:
 ```
@@ -66,16 +93,16 @@ View and edit output trees:
 >>> pdc.max_pairwise_distance_taxa()
 ```
 
-## Quick analysis
+### Quick analysis
 
 To quickly analyze a tree without setting any params or calibrations.
 Example:
 ```
-import pyr8s.core
-res = pyr8s.core.RateAnalysis.quick(tree, nsites=1000)
+import pyr8s.parse
+res = pyr8s.parse.quick(file='tests/legacy_1')
+newick_tree = '(A:1,(B:2,C:3):4);'
+res = pyr8s.parse.quick(tree=newick_tree)
 ```
-Where `tree` is a string in Newick format and `nsites` is the number of sites
-in sequences that branch lengths on input trees were calculated from.
-If `nsites` is not provided then it is guessed based on maximum branch length.
-The result `res` is a chronogram in Newick string format,
-with the root set to an age of 100.
+You must provide either a file or a tree in newick string form.
+The analysis uses nexus rates  settings if available.
+By default, the branch length is guessed based on maximum branch length and the root age is set to 100. Please see the source code documentation for more.

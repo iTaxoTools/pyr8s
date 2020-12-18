@@ -95,6 +95,8 @@ class Array:
             for node in _tree.postorder_node_iter():
                 if node.edge_length is not None and node.edge_length > maximum:
                     maximum = node.edge_length
+            if maximum == 0:
+                raise ValueError('All branches have zero length!')
             while maximum < 1000:
                 maximum *= 10
             print('Guessing number of sites: {}'.format(int(maximum)))

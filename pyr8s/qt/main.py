@@ -44,7 +44,7 @@ class Main(QtWidgets.QDialog):
     def reject(self):
         """Called on dialog close or <ESC>"""
         if self.stateCheck('STATE_RUNNING'):
-            self.actionCancel()
+            self.handleCancel()
             return
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())
@@ -120,6 +120,8 @@ class Main(QtWidgets.QDialog):
         idle_none.assignProperty(self.tabDiagram, 'enabled', False)
         idle_none.assignProperty(self.tabTable, 'enabled', False)
         idle_none.assignProperty(self.runButton, 'enabled', False)
+        idle_none.assignProperty(self.actionSave, 'enabled', False)
+        idle_none.assignProperty(self.actionExport, 'enabled', False)
 
         idle_open.setObjectName('STATE_IDLE_OPEN')
         idle_open.assignProperty(self.searchWidget, 'enabled', True)
@@ -129,6 +131,8 @@ class Main(QtWidgets.QDialog):
         idle_open.assignProperty(self.tabDiagram, 'enabled', False)
         idle_open.assignProperty(self.tabTable, 'enabled', False)
         idle_open.assignProperty(self.runButton, 'enabled', True)
+        idle_open.assignProperty(self.actionSave, 'enabled', True)
+        idle_open.assignProperty(self.actionExport, 'enabled', False)
         def onEntry(event):
             self.tabContainerAnalysis.setCurrentIndex(0)
         idle_open.onEntry = onEntry
@@ -141,6 +145,8 @@ class Main(QtWidgets.QDialog):
         idle_done.assignProperty(self.tabDiagram, 'enabled', True)
         idle_done.assignProperty(self.tabTable, 'enabled', True)
         idle_done.assignProperty(self.runButton, 'enabled', True)
+        idle_done.assignProperty(self.actionSave, 'enabled', True)
+        idle_done.assignProperty(self.actionExport, 'enabled', True)
         def onEntry(event):
             self.tabContainerAnalysis.setCurrentIndex(0)
             self.tabContainerResults.setCurrentIndex(0)
@@ -151,6 +157,7 @@ class Main(QtWidgets.QDialog):
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
         def onEntry(event):
+            self.tabContainerResults.setCurrentIndex(3)
             self.treeConstraints.setItemsDisabled(True)
             self.treeResults.setItemsDisabled(True)
             self.cancelButton.setFocus(True)
@@ -199,6 +206,7 @@ class Main(QtWidgets.QDialog):
 
         transition = utility.NamedTransition('FAIL')
         def onTransition(event):
+            self.tabContainerResults.setCurrentIndex(3)
             self.fail(event.args[0])
         transition.onTransition = onTransition
         transition.setTargetState(idle_last)
@@ -219,7 +227,7 @@ class Main(QtWidgets.QDialog):
                 event.key() == QtCore.Qt.Key_Return and
                 self.treeConstraints.state() !=
                     QtWidgets.QAbstractItemView.EditingState):
-                self.actionRun()
+                self.handleRun()
                 return True
         return QtCore.QObject.eventFilter(self, source, event)
 
@@ -311,10 +319,10 @@ class Main(QtWidgets.QDialog):
         self.tabContainerAnalysis.addTab(self.tabParams, "&Params")
 
         self.runButton = QtWidgets.QPushButton('Run')
-        self.runButton.clicked.connect(self.actionRun)
+        self.runButton.clicked.connect(self.handleRun)
         self.runButton.setAutoDefault(False)
         self.cancelButton = QtWidgets.QPushButton('Cancel')
-        self.cancelButton.clicked.connect(self.actionCancel)
+        self.cancelButton.clicked.connect(self.handleCancel)
         self.cancelButton.setAutoDefault(True)
 
         runLayout = QtWidgets.QVBoxLayout()
@@ -399,21 +407,45 @@ class Main(QtWidgets.QDialog):
         labelWidget = QtWidgets.QWidget()
         labelWidget.setLayout(labelLayout)
 
-        exitAct = QtWidgets.QAction('Exit', self)
-        exitAct.setShortcut('Ctrl+Q')
-        exitAct.triggered.connect(QtWidgets.qApp.quit)
+        self.actionSave = QtWidgets.QAction('&Save', self)
+        self.actionSave.setShortcut('Ctrl+S')
+        self.actionSave.setStatusTip('Save analysis state')
+        self.actionSave.triggered.connect(self.handleSave)
 
-        actionOpen = QtWidgets.QAction('Open', self)
-        actionOpen.setShortcut('Ctrl+O')
-        actionOpen.setStatusTip('Open an existing file')
-        actionOpen.triggered.connect(self.actionOpen)
+        self.actionOpen = QtWidgets.QAction('&Open', self)
+        self.actionOpen.setShortcut('Ctrl+O')
+        self.actionOpen.setStatusTip('Open an existing file')
+        self.actionOpen.triggered.connect(self.handleOpen)
+
+        self.actionExport = QtWidgets.QAction('&Export', self)
+        self.actionExport.setStatusTip('Export results')
+
+        self.actionExportChrono = QtWidgets.QAction('&Chronogram', self)
+        self.actionExportChrono.setShortcut('Ctrl+E')
+        self.actionExportChrono.setStatusTip('Export chronogram (ultrametric)')
+        self.actionExportChrono.triggered.connect(self.handleExportChrono)
+
+        self.actionExportRato = QtWidgets.QAction('&Ratogram', self)
+        self.actionExportRato.setStatusTip('Export ratogram')
+        self.actionExportRato.triggered.connect(self.handleExportRato)
+
+        self.actionExportTable = QtWidgets.QAction('&Table', self)
+        self.actionExportTable.setStatusTip('Export ages and rates table')
+        self.actionExportTable.triggered.connect(self.handleExportTable)
+
+        exportButton = QtWidgets.QToolButton(self)
+        exportButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
+        exportMenu = QtWidgets.QMenu(exportButton)
+        exportMenu.addAction(self.actionExportChrono)
+        exportMenu.addAction(self.actionExportRato)
+        exportMenu.addAction(self.actionExportTable)
+        exportButton.setDefaultAction(self.actionExport)
+        exportButton.setMenu(exportMenu)
 
         toolbar = widgets.UToolBar('Tools')
-        toolbar.addAction(actionOpen)
-        toolbar.addAction('Save', lambda: self.barButtons.setMinimumHeight(68))
-        toolbar.addAction('#States', lambda: self._stateList())
-        # toolbar.addAction('Export', find)
-        toolbar.addAction(exitAct)
+        toolbar.addAction(self.actionOpen)
+        toolbar.addAction(self.actionSave)
+        toolbar.addWidget(exportButton)
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         #toolbar.setStyleSheet("background-color:red;")
 
@@ -436,12 +468,12 @@ class Main(QtWidgets.QDialog):
 
         return pane, toolbar
 
-    def actionRunWork(self):
+    def handleRunWork(self):
         """Runs on the UProcess, defined here for pickability"""
         self.analysis.run()
         return self.analysis.results
 
-    def actionRun(self):
+    def handleRun(self):
         """Called by Run button"""
         try:
             self.paramWidget.applyParams()
@@ -452,20 +484,21 @@ class Main(QtWidgets.QDialog):
         def done(result):
             with utility.StdioLogger():
                 result.print()
+                print(result.chronogram.as_string(schema='newick'))
             self.analysis.results = result
             self.machine.postEvent(utility.NamedEvent('DONE', result))
 
         def fail(exception):
             self.machine.postEvent(utility.NamedEvent('FAIL', exception))
 
-        self.launcher = utility.UProcess(self.actionRunWork)
+        self.launcher = utility.UProcess(self.handleRunWork)
         self.launcher.done.connect(done)
         self.launcher.fail.connect(fail)
         self.launcher.setLogger(logging.getLogger())
         self.launcher.start()
         self.machine.postEvent(utility.NamedEvent('RUN'))
 
-    def actionCancel(self):
+    def handleCancel(self):
         """Called by cancel button"""
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())
@@ -479,13 +512,31 @@ class Main(QtWidgets.QDialog):
             self.launcher.quit()
             self.machine.postEvent(utility.NamedEvent('CANCEL'))
 
-    def actionOpen(self):
+    def handleOpen(self):
         """Called by toolbar action"""
         (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File')
         if len(fileName) > 0:
-            self.actionOpenFile(fileName)
+            self.handleOpenFile(fileName)
 
-    def actionOpenFile(self, file):
+    def handleSave(self):
+        """Called by toolbar button"""
+        self.barButtons.setMinimumHeight(68)
+        pass
+
+    def handleExportChrono(self):
+        """Called by toolbar menu button"""
+        print('CHRONONONONO')
+        pass
+
+    def handleExportRato(self):
+        """Called by toolbar menu button"""
+        pass
+
+    def handleExportTable(self):
+        """Called by toolbar menu button"""
+        pass
+
+    def handleOpenFile(self, file):
         """Load tree from file"""
         try:
             with utility.StdioLogger():
@@ -501,7 +552,7 @@ def show(sys):
     """Entry point"""
     def init():
         if len(sys.argv) >= 2:
-            main.actionOpenFile(sys.argv[1])
+            main.handleOpenFile(sys.argv[1])
 
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle('Fusion')

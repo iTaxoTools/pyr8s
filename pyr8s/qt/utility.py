@@ -11,6 +11,23 @@ import multiprocessing
 ##############################################################################
 ### Logging
 
+class StdioLogger():
+    """Redirect system stdout and stderr to logger"""
+    def __init__(self, logger=None):
+        if logger is None:
+            logger = logging.getLogger()
+        self.logger = logger
+
+    def __enter__(self):
+        self.err = sys.stderr.write
+        self.out = sys.stdout.write
+        sys.stderr.write = self.logger.error
+        sys.stdout.write = self.logger.info
+
+    def __exit__(self, et, ev, tr):
+        sys.stderr.write = self.err
+        sys.stdout.write = self.out
+
 class PipeIO(io.IOBase):
     """File-like object that writes to a pipe connection"""
     #? There are possibly better waiys to do this

@@ -17,17 +17,13 @@ from . import utility
 from . import widgets
 from . import icons
 
-
 class Main(QtWidgets.QDialog):
     """Main window, handles everything"""
 
     def __init__(self, parent=None):
         super(Main, self).__init__(parent)
 
-        logger = logging.getLogger()
-        # sys.stderr.write = logger.error
-        # sys.stdout.write = logger.info
-
+        logging.getLogger().setLevel(logging.DEBUG)
         self.analysis = core.RateAnalysis()
 
         self.setWindowTitle("pyr8s")
@@ -77,7 +73,7 @@ class Main(QtWidgets.QDialog):
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())
         msgBox.setIcon(QtWidgets.QMessageBox.Critical)
-        msgBox.setText('An exception has occured:')
+        msgBox.setText('An exception occured:')
         msgBox.setInformativeText(str(exception))
         msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
@@ -331,9 +327,6 @@ class Main(QtWidgets.QDialog):
         #     logging.Formatter(
         #         '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'))
         logging.getLogger().addHandler(logWidget.handler)
-        logging.getLogger().setLevel(logging.DEBUG)
-        for i in range(100):
-            logging.debug('damn, a bug')
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(logWidget)
@@ -398,7 +391,8 @@ class Main(QtWidgets.QDialog):
     def actionRun(self):
 
         def done(result):
-            result.print()
+            with utility.StdioLogger():
+                result.print()
             self.resultsWidget.clear()
             widgets.TreeWidgetNodeResults(
                 self.resultsWidget, result.tree.seed_node)
@@ -430,7 +424,7 @@ class Main(QtWidgets.QDialog):
         msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
         confirm = msgBox.exec()
         if confirm == QtWidgets.QMessageBox.Yes:
-            print('\nAnalysis aborted by user.')
+            logging.getLogger().info('\nAnalysis aborted by user.')
             self.launcher.quit()
             self.machine.postEvent(utility.NamedEvent('CANCEL'))
 
@@ -442,16 +436,9 @@ class Main(QtWidgets.QDialog):
     def actionOpenFile(self, file):
         """Load tree from file"""
         try:
-            self.analysis = parse.from_file(file)
-            print("Loaded file: " + file)
-        except FileNotFoundError as exception:
-            msgBox = QtWidgets.QMessageBox(self)
-            msgBox.setIcon(QtWidgets.QMessageBox.Critical)
-            msgBox.setText('Failed to load file:')
-            msgBox.setDetailedText(str(exception.filename))
-            msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-            confirm = msgBox.exec()
+            with utility.StdioLogger():
+                self.analysis = parse.from_file(file)
+                print("Loaded file: " + file)
         except Exception as exception:
             self.fail(exception)
         else:

@@ -514,7 +514,7 @@ class Main(QtWidgets.QDialog):
 
     def handleOpen(self):
         """Called by toolbar action"""
-        (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File')
+        (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'pyr8s - Open File')
         if len(fileName) > 0:
             self.handleOpenFile(fileName)
 
@@ -525,16 +525,60 @@ class Main(QtWidgets.QDialog):
 
     def handleExportChrono(self):
         """Called by toolbar menu button"""
-        print('CHRONONONONO')
-        pass
+        (fileName, filter) = QtWidgets.QFileDialog.getSaveFileName(self,
+            'pyr8s - Export Chronogram',
+            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.nwk',
+            'Newick (*.nwk);;  All files (*.*)')
+        if len(fileName) == 0:
+            return
+        try:
+            with open(fileName, 'w') as file:
+                file.write(self.analysis.results.chronogram.
+                    as_string(schema='newick'))
+        except Exception as exception:
+            self.fail(exception)
+        finally:
+            logging.getLogger().info(
+                'Exported chronogram to file: {}\n'.format(fileName))
 
     def handleExportRato(self):
         """Called by toolbar menu button"""
-        pass
+        (fileName, filter) = QtWidgets.QFileDialog.getSaveFileName(self,
+            'pyr8s - Export Chronogram',
+            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.nwk',
+            'Newick (*.nwk);;  All files (*.*)')
+        if len(fileName) == 0:
+            return
+        try:
+            with open(fileName, 'w') as file:
+                file.write(self.analysis.results.ratogram.
+                    as_string(schema='newick'))
+        except Exception as exception:
+            self.fail(exception)
+        finally:
+            logging.getLogger().info(
+                'Exported chronogram to file: {}\n'.format(fileName))
 
     def handleExportTable(self):
         """Called by toolbar menu button"""
-        pass
+        (fileName, filter) = QtWidgets.QFileDialog.getSaveFileName(self,
+            'pyr8s - Export Chronogram',
+            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.tsv',
+            'Tab Separated Values (*.tsv);;  All files (*.*)')
+        if len(fileName) == 0:
+            return
+        try:
+            with open(fileName, 'w') as file:
+                table = self.analysis.results.table
+                for i in range(table['n']):
+                    file.write(str(table['Node'][i]) + '\t')
+                    file.write(str(table['Age'][i]) + '\t')
+                    file.write(str(table['Rate'][i]) + '\n')
+        except Exception as exception:
+            self.fail(exception)
+        finally:
+            logging.getLogger().info(
+                'Exported chronogram to file: {}\n'.format(fileName))
 
     def handleOpenFile(self, file):
         """Load tree from file"""

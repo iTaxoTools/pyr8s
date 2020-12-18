@@ -152,7 +152,7 @@ class Main(QtWidgets.QDialog):
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
         def onEntry(event):
-            self.tabContainerResults.setCurrentIndex(3)
+            self.tabContainerResults.setCurrentIndex(1)
             self.treeConstraints.setItemsDisabled(True)
             self.treeResults.setItemsDisabled(True)
             self.cancelButton.setFocus(True)
@@ -211,7 +211,7 @@ class Main(QtWidgets.QDialog):
 
         transition = utility.NamedTransition('FAIL')
         def onTransition(event):
-            self.tabContainerResults.setCurrentIndex(3)
+            self.tabContainerResults.setCurrentIndex(1)
             self.fail(event.args[0])
         transition.onTransition = onTransition
         transition.setTargetState(idle_last)
@@ -461,8 +461,8 @@ class Main(QtWidgets.QDialog):
         self.tabTable = self.createTabTable()
         self.tabLogs = self.createTabLogs()
         self.tabContainerResults.addTab(self.tabResults, "&Results")
-        self.tabContainerResults.addTab(self.tabDiagram , "&Diagram")
-        self.tabContainerResults.addTab(self.tabTable, "&Table")
+        # self.tabContainerResults.addTab(self.tabDiagram , "&Diagram")
+        # self.tabContainerResults.addTab(self.tabTable, "&Table")
         self.tabContainerResults.addTab(self.tabLogs, "&Logs")
 
         layout = QtWidgets.QVBoxLayout()
@@ -521,8 +521,8 @@ class Main(QtWidgets.QDialog):
         """Called by toolbar action"""
         (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self,
             'pyr8s - Open File',
-            QtCore.QDir.homePath(),
-            'All Files (*.*) ;; Newick (*.nwk) ;; Rates Analysis (*.r8s)')
+            QtCore.QDir.currentPath(),
+            'All Files (*) ;; Newick (*.nwk) ;; Rates Analysis (*.r8s)')
         if len(fileName) == 0:
             return
         suffix = QtCore.QFileInfo(fileName).suffix()

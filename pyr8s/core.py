@@ -508,12 +508,10 @@ class RateAnalysis:
             self.tree = tree
 
     def __getstate__(self):
-        print('GET',self.results)
         return (self._tree,self.param,self.results,)
 
     def __setstate__(self, state):
         (self._tree,self.param,self.results,) = state
-        print('SET',self.results)
         self._array = Array(self.param)
 
     @property

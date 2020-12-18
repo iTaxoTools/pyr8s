@@ -25,6 +25,7 @@ class ParamField(QtWidgets.QWidget):
         return self.value
 
     def draw(self):
+        self.setToolTip(self.field.doc)
         pass
 
 
@@ -53,6 +54,8 @@ class ParamList(QtWidgets.QComboBox, ParamField):
         row = self.parent.nextRow()
         layout.addWidget(label, row, 0)
         layout.addWidget(self, row, 1)
+        self.setToolTip(self.field.doc)
+        label.setToolTip(self.field.doc)
 
     def wheelEvent(self, event):
         if self.hasFocus:
@@ -84,6 +87,7 @@ class ParamBool(QtWidgets.QCheckBox, ParamField):
         layout = self.parent.layout()
         row = self.parent.nextRow()
         layout.addWidget(self, row, 0, 1, 2)
+        self.setToolTip(self.field.doc)
 
     def set(self, value=None):
         if value is None:
@@ -117,6 +121,8 @@ class ParamEntry(QtWidgets.QLineEdit, ParamField):
         row = self.parent.nextRow()
         layout.addWidget(label, row, 0)
         layout.addWidget(self, row, 1)
+        self.setToolTip(self.field.doc)
+        label.setToolTip(self.field.doc)
 
     def sizeHint(self):
         s = super().sizeHint()
@@ -234,9 +240,7 @@ class ParamContainer(QtWidgets.QWidget):
         doc.setSizePolicy(
             QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
 
-        object = QtWidgets.QLabel(
-            "This is a not so helpful string about parameters "
-            "and how to use placeholders effectively.")
+        object = QtWidgets.QLabel("Hover parameters for quick help. Refer to the r8s manual for more.")
         object.setWordWrap(True)
         docLayout.addWidget(object)
 

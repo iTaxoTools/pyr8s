@@ -8,6 +8,7 @@ import PyQt5.QtGui as QtGui
 import sys
 import logging
 import re
+import pickle
 
 from .. import core
 from .. import parse
@@ -83,12 +84,6 @@ class Main(QtWidgets.QDialog):
                 if state.objectName() == name:
                     return True
         return False
-
-    def _stateList(self):
-        """Check if given state is currently running"""
-        if self.machine is not None:
-            for state in list(self.machine.configuration()):
-                print(state, state.objectName())
 
     def stateInit(self):
         """Initialize state machine"""
@@ -168,7 +163,7 @@ class Main(QtWidgets.QDialog):
             fileInfo = QtCore.QFileInfo(event.kwargs['file'])
             labelText = fileInfo.baseName()
             treeName = self.analysis.tree.label
-            if len(treeName) > 0:
+            if len(treeName) > 0 and treeName != labelText:
                 labelText += ': ' + treeName
             self.labelTree.setText(labelText)
             self.treeResults.clear()
@@ -178,8 +173,19 @@ class Main(QtWidgets.QDialog):
             idealWidth = self.treeConstraints.idealWidth()
             width = min([self.width()/2, idealWidth])
             self.splitter.setSizes([width, 1, self.width()/2])
+            if self.analysis.results is not None:
+                self.machine.postEvent(utility.NamedEvent('LOAD'))
         transition.onTransition = onTransition
         transition.setTargetState(idle_open)
+        idle.addTransition(transition)
+
+        transition = utility.NamedTransition('LOAD')
+        def onTransition(event):
+            self.treeResults.clear()
+            widgets.TreeWidgetNodeResults(
+                self.treeResults, self.analysis.results.tree.seed_node)
+        transition.onTransition = onTransition
+        transition.setTargetState(idle_done)
         idle.addTransition(transition)
 
         transition = utility.NamedTransition('RUN')
@@ -188,10 +194,9 @@ class Main(QtWidgets.QDialog):
 
         transition = utility.NamedTransition('DONE')
         def onTransition(event):
-            results = event.args[0]
             self.treeResults.clear()
             widgets.TreeWidgetNodeResults(
-                self.treeResults, results.tree.seed_node)
+                self.treeResults, self.analysis.results.tree.seed_node)
             self.closeMessages()
             msgBox = QtWidgets.QMessageBox(self)
             msgBox.setWindowTitle(self.windowTitle())
@@ -410,7 +415,7 @@ class Main(QtWidgets.QDialog):
         self.actionSave = QtWidgets.QAction('&Save', self)
         self.actionSave.setShortcut('Ctrl+S')
         self.actionSave.setStatusTip('Save analysis state')
-        self.actionSave.triggered.connect(self.handleSave)
+        self.actionSave.triggered.connect(self.handleSaveAnalysis)
 
         self.actionOpen = QtWidgets.QAction('&Open', self)
         self.actionOpen.setShortcut('Ctrl+O')
@@ -486,7 +491,7 @@ class Main(QtWidgets.QDialog):
                 result.print()
                 print(result.chronogram.as_string(schema='newick'))
             self.analysis.results = result
-            self.machine.postEvent(utility.NamedEvent('DONE', result))
+            self.machine.postEvent(utility.NamedEvent('DONE', True))
 
         def fail(exception):
             self.machine.postEvent(utility.NamedEvent('FAIL', exception))
@@ -514,20 +519,72 @@ class Main(QtWidgets.QDialog):
 
     def handleOpen(self):
         """Called by toolbar action"""
-        (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self, 'pyr8s - Open File')
-        if len(fileName) > 0:
+        (fileName, _) = QtWidgets.QFileDialog.getOpenFileName(self,
+            'pyr8s - Open File',
+            QtCore.QDir.homePath(),
+            'All Files (*.*) ;; Newick (*.nwk) ;; Rates Analysis (*.r8s)')
+        if len(fileName) == 0:
+            return
+        suffix = QtCore.QFileInfo(fileName).suffix()
+        if suffix == 'r8s':
+            self.handleOpenAnalysis(fileName)
+        else:
             self.handleOpenFile(fileName)
 
-    def handleSave(self):
-        """Called by toolbar button"""
-        self.barButtons.setMinimumHeight(68)
+    def handleOpenAnalysis(self, fileName):
+        """Open pickled analysis"""
+        #! THIS IS UNSAFE: Only open trusted files
+        try:
+            with open(fileName, 'rb') as file:
+                obj = pickle.load(file)
+                if obj.__class__ != core.RateAnalysis:
+                    raise ValueError('Not a valid Analysis file.')
+                self.analysis = obj
+                self.paramWidget.setParams(self.analysis.param)
+                self.machine.postEvent(utility.NamedEvent('OPEN',file=fileName))
+        except Exception as exception:
+            self.fail(exception)
+        else:
+            logging.getLogger().info(
+                'Loaded analysis from: {}\n'.format(fileName))
+
+    def handleOpenFile(self, fileName):
+        """Load tree from a newick or nexus file"""
+        try:
+            with utility.StdioLogger():
+                self.analysis = parse.from_file(fileName)
+            self.paramWidget.setParams(self.analysis.param)
+        except Exception as exception:
+            self.fail(exception)
+        else:
+            logging.getLogger().info(
+                'Loaded tree from: {}\n'.format(fileName))
+            self.machine.postEvent(utility.NamedEvent('OPEN',file=fileName))
+
+    def handleSaveAnalysis(self):
+        """Pickle and save current analysis"""
+        (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
+            'pyr8s - Save Analysis',
+            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.r8s',
+            'Rates Analysis (*.r8s)')
+        if len(fileName) == 0:
+            return
+        try:
+            self.paramWidget.applyParams()
+            with open(fileName, 'wb') as file:
+                pickle.dump(self.analysis, file)
+        except Exception as exception:
+            self.fail(exception)
+        else:
+            logging.getLogger().info(
+                'Saved analysis to file: {}\n'.format(fileName))
         pass
 
     def handleExportChrono(self):
         """Called by toolbar menu button"""
-        (fileName, filter) = QtWidgets.QFileDialog.getSaveFileName(self,
+        (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
             'pyr8s - Export Chronogram',
-            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.nwk',
+            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '_chronogram.nwk',
             'Newick (*.nwk);;  All files (*.*)')
         if len(fileName) == 0:
             return
@@ -537,15 +594,15 @@ class Main(QtWidgets.QDialog):
                     as_string(schema='newick'))
         except Exception as exception:
             self.fail(exception)
-        finally:
+        else:
             logging.getLogger().info(
                 'Exported chronogram to file: {}\n'.format(fileName))
 
     def handleExportRato(self):
         """Called by toolbar menu button"""
-        (fileName, filter) = QtWidgets.QFileDialog.getSaveFileName(self,
-            'pyr8s - Export Chronogram',
-            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.nwk',
+        (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
+            'pyr8s - Export Ratogram',
+            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '_ratogram.nwk',
             'Newick (*.nwk);;  All files (*.*)')
         if len(fileName) == 0:
             return
@@ -555,15 +612,15 @@ class Main(QtWidgets.QDialog):
                     as_string(schema='newick'))
         except Exception as exception:
             self.fail(exception)
-        finally:
+        else:
             logging.getLogger().info(
-                'Exported chronogram to file: {}\n'.format(fileName))
+                'Exported ratogram to file: {}\n'.format(fileName))
 
     def handleExportTable(self):
         """Called by toolbar menu button"""
-        (fileName, filter) = QtWidgets.QFileDialog.getSaveFileName(self,
-            'pyr8s - Export Chronogram',
-            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.tsv',
+        (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
+            'pyr8s - Export Table',
+            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '_rates.tsv',
             'Tab Separated Values (*.tsv);;  All files (*.*)')
         if len(fileName) == 0:
             return
@@ -576,21 +633,9 @@ class Main(QtWidgets.QDialog):
                     file.write(str(table['Rate'][i]) + '\n')
         except Exception as exception:
             self.fail(exception)
-        finally:
-            logging.getLogger().info(
-                'Exported chronogram to file: {}\n'.format(fileName))
-
-    def handleOpenFile(self, file):
-        """Load tree from file"""
-        try:
-            with utility.StdioLogger():
-                self.analysis = parse.from_file(file)
-                print("Loaded file: " + file)
-            self.paramWidget.setParams(self.analysis.param)
-        except Exception as exception:
-            self.fail(exception)
         else:
-            self.machine.postEvent(utility.NamedEvent('OPEN',file=file))
+            logging.getLogger().info(
+                'Exported table to file: {}\n'.format(fileName))
 
 def show(sys):
     """Entry point"""

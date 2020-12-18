@@ -407,6 +407,12 @@ class RateAnalysisResults(dict):
     Bundle output here.
     """
 
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
     def __getattr__(self, name):
         try:
             return self[name]
@@ -502,11 +508,12 @@ class RateAnalysis:
             self.tree = tree
 
     def __getstate__(self):
-        return (self._tree,self.param,)
+        print('GET',self.results)
+        return (self._tree,self.param,self.results,)
 
-    def __setstate__(self, data):
-        (self._tree,self.param,) = data
-        self.results = None
+    def __setstate__(self, state):
+        (self._tree,self.param,self.results,) = state
+        print('SET',self.results)
         self._array = Array(self.param)
 
     @property

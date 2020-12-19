@@ -117,6 +117,10 @@ class Main(QtWidgets.QDialog):
         idle_none.assignProperty(self.runButton, 'enabled', False)
         idle_none.assignProperty(self.actionSave, 'enabled', False)
         idle_none.assignProperty(self.actionExport, 'enabled', False)
+        idle_none.assignProperty(self.barFlags, 'enabled', False)
+        idle_none.assignProperty(self.labelFlagInfo, 'text', 'Nothing to display.')
+        idle_none.assignProperty(self.labelFlagInfo, 'visible', True)
+        idle_none.assignProperty(self.labelFlagWarn, 'visible', False)
 
         idle_open.setObjectName('STATE_IDLE_OPEN')
         idle_open.assignProperty(self.searchWidget, 'enabled', True)
@@ -128,6 +132,10 @@ class Main(QtWidgets.QDialog):
         idle_open.assignProperty(self.runButton, 'enabled', True)
         idle_open.assignProperty(self.actionSave, 'enabled', True)
         idle_open.assignProperty(self.actionExport, 'enabled', False)
+        idle_open.assignProperty(self.barFlags, 'enabled', False)
+        idle_open.assignProperty(self.labelFlagInfo, 'text', 'Nothing to display.')
+        idle_open.assignProperty(self.labelFlagInfo, 'visible', True)
+        idle_open.assignProperty(self.labelFlagWarn, 'visible', False)
         def onEntry(event):
             self.tabContainerAnalysis.setCurrentIndex(0)
         idle_open.onEntry = onEntry
@@ -142,6 +150,10 @@ class Main(QtWidgets.QDialog):
         idle_done.assignProperty(self.runButton, 'enabled', True)
         idle_done.assignProperty(self.actionSave, 'enabled', True)
         idle_done.assignProperty(self.actionExport, 'enabled', True)
+        idle_done.assignProperty(self.barFlags, 'enabled', True)
+        idle_done.assignProperty(self.labelFlagInfo, 'text', 'Analysis complete.')
+        idle_done.assignProperty(self.labelFlagInfo, 'visible', False)
+        idle_done.assignProperty(self.labelFlagWarn, 'visible', True)
         def onEntry(event):
             self.tabContainerAnalysis.setCurrentIndex(0)
             self.tabContainerResults.setCurrentIndex(0)
@@ -151,6 +163,9 @@ class Main(QtWidgets.QDialog):
         running.assignProperty(self.runButton, 'visible', False)
         running.assignProperty(self.cancelButton, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
+        running.assignProperty(self.barFlags, 'enabled', True)
+        running.assignProperty(self.labelFlagInfo, 'text', 'Please wait...')
+        running.assignProperty(self.labelFlagWarn, 'visible', False)
         def onEntry(event):
             self.tabContainerResults.setCurrentIndex(1)
             self.treeConstraints.setItemsDisabled(True)
@@ -182,6 +197,8 @@ class Main(QtWidgets.QDialog):
 
         transition = utility.NamedTransition('LOAD')
         def onTransition(event):
+            warning = self.analysis.results.flags['warning']
+            self.labelFlagWarn.setText(warning)
             self.treeResults.clear()
             widgets.TreeWidgetNodeResults(
                 self.treeResults, self.analysis.results.tree.seed_node)
@@ -195,6 +212,8 @@ class Main(QtWidgets.QDialog):
 
         transition = utility.NamedTransition('DONE')
         def onTransition(event):
+            warning = self.analysis.results.flags['warning']
+            self.labelFlagWarn.setText(warning)
             self.treeResults.clear()
             widgets.TreeWidgetNodeResults(
                 self.treeResults, self.analysis.results.tree.seed_node)
@@ -202,7 +221,7 @@ class Main(QtWidgets.QDialog):
             msgBox = QtWidgets.QMessageBox(self)
             msgBox.setWindowTitle(self.windowTitle())
             msgBox.setIcon(QtWidgets.QMessageBox.Information)
-            msgBox.setText('Analysis performed successfully.')
+            msgBox.setText('Analysis complete.')
             msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
             msgBox.exec()
@@ -242,6 +261,7 @@ class Main(QtWidgets.QDialog):
         self.leftPane, self.barLabel = self.createPaneEdit()
         self.rightPane, self.barButtons  = self.createPaneResults()
         self.barButtons.sync(self.barLabel)
+        self.barRun.sync(self.barFlags)
 
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.splitter.addWidget(self.leftPane)
@@ -324,16 +344,18 @@ class Main(QtWidgets.QDialog):
         self.cancelButton.clicked.connect(self.handleCancel)
         self.cancelButton.setAutoDefault(True)
 
-        runLayout = QtWidgets.QVBoxLayout()
-        runLayout.addWidget(self.runButton)
-        runLayout.addWidget(self.cancelButton)
-        runWidget = QtWidgets.QGroupBox()
-        runWidget.setLayout(runLayout)
+        layoutRun = QtWidgets.QVBoxLayout()
+        layoutRun.addWidget(self.runButton)
+        layoutRun.addWidget(self.cancelButton)
+        layoutRun.setContentsMargins(10, 0, 10, 0)
+        self.barRun = widgets.UGroupBox()
+        self.barRun.setObjectName('barRun')
+        self.barRun.setLayout(layoutRun)
 
         layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)
         layout.addWidget(self.tabContainerAnalysis)
-        layout.addWidget(runWidget)
+        layout.addWidget(self.barRun)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
@@ -395,16 +417,6 @@ class Main(QtWidgets.QDialog):
 
     def createPaneResults(self):
         pane = QtWidgets.QWidget()
-
-        label = QtWidgets.QLabel("Results")
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setSizePolicy(
-            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
-        labelLayout = QtWidgets.QHBoxLayout()
-        labelLayout.addWidget(label, 1)
-        labelLayout.setContentsMargins(1, 1, 1, 1)
-        labelWidget = QtWidgets.QWidget()
-        labelWidget.setLayout(labelLayout)
 
         self.actionSave = QtWidgets.QAction('&Save', self)
         self.actionSave.setShortcut('Ctrl+S')
@@ -473,9 +485,22 @@ class Main(QtWidgets.QDialog):
         # self.tabContainerResults.addTab(self.tabTable, "&Table")
         self.tabContainerResults.addTab(self.tabLogs, "&Logs")
 
+        self.labelFlagInfo = QtWidgets.QLabel('No results to display.')
+        self.labelFlagInfo.setAlignment(QtCore.Qt.AlignCenter)
+        self.labelFlagWarn = QtWidgets.QLabel('All seems good.')
+        self.labelFlagWarn.setAlignment(QtCore.Qt.AlignCenter)
+
+        layoutFlags = QtWidgets.QHBoxLayout()
+        layoutFlags.addWidget(self.labelFlagInfo)
+        layoutFlags.addWidget(self.labelFlagWarn)
+        self.barFlags = widgets.UGroupBox()
+        self.barFlags.setObjectName('barFlags')
+        self.barFlags.setLayout(layoutFlags)
+
         layout = QtWidgets.QVBoxLayout()
         layout.setMenuBar(toolbar)
         layout.addWidget(self.tabContainerResults)
+        layout.addWidget(self.barFlags)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 

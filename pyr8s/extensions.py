@@ -16,13 +16,13 @@ class NodePlus(dendropy.Node):
 
     @property
     def label(self):
-        if self._label_frozen is not None:
-            return self._label_frozen
+        if self.__label_frozen is not None:
+            return self.__label_frozen
         try:
             return self.taxon.label
         except:
-            if self._label is not None and self._label != '':
-                return self._label
+            if self.__label is not None and self.__label != '':
+                return self.__label
             elif self.index is not None:
                 return self.decorator.format(self.index)
             else:
@@ -30,14 +30,14 @@ class NodePlus(dendropy.Node):
 
     @label.setter
     def label(self, value):
-        self._label = value
-        self._label_frozen = None
+        self.__label = value
+        self.__label_frozen = None
 
     @classmethod
     def extend(cls, node):
         """Convert from dendropy.Node"""
-        node._label_frozen = None
-        node._label = node.label
+        node.__label_frozen = None
+        node.__label = node.label
         node.__class__ = cls
         node.index = None
         node.order = None
@@ -58,17 +58,17 @@ class NodePlus(dendropy.Node):
         del node.rate
         del node.subs
         node.__class__ = dendropy.Node
-        node.label = node._label
-        del node._label
-        del node._label_frozen
+        node.label = node.__label
+        del node.__label
+        del node.__label_frozen
 
     def label_freeze(self):
         """Freeze current label"""
-        self._label_frozen = self.label
+        self.__label_frozen = self.label
 
     def label_unfreeze(self):
         """Forget frozen label"""
-        self._label_frozen = None
+        self.__label_frozen = None
 
     def child_node_reversed_iter(self, filter_fn=None):
         """Reversed order"""
@@ -93,19 +93,19 @@ class TreePlus(dendropy.Tree):
 
     @property
     def label(self):
-        if self._label is None:
+        if self.__label is None:
             return self.nameless
         else:
-            return self._label
+            return self.__label
 
     @label.setter
     def label(self, value):
-        self._label = value
+        self.__label = value
 
     @classmethod
     def extend(cls, tree):
         """Convert from dendropy.Tree"""
-        tree._label = tree.label
+        tree.__label = tree.label
         tree.__class__ = cls
         for node in tree.nodes():
             NodePlus.extend(node)
@@ -116,8 +116,8 @@ class TreePlus(dendropy.Tree):
         for node in tree.nodes():
             NodePlus.strip(node)
         tree.__class__ = dendropy.Tree
-        tree.label = tree._label
-        del tree._label
+        tree.label = tree.__label
+        del tree.__label
 
     def collapse(self, throw=False):
         """

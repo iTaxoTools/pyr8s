@@ -441,6 +441,12 @@ class SyncedWidget(QtWidgets.QWidget):
     """Sync height with other widgets"""
     syncSignal = QtCore.pyqtSignal()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.myhint = 0
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if event.size().height() != event.oldSize().height():
@@ -448,12 +454,24 @@ class SyncedWidget(QtWidgets.QWidget):
 
     def syncHandle(self):
         other = self.sender().height()
-        self.setMinimumHeight(other)
+        # self.setMinimumHeight(other)
+        self.myhint = other
+
+    def minimumSizeHint(self):
+        size = super().minimumSizeHint()
+        height = max(self.myhint, size.height())
+        size.setHeight(height)
+        return size
+
 
     def sync(self, widget):
         self.syncSignal.connect(widget.syncHandle)
         widget.syncSignal.connect(self.syncHandle)
 
 class UToolBar(QtWidgets.QToolBar, SyncedWidget):
+    syncSignal = QtCore.pyqtSignal()
+    pass
+
+class UGroupBox(QtWidgets.QGroupBox, SyncedWidget):
     syncSignal = QtCore.pyqtSignal()
     pass

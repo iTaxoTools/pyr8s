@@ -435,6 +435,7 @@ class RateAnalysisResults(dict):
         return list(self.keys())
 
     def __init__(self, tree):
+        self.flags = None
         self.tree = tree
 
         node = []
@@ -670,6 +671,7 @@ class RateAnalysis:
         """
         Repeat as necessary while relaxing barrier
         """
+        self._flags_algorithm = {'algorithm':'powell'}
         objective = None
         array = self._array
         result = None
@@ -697,6 +699,7 @@ class RateAnalysis:
 
             print('Barrier iterations: ', end ='', flush=True)
 
+            self._flags_algorithm['iterations'] = None
             for b in range(self.param.barrier.max_iterations):
 
                 print('{0}...'.format(b+1), end ='', flush=True)
@@ -718,6 +721,8 @@ class RateAnalysis:
                 tolerance = abs((new_value - kept_value)/new_value)
 
                 if tolerance < self.param.barrier.tolerance:
+                    self._flags_algorithm['iterations'] = b
+                    self._flags_algorithm['limit_broken'] = False
                     break
                 else:
                     kept_value = new_value
@@ -728,6 +733,10 @@ class RateAnalysis:
 
                 if not array.satisfies_constraints():
                     raise RuntimeError('Variables outside constraints, aborting!')
+
+            if self._flags_algorithm['iterations'] is None:
+                self._flags_algorithm['iterations'] = self.param.barrier.max_iterations
+                self._flags_algorithm['limit_broken'] = True
 
         else:
                 result = optimize.minimize(objective, array.variable,
@@ -749,7 +758,7 @@ class RateAnalysis:
         Applies the selected algorithm to the given array
         over multiple guesses, keeping the best
         """
-
+        self._flags = {}
         #! This is a good place to output warnings etc
         #! Also to make_array
         array = self._array
@@ -764,6 +773,7 @@ class RateAnalysis:
         else:
             print('Using random generator seed: {}'.format(seed))
         random.seed(seed)
+        self._flags['seed'] = seed
 
         for g in range(number_of_guesses):
 
@@ -783,20 +793,28 @@ class RateAnalysis:
             if kept_min == new_min:
                 kept_variable = array.variable
                 kept_rate = array.rate
+                kept_flags = self._flags_algorithm
 
         array.variable = kept_variable
         array.time[array.variable_index] = kept_variable
         array.rate = kept_rate
+        self._flags['algorithm'] = kept_flags
         print('\nBest solution:\t {0:>12.4e}\n'.format(kept_min))
-        return kept_variable
 
+    def _flag_results(self):
+        """
+        Set flags as a dictionary and attach to results.
+        """
+        if self._flags['algorithm']['limit_broken']:
+            limit = 'Barrier limit reached, results unreliable.'
+        else:
+            limit = 'All implemented checks passed.'
+        self.results.flags = {'warning':limit}
 
     def run(self):
         """
         This is the only thing the user needs to run.
         """
-        # with open('out.txt', 'w') as f:
-        #     print('BEGIN RUN',file=f)
         if self.tree is None:
             raise ValueError('No tree to optimize.')
         if len(self.tree.nodes()) < 2:
@@ -805,4 +823,5 @@ class RateAnalysis:
         self._optimize()
         tree = self._array.take()
         self.results = RateAnalysisResults(tree)
+        self._flag_results()
         return self.results

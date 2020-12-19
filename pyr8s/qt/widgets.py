@@ -381,12 +381,12 @@ class TabWidget(QtWidgets.QGroupBox):
         }
         """)
 
-class TabWidgetSearch(TabWidget):
-    """Tab-like line edit with search button"""
-    def __init__(self):
+class SearchWidget(QtWidgets.QGroupBox):
+    """Embedded line edit with search button"""
+    def __init__(self, *args, **kwargs):
+        """Add widget to self"""
+        super().__init__(*args, **kwargs)
         self.lineEdit = QtWidgets.QLineEdit()
-        super().__init__(self.lineEdit)
-        self.lineEdit.setFixedWidth(80)
         self.lineEdit.setStyleSheet(
         """
         QLineEdit {
@@ -395,6 +395,30 @@ class TabWidgetSearch(TabWidget):
             padding: 0 4px;
         }
         """)
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(self.lineEdit)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+        self.setStyleSheet(
+        """
+        QGroupBox {
+            border: 1px solid palette(dark);
+            border-radius: 4px;
+            min-width: 2ex;
+            padding: 2px;
+            margin: 8px;
+        }
+        QGroupBox:enabled  {
+            background: palette(Light);
+        }
+        QGroupBox:!enabled  {
+            background: palette(Window);
+        }
+        """)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
+        self.lineEdit.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
 
     def setSearchAction(self, icon, function):
         """Icon is the path to a black solid image"""

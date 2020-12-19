@@ -308,16 +308,9 @@ class Main(QtWidgets.QDialog):
 
         toolbar = widgets.UToolBar('Tools')
         toolbar.addWidget(labelWidget)
+        # toolbar.setStyleSheet('margin-top:4px; padding: 4px;')
 
         self.tabContainerAnalysis = QtWidgets.QTabWidget()
-
-        def search(what):
-            self.treeConstraints.searchSelect(what)
-            self.treeResults.searchSelect(what)
-        self.searchWidget = widgets.TabWidgetSearch()
-        self.searchWidget.setSearchAction(':/icons/search.png', search)
-
-        self.tabContainerAnalysis.setCornerWidget(self.searchWidget)
 
         self.tabConstraints = self.createTabConstraints()
         self.tabParams = self.createTabParams()
@@ -448,12 +441,26 @@ class Main(QtWidgets.QDialog):
         exportButton.setDefaultAction(self.actionExport)
         exportButton.setMenu(exportMenu)
 
+        def search(what):
+            self.treeConstraints.searchSelect(what)
+            self.treeResults.searchSelect(what)
+        self.searchWidget = widgets.SearchWidget()
+        # self.searchWidget.setAlignment(QtCore.Qt.AlignLeft)
+        self.searchWidget.setSearchAction(':/icons/search.png', search)
+        searchLayout = QtWidgets.QHBoxLayout()
+        searchLayout.addStretch()
+        searchLayout.addWidget(self.searchWidget, 1)
+        searchLayout.setContentsMargins(1, 1, 1, 1)
+        searchContainer = QtWidgets.QWidget()
+        searchContainer.setLayout(searchLayout)
+
         toolbar = widgets.UToolBar('Tools')
         toolbar.addAction(self.actionOpen)
         toolbar.addAction(self.actionSave)
         toolbar.addWidget(exportButton)
+        toolbar.addWidget(searchContainer)
         toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        #toolbar.setStyleSheet("background-color:red;")
+        toolbar.setStyleSheet('padding-top: 8px;')
 
         self.tabContainerResults = QtWidgets.QTabWidget()
 

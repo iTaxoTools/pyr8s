@@ -123,6 +123,7 @@ class Array:
         _tree.calc_subs(self._multiplier, doround)
         _tree.collapse()
         # _tree.print_plot()
+        _tree.label_freeze()
         _tree.index()
         _tree.order()
         # _tree.print_plot()
@@ -454,12 +455,12 @@ class RateAnalysisResults(dict):
         for node in self.chronogram.preorder_node_iter_noroot():
             node.edge_length = node.parent_node.age - node.age
         self.chronogram.seed_node.edge_length = None
-        extensions.strip(self.chronogram)
+        extensions.TreePlus.strip(self.chronogram)
         # ratogram: branch length correspond to absolute rates of substitutions
         self.ratogram = tree.clone(depth=1)
         for node in self.ratogram.preorder_node_iter():
             node.edge_length = node.rate
-        extensions.strip(self.ratogram)
+        extensions.TreePlus.strip(self.ratogram)
 
     def print(self, columns=None):
         if columns is None:
@@ -522,7 +523,7 @@ class RateAnalysis:
     @tree.setter
     def tree(self, phylogram):
         self._tree = phylogram.clone(depth=1)
-        extensions.extend(self._tree)
+        extensions.TreePlus.extend(self._tree)
         self._tree.is_rooted = True
         self._tree.ground()
         self._tree.index()

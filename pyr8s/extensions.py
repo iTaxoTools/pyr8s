@@ -16,6 +16,8 @@ class NodePlus(dendropy.Node):
 
     @property
     def label(self):
+        if self._label_frozen is not None:
+            return self._label_frozen
         try:
             return self.taxon.label
         except:
@@ -29,10 +31,12 @@ class NodePlus(dendropy.Node):
     @label.setter
     def label(self, value):
         self._label = value
+        self._label_frozen = None
 
     @classmethod
     def extend(cls, node):
         """Convert from dendropy.Node"""
+        node._label_frozen = None
         node._label = node.label
         node.__class__ = cls
         node.index = None
@@ -56,6 +60,15 @@ class NodePlus(dendropy.Node):
         node.__class__ = dendropy.Node
         node.label = node._label
         del node._label
+        del node._label_frozen
+
+    def label_freeze(self):
+        """Freeze current label"""
+        self._label_frozen = self.label
+
+    def label_unfreeze(self):
+        """Forget frozen label"""
+        self._label_frozen = None
 
     def child_node_reversed_iter(self, filter_fn=None):
         """Reversed order"""
@@ -75,6 +88,36 @@ class NodePlus(dendropy.Node):
 
 
 class TreePlus(dendropy.Tree):
+
+    nameless = 'Nameless'
+
+    @property
+    def label(self):
+        if self._label is None:
+            return self.nameless
+        else:
+            return self._label
+
+    @label.setter
+    def label(self, value):
+        self._label = value
+
+    @classmethod
+    def extend(cls, tree):
+        """Convert from dendropy.Tree"""
+        tree._label = tree.label
+        tree.__class__ = cls
+        for node in tree.nodes():
+            NodePlus.extend(node)
+
+    @classmethod
+    def strip(cls, tree):
+        """Revert to dendropy.Tree"""
+        for node in tree.nodes():
+            NodePlus.strip(node)
+        tree.__class__ = dendropy.Tree
+        tree.label = tree._label
+        del tree._label
 
     def collapse(self, throw=False):
         """
@@ -238,22 +281,7 @@ class TreePlus(dendropy.Tree):
                 stack.append((node, True))
                 stack.extend([(n, False) for n in reversed(node._child_nodes)])
 
-
-##############################################################################
-### Extension
-
-def extend(tree):
-    """
-    Extend given tree with node attributes and tree functions
-    """
-    tree.__class__ = TreePlus
-    for node in tree.nodes():
-        NodePlus.extend(node)
-
-def strip(tree):
-    """
-    Remove extensions, reverting to pure dendropy.Tree
-    """
-    for node in tree.nodes():
-        NodePlus.strip(node)
-    tree.__class__ = dendropy.Tree
+    def label_freeze(self):
+        """Freeze labels for all nodes"""
+        for node in self.preorder_node_iter():
+            node.label_freeze()

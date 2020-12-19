@@ -163,8 +163,9 @@ class Main(QtWidgets.QDialog):
             fileInfo = QtCore.QFileInfo(event.kwargs['file'])
             labelText = fileInfo.baseName()
             treeName = self.analysis.tree.label
-            if len(treeName) > 0 and treeName != labelText:
-                labelText += ': ' + treeName
+            if treeName is not None:
+                if len(treeName) > 0 and treeName != labelText:
+                    labelText += ': ' + treeName
             self.labelTree.setText(labelText)
             self.treeResults.clear()
             self.treeConstraints.clear()
@@ -565,7 +566,7 @@ class Main(QtWidgets.QDialog):
         """Pickle and save current analysis"""
         (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
             'pyr8s - Save Analysis',
-            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '.r8s',
+            QtCore.QDir.currentPath() + '/' + self.analysis.tree.label + '.r8s',
             'Rates Analysis (*.r8s)')
         if len(fileName) == 0:
             return
@@ -584,7 +585,7 @@ class Main(QtWidgets.QDialog):
         """Called by toolbar menu button"""
         (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
             'pyr8s - Export Chronogram',
-            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '_chronogram.nwk',
+            QtCore.QDir.currentPath() + '/' + self.analysis.tree.label + '_chronogram.nwk',
             'Newick (*.nwk);;  All files (*.*)')
         if len(fileName) == 0:
             return
@@ -602,7 +603,7 @@ class Main(QtWidgets.QDialog):
         """Called by toolbar menu button"""
         (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
             'pyr8s - Export Ratogram',
-            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '_ratogram.nwk',
+            QtCore.QDir.currentPath() + '/' + self.analysis.tree.label + '_ratogram.nwk',
             'Newick (*.nwk);;  All files (*.*)')
         if len(fileName) == 0:
             return
@@ -620,7 +621,7 @@ class Main(QtWidgets.QDialog):
         """Called by toolbar menu button"""
         (fileName, _) = QtWidgets.QFileDialog.getSaveFileName(self,
             'pyr8s - Export Table',
-            QtCore.QDir.homePath() + '/' + self.analysis.tree.label + '_rates.tsv',
+            QtCore.QDir.currentPath() + '/' + self.analysis.tree.label + '_rates.tsv',
             'Tab Separated Values (*.tsv);;  All files (*.*)')
         if len(fileName) == 0:
             return

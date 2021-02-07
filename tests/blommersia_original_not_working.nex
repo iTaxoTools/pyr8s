@@ -1,0 +1,100 @@
+#NEXUS
+
+[File saved Sat Nov 07 15:59:16 2020]
+
+BEGIN TAXA;
+	DIMENSIONS NTAX = 42;
+	TAXLABELS
+		'Blommersia_sp-nov_3208'
+		'Blommersia_sp-nov_3201'
+		'Blommersia_sp-nov_677'
+		'Blommersia_sp-nov_654'
+		'Blommersia_sp-nov_656'
+		'Blommersia_sp-nov_678'
+		'Blommersia_sp-nov_653'
+		'Blommersia_sp-nov_3218'
+		'Blommersia_sp-nov_3206'
+		'Blommersia_sp-nov_3207'
+		AY8481051_Blommersia_wittei_voucher_2002_876
+		AY848111_Blommersia_wittei_2002_1241_NosyBe
+		AY848113_Blommersia_wittei_FA_m61_Sambava
+		AY848030_Blommersia_sp_Ca5_2002_Isalo
+		Blommersia_sp_Ca5_2002_MakiraWest_ZCMV11529
+		'AY8480171_Blommersia_aff_wittei_MV-2005_voucher_ZSM_246'
+		'AY8480221_Blommersia_aff_sarotra_MV-2005_voucher_2002_A5'
+		'AY8480781_Blommersia_kely_voucher_2002-58'
+		GU9831071_Blommersia_sarotra
+		AY8480611_Blommersia_cf_grandisonae_voucher_ZCMV_465
+		'FJ5591191_Blommersia_sp_10_MV-2009_voucher_MVTIS_AC506_5672'
+		GU9831101_Blommersia_blommersae
+		'HM3645651_Blommersia_aff_grandisonae_black_voucher_MSNT-ITA-Torino_FAZC13701'
+		FJ5591151_Blommersia_grandisonae_voucher_ZFMK_66669
+		GU9831111_Blommersia_angolafa_voucher_MRSN_A6650_2
+		'FJ5591181_Blommersia_sp_7_MV-2009_voucher_MVTIS_AC805_13613'
+		GU9847361_Blommersia_dejongi_voucher_ZCMV_804
+		'HM3645591_Blommersia_sp_3_MV-2009_voucher_MRSNA6305'
+		FJ5591171_Blommersia_aff_blommersae_Toamasina_voucher_ZCMV_3233
+		JX1017241_Blommersia_aff_blommersae_MRSN_A6865
+		HM6318771_Blommersia_aff_blommersae_Vatomandry_voucher_ZCMV_8943
+		HM6318781_Blommersia_aff_blommersae_Vatomandry_voucher_ZCMV_8942
+		FJ5591161_Blommersia_aff_blommersae_Nosy_Boraha_voucher_ZCMV_3232
+		GU9847381_Blommersia_galani_voucher_ZCMV_3227
+		'JF3143291_Blommersia_variabilis_voucher_ZSM_237-2010'
+		AY8480711_Blommersia_domerguei_voucher_ZCMV_266
+		AY8480511_Blommersia_blommersae_voucher_ZCMV_298
+		JX5699721_Blommersia_blommersae_voucher_MP_76
+		JX5699911_Blommersia_blommersae_voucher_ZCMV_8757
+		'AY8480581_Blommersia_cf_blommersae_MV-2005_voucher_2001_1068'
+		AY8480601_Blommersia_blommersae_voucher_ZCMV_497
+		'Boophis_sp-nov_3202'
+		;
+ENDBLOCK;
+
+
+BEGIN TREES;
+	TRANSLATE
+		1	'Blommersia_sp-nov_3208',
+		2	'Blommersia_sp-nov_3201',
+		3	'Blommersia_sp-nov_677',
+		4	'Blommersia_sp-nov_654',
+		5	'Blommersia_sp-nov_656',
+		6	'Blommersia_sp-nov_678',
+		7	'Blommersia_sp-nov_653',
+		8	'Blommersia_sp-nov_3218',
+		9	'Blommersia_sp-nov_3206',
+		10	'Blommersia_sp-nov_3207',
+		11	AY8481051_Blommersia_wittei_voucher_2002_876,
+		12	AY848111_Blommersia_wittei_2002_1241_NosyBe,
+		13	AY848113_Blommersia_wittei_FA_m61_Sambava,
+		14	AY848030_Blommersia_sp_Ca5_2002_Isalo,
+		15	Blommersia_sp_Ca5_2002_MakiraWest_ZCMV11529,
+		16	'AY8480171_Blommersia_aff_wittei_MV-2005_voucher_ZSM_246',
+		17	'AY8480221_Blommersia_aff_sarotra_MV-2005_voucher_2002_A5',
+		18	'AY8480781_Blommersia_kely_voucher_2002-58',
+		19	GU9831071_Blommersia_sarotra,
+		20	AY8480611_Blommersia_cf_grandisonae_voucher_ZCMV_465,
+		21	'FJ5591191_Blommersia_sp_10_MV-2009_voucher_MVTIS_AC506_5672',
+		22	GU9831101_Blommersia_blommersae,
+		23	'HM3645651_Blommersia_aff_grandisonae_black_voucher_MSNT-ITA-Torino_FAZC13701',
+		24	FJ5591151_Blommersia_grandisonae_voucher_ZFMK_66669,
+		25	GU9831111_Blommersia_angolafa_voucher_MRSN_A6650_2,
+		26	'FJ5591181_Blommersia_sp_7_MV-2009_voucher_MVTIS_AC805_13613',
+		27	GU9847361_Blommersia_dejongi_voucher_ZCMV_804,
+		28	'HM3645591_Blommersia_sp_3_MV-2009_voucher_MRSNA6305',
+		29	FJ5591171_Blommersia_aff_blommersae_Toamasina_voucher_ZCMV_3233,
+		30	JX1017241_Blommersia_aff_blommersae_MRSN_A6865,
+		31	HM6318771_Blommersia_aff_blommersae_Vatomandry_voucher_ZCMV_8943,
+		32	HM6318781_Blommersia_aff_blommersae_Vatomandry_voucher_ZCMV_8942,
+		33	FJ5591161_Blommersia_aff_blommersae_Nosy_Boraha_voucher_ZCMV_3232,
+		34	GU9847381_Blommersia_galani_voucher_ZCMV_3227,
+		35	'JF3143291_Blommersia_variabilis_voucher_ZSM_237-2010',
+		36	AY8480711_Blommersia_domerguei_voucher_ZCMV_266,
+		37	AY8480511_Blommersia_blommersae_voucher_ZCMV_298,
+		38	JX5699721_Blommersia_blommersae_voucher_MP_76,
+		39	JX5699911_Blommersia_blommersae_voucher_ZCMV_8757,
+		40	'AY8480581_Blommersia_cf_blommersae_MV-2005_voucher_2001_1068',
+		41	AY8480601_Blommersia_blommersae_voucher_ZCMV_497,
+		42	'Boophis_sp-nov_3202'
+		;
+	UTREE * PHYLIP_1= (42:0.135994,(41:0.033053,((36:0.038956,(((((((10:0.005188,(9:0.002504,(((1:0.002536,2:0.002510):0.002659,(3:0.002524,4:0.002513):0.002479):0.002959,((5:0.006023,6:0.002515):0.002446,(7:0.002526,8:0.002527):0.002576):0.002596):0.002561):0.005351):0.055923,(13:0.022916,(11:0.002601,12:0.005969):0.014899):0.049247):0.031330,(16:0.005703,(14:0.002508,15:0.002848):0.002970):0.050366):0.046129,((22:0.151198,((19:0.065116,(17:0.006164,18:0.052574):0.025216):0.043949,(20:0.053482,21:0.069358):0.014908):0.011211):0.011768,((23:0.025643,24:0.045174):0.022776,(25:0.002835,26:0.005255):0.051351):0.012290):0.037544):0.048210,(30:0.052546,(29:0.008752,(27:0.002638,28:0.002458):0.005963):0.005043):0.019937):0.020118,(31:0.010533,32:0.005650):0.046511):0.022335,(35:0.081827,(33:0.002466,34:0.002693):0.043443):0.014479):0.020885):0.016985,((37:0.006996,38:0.018132):0.022204,(39:0.002625,40:0.002467):0.033228):0.006348):0.021904):0.135994);
+ENDBLOCK;

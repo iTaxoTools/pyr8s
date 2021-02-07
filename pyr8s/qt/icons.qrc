@@ -1,6 +1,7 @@
 <!DOCTYPE RCC>
 <RCC version="1.0">
   <qresource>
+    <file>icons/itaxotools-micrologo.png</file>
     <file>icons/branch-open.png</file>
     <file>icons/branch-closed.png</file>
     <file>icons/branch-end.png</file>

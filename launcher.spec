@@ -4,7 +4,6 @@ block_cipher = None
 
 # Could also use pyinstaller's Entrypoint()
 a = Analysis(['launcher.py'],
-             pathex=['C:\\Users\\Lunet\\Desktop\\pyr8s'],
              binaries=[],
              datas=[('pyr8s', 'pyr8s')],
              hiddenimports=[],
@@ -23,11 +22,12 @@ exe = EXE(pyz,
           a.zipfiles,
           a.datas,
           [],
-          name='launcher',
+          name='pyr8s',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
           upx_exclude=[],
           runtime_tmpdir=None,
-          console=False )
+          console=False,
+          icon='pyr8s.ico' )

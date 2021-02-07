@@ -1,4 +1,6 @@
 include README.md
 include LICENSE.rst
+include setup.py
+
 include pyr8s/params.json
-include tests/*
+# include tests/*

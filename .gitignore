@@ -1,5 +1,13 @@
-__pycache__
-pyr8s.egg-info
-out.txt
-dist
-build
+# general things to ignore
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+*.py[cod]
+__pycache__/
+*.so
+*~
+
+# qt auto-compiled resources
+pyr8s/qt/icons.py

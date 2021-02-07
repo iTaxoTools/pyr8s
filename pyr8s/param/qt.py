@@ -39,7 +39,7 @@ class ParamList(QtWidgets.QComboBox, ParamField):
         for i, l in enumerate(field.data['labels']):
             self.addItem(l, field.data['items'][i])
 
-        # self.set()
+        self.currentIndexChanged.connect(parent.parent.onChange)
 
     def draw(self):
         self.setSizePolicy(
@@ -81,6 +81,7 @@ class ParamBool(QtWidgets.QCheckBox, ParamField):
 
     def __init__(self, parent, key, field, validator=None):
         super().__init__(parent, key, field)
+        self.stateChanged.connect(parent.parent.onChange)
 
     def draw(self):
         self.setText(self.field.label)
@@ -104,9 +105,9 @@ class ParamEntry(QtWidgets.QLineEdit, ParamField):
 
     def __init__(self, parent, key, field, validator=None):
         super().__init__(parent, key, field)
-
         if validator is not None:
             self.setValidator(validator(self))
+        self.textChanged.connect(parent.parent.onChange)
 
 
     def draw(self):
@@ -186,6 +187,7 @@ class ParamCategory(QtWidgets.QGroupBox):
 
 class ParamContainer(QtWidgets.QWidget):
     """All Param widgets go here"""
+    paramChanged = QtCore.pyqtSignal(object)
     def __init__(self, param=None, doc=True, reset=True):
         super().__init__()
         self.categories = []
@@ -300,3 +302,8 @@ class ParamContainer(QtWidgets.QWidget):
         except ValueError:
             raise ValueError('Invalid value for parameter: ' +
                 category.category.label + ': ' + field.field.label)
+
+    def onChange(self):
+        """Emit signal"""
+        self.paramChanged.emit(self.sender())
+        pass

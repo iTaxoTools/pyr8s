@@ -30,7 +30,9 @@ class Main(QtWidgets.QDialog):
         self.setWindowTitle("pyr8s")
         self.resize(854,480)
         self.machine = None
+        self.skin()
         self.draw()
+        self.act()
         self.stateInit()
 
         if init is not None:
@@ -93,18 +95,19 @@ class Main(QtWidgets.QDialog):
         idle_none = QtCore.QState(idle)
         idle_open = QtCore.QState(idle)
         idle_done = QtCore.QState(idle)
+        idle_updated = QtCore.QState(idle)
         idle_last = QtCore.QHistoryState(idle)
         idle.setInitialState(idle_none)
         running = QtCore.QState()
 
         idle.setObjectName('STATE_IDLE')
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
-        idle.assignProperty(self.cancelButton, 'visible', False)
-        idle.assignProperty(self.runButton, 'visible', True)
+        idle.assignProperty(self.actionStop, 'visible', False)
+        idle.assignProperty(self.actionRun, 'visible', True)
         def onEntry(event):
             self.treeConstraints.setItemsDisabled(False)
             self.treeResults.setItemsDisabled(False)
-            self.treeConstraints.setFocus()
+            self.setFocus()
         idle.onEntry = onEntry
 
         idle_none.setObjectName('STATE_IDLE_NONE')
@@ -114,7 +117,7 @@ class Main(QtWidgets.QDialog):
         idle_none.assignProperty(self.tabResults, 'enabled', False)
         idle_none.assignProperty(self.tabDiagram, 'enabled', False)
         idle_none.assignProperty(self.tabTable, 'enabled', False)
-        idle_none.assignProperty(self.runButton, 'enabled', False)
+        idle_none.assignProperty(self.actionRun, 'enabled', False)
         idle_none.assignProperty(self.actionSave, 'enabled', False)
         idle_none.assignProperty(self.actionExport, 'enabled', False)
         idle_none.assignProperty(self.barFlags, 'enabled', False)
@@ -129,15 +132,16 @@ class Main(QtWidgets.QDialog):
         idle_open.assignProperty(self.tabResults, 'enabled', False)
         idle_open.assignProperty(self.tabDiagram, 'enabled', False)
         idle_open.assignProperty(self.tabTable, 'enabled', False)
-        idle_open.assignProperty(self.runButton, 'enabled', True)
+        idle_open.assignProperty(self.actionRun, 'enabled', True)
         idle_open.assignProperty(self.actionSave, 'enabled', True)
         idle_open.assignProperty(self.actionExport, 'enabled', False)
-        idle_open.assignProperty(self.barFlags, 'enabled', False)
-        idle_open.assignProperty(self.labelFlagInfo, 'text', 'Nothing to display.')
+        idle_open.assignProperty(self.barFlags, 'enabled', True)
+        idle_open.assignProperty(self.labelFlagInfo, 'text', 'Ready to run rate analysis.')
         idle_open.assignProperty(self.labelFlagInfo, 'visible', True)
         idle_open.assignProperty(self.labelFlagWarn, 'visible', False)
         def onEntry(event):
             self.tabContainerAnalysis.setCurrentIndex(0)
+            self.setFocus()
         idle_open.onEntry = onEntry
 
         idle_done.setObjectName('STATE_IDLE_DONE')
@@ -147,7 +151,7 @@ class Main(QtWidgets.QDialog):
         idle_done.assignProperty(self.tabResults, 'enabled', True)
         idle_done.assignProperty(self.tabDiagram, 'enabled', True)
         idle_done.assignProperty(self.tabTable, 'enabled', True)
-        idle_done.assignProperty(self.runButton, 'enabled', True)
+        idle_done.assignProperty(self.actionRun, 'enabled', True)
         idle_done.assignProperty(self.actionSave, 'enabled', True)
         idle_done.assignProperty(self.actionExport, 'enabled', True)
         idle_done.assignProperty(self.barFlags, 'enabled', True)
@@ -160,8 +164,8 @@ class Main(QtWidgets.QDialog):
         idle_done.onEntry = onEntry
 
         running.setObjectName('STATE_RUNNING')
-        running.assignProperty(self.runButton, 'visible', False)
-        running.assignProperty(self.cancelButton, 'visible', True)
+        running.assignProperty(self.actionRun, 'visible', False)
+        running.assignProperty(self.actionStop, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
         running.assignProperty(self.barFlags, 'enabled', True)
         running.assignProperty(self.labelFlagInfo, 'text', 'Please wait...')
@@ -170,8 +174,13 @@ class Main(QtWidgets.QDialog):
             self.tabContainerResults.setCurrentIndex(1)
             self.treeConstraints.setItemsDisabled(True)
             self.treeResults.setItemsDisabled(True)
-            self.cancelButton.setFocus(True)
         running.onEntry = onEntry
+
+        idle_updated.assignProperty(self.barFlags, 'enabled', True)
+        idle_updated.assignProperty(self.labelFlagInfo, 'visible', False)
+        idle_updated.assignProperty(self.labelFlagWarn, 'visible', True)
+        idle_updated.assignProperty(self.labelFlagWarn, 'text',
+            'Parameters have changed, re-run analysis to update results.')
 
         transition = utility.NamedTransition('OPEN')
         def onTransition(event):
@@ -229,6 +238,10 @@ class Main(QtWidgets.QDialog):
         transition.setTargetState(idle_done)
         running.addTransition(transition)
 
+        transition = utility.NamedTransition('UPDATE')
+        transition.setTargetState(idle_updated)
+        idle_done.addTransition(transition)
+
         transition = utility.NamedTransition('FAIL')
         def onTransition(event):
             self.tabContainerResults.setCurrentIndex(1)
@@ -256,12 +269,170 @@ class Main(QtWidgets.QDialog):
                 return True
         return QtCore.QObject.eventFilter(self, source, event)
 
+    def skin(self):
+        """Configure widget appearance"""
+        color = {
+            'white':  '#ffffff',
+            'light':  '#eff1ee',
+            'beige':  '#e1e0de',
+            'gray':   '#abaaa8',
+            'iron':   '#8b8d8a',
+            'black':  '#454241',
+            'red':    '#ee4e5f',
+            'pink':   '#eb9597',
+            'orange': '#eb6a4a',
+            'brown':  '#655c5d',
+            'green':  '#00ff00',
+            }
+        # using green for debugging
+        palette = QtGui.QGuiApplication.palette()
+        scheme = {
+            QtGui.QPalette.Active: {
+                QtGui.QPalette.Window: 'light',
+                QtGui.QPalette.WindowText: 'black',
+                QtGui.QPalette.Base: 'white',
+                QtGui.QPalette.AlternateBase: 'light',
+                QtGui.QPalette.PlaceholderText: 'brown',
+                QtGui.QPalette.Text: 'black',
+                QtGui.QPalette.Button: 'light',
+                QtGui.QPalette.ButtonText: 'black',
+                QtGui.QPalette.Light: 'white',
+                QtGui.QPalette.Midlight: 'beige',
+                QtGui.QPalette.Mid: 'gray',
+                QtGui.QPalette.Dark: 'iron',
+                QtGui.QPalette.Shadow: 'brown',
+                QtGui.QPalette.Highlight: 'red',
+                QtGui.QPalette.HighlightedText: 'white',
+                # These work on linux only?
+                QtGui.QPalette.ToolTipBase: 'beige',
+                QtGui.QPalette.ToolTipText: 'brown',
+                # These seem bugged anyway
+                QtGui.QPalette.BrightText: 'green',
+                QtGui.QPalette.Link: 'green',
+                QtGui.QPalette.LinkVisited: 'green',
+                },
+            QtGui.QPalette.Disabled: {
+                QtGui.QPalette.Window: 'light',
+                QtGui.QPalette.WindowText: 'iron',
+                QtGui.QPalette.Base: 'white',
+                QtGui.QPalette.AlternateBase: 'light',
+                QtGui.QPalette.PlaceholderText: 'green',
+                QtGui.QPalette.Text: 'iron',
+                QtGui.QPalette.Button: 'light',
+                QtGui.QPalette.ButtonText: 'gray',
+                QtGui.QPalette.Light: 'white',
+                QtGui.QPalette.Midlight: 'beige',
+                QtGui.QPalette.Mid: 'gray',
+                QtGui.QPalette.Dark: 'iron',
+                QtGui.QPalette.Shadow: 'brown',
+                QtGui.QPalette.Highlight: 'pink',
+                QtGui.QPalette.HighlightedText: 'white',
+                # These seem bugged anyway
+                QtGui.QPalette.BrightText: 'green',
+                QtGui.QPalette.ToolTipBase: 'green',
+                QtGui.QPalette.ToolTipText: 'green',
+                QtGui.QPalette.Link: 'green',
+                QtGui.QPalette.LinkVisited: 'green',
+                },
+            }
+        scheme[QtGui.QPalette.Inactive] = scheme[QtGui.QPalette.Active]
+        for group in scheme:
+            for role in scheme[group]:
+                palette.setColor(group, role,
+                    QtGui.QColor(color[scheme[group][role]]))
+        QtGui.QGuiApplication.setPalette(palette)
+
+        self.colormap = {
+            widgets.VectorIcon.Normal: {
+                '#000000': color['black'],
+                '#ff0000': color['red'],
+                },
+            widgets.VectorIcon.Disabled: {
+                '#000000': color['gray'],
+                '#ff0000': color['orange'],
+                },
+            }
+        self.colormap_icon =  {
+            '#000000': color['black'],
+            '#ff0000': color['red'],
+            '#ffa500': color['pink'],
+            }
+        self.colormap_icon_light =  {
+            '#000000': color['iron'],
+            '#ff0000': color['red'],
+            '#ffa500': color['pink'],
+            }
+        self.colormap_graph =  {
+            'abgd': {
+                'black':   color['black'],
+                '#D82424': color['red'],
+                '#EBE448': color['gray'],
+                },
+            'disthist': {
+                'black':   color['black'],
+                '#EBE448': color['beige'],
+                },
+            'rank': {
+                'black':   color['black'],
+                '#D82424': color['red'],
+                },
+            }
+
     def draw(self):
         """Draw all widgets"""
-        self.leftPane, self.barLabel = self.createPaneEdit()
-        self.rightPane, self.barButtons  = self.createPaneResults()
-        self.barButtons.sync(self.barLabel)
-        self.barRun.sync(self.barFlags)
+
+        self.header = widgets.Header()
+        self.header.logoTool = QtGui.QPixmap(':/icons/pyr8s-logo.png').scaled(50,50)
+        self.header.logoProject = QtGui.QPixmap(':/icons/itaxotools-micrologo.png')
+        self.header.description = (
+            'Computing timetrees' + '\n'
+            'using non-parametric rate-smoothing'
+            )
+        self.header.citation = (
+            'Pyr8s code by Stefanos Patmanidis' + '\n'
+            'Based on r8s written by Mike Sanderson'
+        )
+
+        self.line = widgets.Subheader()
+
+        self.line.icon = QtWidgets.QLabel()
+        self.line.icon.setPixmap(widgets.VectorPixmap(':/icons/arrow-right.svg',
+            colormap=self.colormap_icon_light))
+        self.line.icon.setStyleSheet('border-style: none;')
+
+        self.labelTree = QtWidgets.QLabel("Open a file to begin")
+        self.labelTree.setStyleSheet("""
+            QLabel {
+                color: palette(Shadow);
+                font-size: 14px;
+                letter-spacing: 1px;
+                padding: 2px 4px 2px 4px;
+                border: none;
+                }
+            """)
+        self.labelTree.setAlignment(QtCore.Qt.AlignCenter)
+        self.labelTree.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+
+        def search(what):
+            self.treeConstraints.searchSelect(what)
+            self.treeResults.searchSelect(what)
+        self.searchWidget = widgets.SearchWidget()
+        self.searchWidget.setSearchAction(':/icons/search.png', search)
+        layout = QtWidgets.QHBoxLayout()
+        layout.addSpacing(4)
+        layout.addWidget(self.line.icon)
+        layout.addSpacing(2)
+        layout.addWidget(self.labelTree)
+        layout.addSpacing(14)
+        layout.addStretch(1)
+        layout.addWidget(self.searchWidget)
+        layout.addSpacing(8)
+        layout.setContentsMargins(4, 4, 4, 4)
+        self.line.setLayout(layout)
+
+        self.leftPane = self.createPaneEdit()
+        self.rightPane  = self.createPaneResults()
 
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.splitter.addWidget(self.leftPane)
@@ -272,10 +443,89 @@ class Main(QtWidgets.QDialog):
         self.splitter.setCollapsible(1,False)
         self.splitter.setStyleSheet("QSplitter::handle { height: 8px; }")
 
-        layout = QtWidgets.QHBoxLayout(self)
-        layout.addWidget(self.splitter)
+        layoutFlags = QtWidgets.QHBoxLayout()
+        layoutFlags.addWidget(self.labelFlagInfo)
+        layoutFlags.addWidget(self.labelFlagWarn)
+        self.barFlags = QtWidgets.QGroupBox()
+        self.barFlags.setObjectName('barFlags')
+        self.barFlags.setLayout(layoutFlags)
+        self.barFlags.setStyleSheet("""
+            QGroupBox {
+                color: palette(Shadow);
+                background: palette(Window);
+                border: 1px solid palette(Mid);
+                padding: 5px 10px 5px 10px;
+                }
+            QGroupBox:disabled {
+                color: palette(Mid);
+                background: palette(Window);
+                border: 1px solid palette(Mid);
+                }
+            """)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.header, 0)
+        layout.addWidget(self.line, 0)
+        layout.addSpacing(8)
+        layout.addWidget(self.splitter, 1)
+        layout.addSpacing(8)
+        layout.addWidget(self.barFlags, 0)
+        layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
+
+    def act(self):
+        """Populate dialog actions"""
+
+        self.actionOpen = QtWidgets.QAction('&Open', self)
+        self.actionOpen.setShortcut(QtGui.QKeySequence.Open)
+        self.actionOpen.setStatusTip('Open an existing file')
+        self.actionOpen.triggered.connect(self.handleOpen)
+
+        self.actionSave = QtWidgets.QAction('&Save', self)
+        self.actionSave.setShortcut(QtGui.QKeySequence.Save)
+        self.actionSave.setStatusTip('Save analysis state')
+        self.actionSave.triggered.connect(self.handleSaveAnalysis)
+
+        self.actionRun = QtWidgets.QAction('&Run', self)
+        self.actionRun.setShortcut('Ctrl+R')
+        self.actionRun.setStatusTip('Run rate analysis')
+        self.actionRun.triggered.connect(self.handleRun)
+
+        self.actionStop = QtWidgets.QAction('&Stop', self)
+        self.actionStop.setStatusTip('Cancel analysis')
+        self.actionStop.triggered.connect(self.handleCancel)
+
+        self.actionExport = QtWidgets.QAction('&Export', self)
+        self.actionExport.setStatusTip('Export results')
+
+        self.actionExportChrono = QtWidgets.QAction('&Chronogram', self)
+        self.actionExportChrono.setShortcut('Ctrl+E')
+        self.actionExportChrono.setStatusTip('Export chronogram (ultrametric)')
+        self.actionExportChrono.triggered.connect(self.handleExportChrono)
+
+        self.actionExportRato = QtWidgets.QAction('&Ratogram', self)
+        self.actionExportRato.setStatusTip('Export ratogram')
+        self.actionExportRato.triggered.connect(self.handleExportRato)
+
+        self.actionExportTable = QtWidgets.QAction('&Table', self)
+        self.actionExportTable.setStatusTip('Export ages and rates table')
+        self.actionExportTable.triggered.connect(self.handleExportTable)
+
+        exportButton = QtWidgets.QToolButton(self)
+        exportButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
+        exportMenu = QtWidgets.QMenu(exportButton)
+        exportMenu.addAction(self.actionExportChrono)
+        exportMenu.addAction(self.actionExportRato)
+        exportMenu.addAction(self.actionExportTable)
+        exportButton.setDefaultAction(self.actionExport)
+        exportButton.setMenu(exportMenu)
+
+        self.header.toolbar.addAction(self.actionOpen)
+        self.header.toolbar.addAction(self.actionSave)
+        self.header.toolbar.addWidget(exportButton)
+        self.header.toolbar.addAction(self.actionRun)
+        self.header.toolbar.addAction(self.actionStop)
 
     def createTabConstraints(self):
         tab = QtWidgets.QWidget()
@@ -294,6 +544,10 @@ class Main(QtWidgets.QDialog):
         headerItem.setTextAlignment(3, QtCore.Qt.AlignCenter)
         self.treeConstraints.installEventFilter(self)
 
+        #! BUGGED, should be fixed and restored
+        # self.treeConstraints.itemChanged.connect(
+            # lambda i, c: self.machine.postEvent(utility.NamedEvent('UPDATE')))
+
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
         layout.addWidget(self.treeConstraints)
@@ -304,6 +558,8 @@ class Main(QtWidgets.QDialog):
     def createTabParams(self):
         tab = QtWidgets.QWidget()
         self.paramWidget = param_qt.ParamContainer(self.analysis.param)
+        self.paramWidget.paramChanged.connect(
+            lambda e: self.machine.postEvent(utility.NamedEvent('UPDATE')))
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -315,51 +571,19 @@ class Main(QtWidgets.QDialog):
     def createPaneEdit(self):
         pane = QtWidgets.QWidget()
 
-        label = QtWidgets.QLabel("Time & Rate Divergence Analysis")
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setSizePolicy(
-            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
-        labelLayout = QtWidgets.QHBoxLayout()
-        labelLayout.addWidget(label, 1)
-        labelLayout.setContentsMargins(1, 1, 1, 1)
-        labelWidget = QtWidgets.QWidget()
-        labelWidget.setLayout(labelLayout)
-        self.labelTree = label
-
-        toolbar = widgets.UToolBar('Tools')
-        toolbar.addWidget(labelWidget)
-        # toolbar.setStyleSheet('margin-top:4px; padding: 4px;')
-
         self.tabContainerAnalysis = QtWidgets.QTabWidget()
 
         self.tabConstraints = self.createTabConstraints()
         self.tabParams = self.createTabParams()
         self.tabContainerAnalysis.addTab(self.tabConstraints, "&Constraints")
-        self.tabContainerAnalysis.addTab(self.tabParams, "&Params")
-
-        self.runButton = QtWidgets.QPushButton('Run')
-        self.runButton.clicked.connect(self.handleRun)
-        self.runButton.setAutoDefault(False)
-        self.cancelButton = QtWidgets.QPushButton('Cancel')
-        self.cancelButton.clicked.connect(self.handleCancel)
-        self.cancelButton.setAutoDefault(True)
-
-        layoutRun = QtWidgets.QVBoxLayout()
-        layoutRun.addWidget(self.runButton)
-        layoutRun.addWidget(self.cancelButton)
-        layoutRun.setContentsMargins(10, 0, 10, 0)
-        self.barRun = widgets.UGroupBox()
-        self.barRun.setObjectName('barRun')
-        self.barRun.setLayout(layoutRun)
+        self.tabContainerAnalysis.addTab(self.tabParams, "&Parameters")
 
         layout = QtWidgets.QVBoxLayout()
-        layout.setMenuBar(toolbar)
         layout.addWidget(self.tabContainerAnalysis)
-        layout.addWidget(self.barRun)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
-        return pane, toolbar
+        return pane
 
     def createTabResults(self):
         tab = QtWidgets.QWidget()
@@ -418,62 +642,6 @@ class Main(QtWidgets.QDialog):
     def createPaneResults(self):
         pane = QtWidgets.QWidget()
 
-        self.actionSave = QtWidgets.QAction('&Save', self)
-        self.actionSave.setShortcut('Ctrl+S')
-        self.actionSave.setStatusTip('Save analysis state')
-        self.actionSave.triggered.connect(self.handleSaveAnalysis)
-
-        self.actionOpen = QtWidgets.QAction('&Open', self)
-        self.actionOpen.setShortcut('Ctrl+O')
-        self.actionOpen.setStatusTip('Open an existing file')
-        self.actionOpen.triggered.connect(self.handleOpen)
-
-        self.actionExport = QtWidgets.QAction('&Export', self)
-        self.actionExport.setStatusTip('Export results')
-
-        self.actionExportChrono = QtWidgets.QAction('&Chronogram', self)
-        self.actionExportChrono.setShortcut('Ctrl+E')
-        self.actionExportChrono.setStatusTip('Export chronogram (ultrametric)')
-        self.actionExportChrono.triggered.connect(self.handleExportChrono)
-
-        self.actionExportRato = QtWidgets.QAction('&Ratogram', self)
-        self.actionExportRato.setStatusTip('Export ratogram')
-        self.actionExportRato.triggered.connect(self.handleExportRato)
-
-        self.actionExportTable = QtWidgets.QAction('&Table', self)
-        self.actionExportTable.setStatusTip('Export ages and rates table')
-        self.actionExportTable.triggered.connect(self.handleExportTable)
-
-        exportButton = QtWidgets.QToolButton(self)
-        exportButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
-        exportMenu = QtWidgets.QMenu(exportButton)
-        exportMenu.addAction(self.actionExportChrono)
-        exportMenu.addAction(self.actionExportRato)
-        exportMenu.addAction(self.actionExportTable)
-        exportButton.setDefaultAction(self.actionExport)
-        exportButton.setMenu(exportMenu)
-
-        def search(what):
-            self.treeConstraints.searchSelect(what)
-            self.treeResults.searchSelect(what)
-        self.searchWidget = widgets.SearchWidget()
-        # self.searchWidget.setAlignment(QtCore.Qt.AlignLeft)
-        self.searchWidget.setSearchAction(':/icons/search.png', search)
-        searchLayout = QtWidgets.QHBoxLayout()
-        searchLayout.addStretch()
-        searchLayout.addWidget(self.searchWidget, 1)
-        searchLayout.setContentsMargins(1, 1, 1, 1)
-        searchContainer = QtWidgets.QWidget()
-        searchContainer.setLayout(searchLayout)
-
-        toolbar = widgets.UToolBar('Tools')
-        toolbar.addAction(self.actionOpen)
-        toolbar.addAction(self.actionSave)
-        toolbar.addWidget(exportButton)
-        toolbar.addWidget(searchContainer)
-        toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        toolbar.setStyleSheet('padding-top: 8px;')
-
         self.tabContainerResults = QtWidgets.QTabWidget()
 
         self.tabResults = self.createTabResults()
@@ -490,21 +658,12 @@ class Main(QtWidgets.QDialog):
         self.labelFlagWarn = QtWidgets.QLabel('All seems good.')
         self.labelFlagWarn.setAlignment(QtCore.Qt.AlignCenter)
 
-        layoutFlags = QtWidgets.QHBoxLayout()
-        layoutFlags.addWidget(self.labelFlagInfo)
-        layoutFlags.addWidget(self.labelFlagWarn)
-        self.barFlags = widgets.UGroupBox()
-        self.barFlags.setObjectName('barFlags')
-        self.barFlags.setLayout(layoutFlags)
-
         layout = QtWidgets.QVBoxLayout()
-        layout.setMenuBar(toolbar)
         layout.addWidget(self.tabContainerResults)
-        layout.addWidget(self.barFlags)
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
-        return pane, toolbar
+        return pane
 
     def handleRunWork(self):
         """Runs on the UProcess, defined here for pickability"""

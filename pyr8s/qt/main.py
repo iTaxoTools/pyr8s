@@ -382,10 +382,11 @@ class Main(QtWidgets.QDialog):
         """Draw all widgets"""
 
         self.header = widgets.Header()
-        self.header.logoTool = QtGui.QPixmap(':/icons/pyr8s-logo.png').scaled(50,50)
+        self.header.logoTool = widgets.VectorPixmap(':/icons/pyr8s-logo.svg',
+            colormap=self.colormap_icon)
         self.header.logoProject = QtGui.QPixmap(':/icons/itaxotools-micrologo.png')
         self.header.description = (
-            'Computing timetrees' + '\n'
+            'Pyr8s - Computing timetrees' + '\n'
             'using non-parametric rate-smoothing'
             )
         self.header.citation = (
@@ -418,7 +419,9 @@ class Main(QtWidgets.QDialog):
             self.treeConstraints.searchSelect(what)
             self.treeResults.searchSelect(what)
         self.searchWidget = widgets.SearchWidget()
-        self.searchWidget.setSearchAction(':/icons/search.png', search)
+        pixmap = widgets.VectorPixmap(':/icons/search.svg',
+            colormap=self.colormap_icon_light)
+        self.searchWidget.setSearchAction(pixmap, search)
         layout = QtWidgets.QHBoxLayout()
         layout.addSpacing(4)
         layout.addWidget(self.line.icon)
@@ -478,25 +481,30 @@ class Main(QtWidgets.QDialog):
         """Populate dialog actions"""
 
         self.actionOpen = QtWidgets.QAction('&Open', self)
+        self.actionOpen.setIcon(widgets.VectorIcon(':/icons/open.svg', self.colormap))
         self.actionOpen.setShortcut(QtGui.QKeySequence.Open)
         self.actionOpen.setStatusTip('Open an existing file')
         self.actionOpen.triggered.connect(self.handleOpen)
 
         self.actionSave = QtWidgets.QAction('&Save', self)
+        self.actionSave.setIcon(widgets.VectorIcon(':/icons/save.svg', self.colormap))
         self.actionSave.setShortcut(QtGui.QKeySequence.Save)
         self.actionSave.setStatusTip('Save analysis state')
         self.actionSave.triggered.connect(self.handleSaveAnalysis)
 
         self.actionRun = QtWidgets.QAction('&Run', self)
+        self.actionRun.setIcon(widgets.VectorIcon(':/icons/run.svg', self.colormap))
         self.actionRun.setShortcut('Ctrl+R')
         self.actionRun.setStatusTip('Run rate analysis')
         self.actionRun.triggered.connect(self.handleRun)
 
         self.actionStop = QtWidgets.QAction('&Stop', self)
+        self.actionStop.setIcon(widgets.VectorIcon(':/icons/stop.svg', self.colormap))
         self.actionStop.setStatusTip('Cancel analysis')
         self.actionStop.triggered.connect(self.handleCancel)
 
         self.actionExport = QtWidgets.QAction('&Export', self)
+        self.actionExport.setIcon(widgets.VectorIcon(':/icons/export.svg', self.colormap))
         self.actionExport.setStatusTip('Export results')
 
         self.actionExportChrono = QtWidgets.QAction('&Chronogram', self)
@@ -514,6 +522,7 @@ class Main(QtWidgets.QDialog):
 
         exportButton = QtWidgets.QToolButton(self)
         exportButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
+        exportButton.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
         exportMenu = QtWidgets.QMenu(exportButton)
         exportMenu.addAction(self.actionExportChrono)
         exportMenu.addAction(self.actionExportRato)

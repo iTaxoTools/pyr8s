@@ -37,7 +37,7 @@ class build_py(_build_py):
 long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(name='pyr8s',
-    version='0.2',
+    version='0.3',
     description='Calculate divergence times and rates of substitution for phylogenic trees',
     long_description=long_description,
     url='https://github.com/stefanpatman/pyr8s',

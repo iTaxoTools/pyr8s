@@ -838,7 +838,7 @@ class Main(QtWidgets.QDialog):
             logging.getLogger().info(
                 'Exported table to file: {}\n'.format(fileName))
 
-def show(sys):
+def show():
     """Entry point"""
     def init():
         if len(sys.argv) >= 2:

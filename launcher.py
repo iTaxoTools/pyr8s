@@ -12,4 +12,4 @@ import pyr8s.qt
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
-    pyr8s.qt.main.show(sys)
+    pyr8s.qt.main.show()

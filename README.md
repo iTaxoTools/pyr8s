@@ -1,48 +1,62 @@
 # Pyr8s
 
 Contains the core functionality for calculating divergence times and rates
-of substitution for phylogenic trees. Implements NPRS using Powell.
+of substitution for phylogenic trees. Implements Non-Parametric Rate Smoothing using Powell.
 
 
 ## Quick start
 
-To launch the gui without installing:
-```
-$ python launcher.py
-```
-
-You may need to install the required libraries first:
-```
-$ pip install -r requirements.txt
-```
-
-## Installation
-
 Install using pip:
+
 ```
 $ pip install .
 ```
 
-Try parsing a file using the console tool:
+Run the GUI:
+
+```
+$ pyr8s-qt
+```
+
+Simple command line tool:
+
 ```
 $ pyr8s tests/legacy_1
 ```
 
-Or launch the graphical interface:
+## Launch without installing
+
+Before the first time you use the program, you must install any required modules and auto-compile the Qt resource files:
 ```
-$ pyr8s_qt tests/legacy_1
+$ pip install -r requirements.txt
+$ python setup.py build_qt
 ```
 
-## Building
-
-Simply use PyInstaller on the launcher **spec** file:
+You can now launch the GUI:
 ```
+$ python launcher.py
+```
+
+## Packaging
+
+You must first auto-compile Qt resources,
+then use PyInstaller on the launcher **spec** file:
+```
+$ pip install pyinstaller
+$ python setup.py build_qt
 $ pyinstaller launcher.spec
 ```
 
 ## Module
 
 You may import and use the pyr8s module in your python scripts.
+
+To launch the GUI:
+```
+>>> import pyr8s.qt
+>>> pyr8s.qt.main.show()
+```
+
 More examples to follow soon.
 
 ### Python interactive example
@@ -106,3 +120,13 @@ res = pyr8s.parse.quick(tree=newick_tree)
 You must provide either a file or a tree in newick string form.
 The analysis uses nexus rates  settings if available.
 By default, the branch length is guessed based on maximum branch length and the root age is set to 100. Please see the source code documentation for more.
+
+## Acknowledgements
+
+Michael J. Sanderson,\
+r8s: inferring absolute rates of molecular evolution and divergence times in the absence of a molecular clock,\
+(2003)
+
+Michael J. Sanderson,\
+A Nonparametric Approach to Estimating Divergence Times in the Absence of Rate Constancy,\
+(1997)

@@ -34,10 +34,10 @@ import random
 import numpy as np
 from scipy import optimize
 from math import log
-import importlib.resources
 
 from . import extensions
 from . import param
+from . import params
 
 
 ##############################################################################
@@ -501,8 +501,7 @@ class RateAnalysis:
 
     def __init__(self, tree=None):
         self.results = None
-        with importlib.resources.open_text(__package__, 'params.json') as data:
-            self.param = param.core.ParamList(data)
+        self.param = param.ParamList(params.params)
         self._array = Array(self.param)
         if tree is None:
             self._tree = None

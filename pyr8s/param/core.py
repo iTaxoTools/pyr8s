@@ -1,6 +1,3 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 Parameter classes for use by core.Analysis class.
 Parameter declarations and defaults are loaded from a json file.
@@ -24,6 +21,7 @@ Access field documentation:
 >>> param.general['scalar'].doc
 """
 
+# Default dict is ordered in Python3.7+, but we use Python3.6
 from collections import OrderedDict
 import json
 
@@ -94,6 +92,14 @@ class ParamCategory(OrderedDict):
                     state[4])
         return newstate
 
+    def as_dictionary(self):
+        """Return key/value pairs of category parameters"""
+        dictionary = {}
+        for param in self.keys():
+            dictionary[param] = self[param].value
+        return dictionary
+
+
 class ParamList(OrderedDict):
     """Dictionary of all categories."""
 
@@ -114,12 +120,13 @@ class ParamList(OrderedDict):
     def __dir__(self):
         return list(self.keys())
 
-    def __init__(self, data):
+    def __init__(self, dictionary=None, json_data=None):
         super().__init__()
-        if data is None:
-            return
-        dictionary = json.load(data, object_pairs_hook=OrderedDict)
+        if json_data is not None:
+            dictionary = json.load(json_data, object_pairs_hook=OrderedDict)
         #dictionary = json.load(data)
+        if dictionary is None:
+            return
         for k in dictionary.keys():
             self[k] = ParamCategory(dictionary[k])
 
@@ -131,3 +138,15 @@ class ParamList(OrderedDict):
                     None,
                     state[4])
         return newstate
+
+    def as_dictionary(self):
+        """Return key/value pairs for all categories"""
+        dictionary = {}
+        for category in self.keys():
+            category_dictionary = self[category].as_dictionary()
+            for param in category_dictionary.keys():
+                if dictionary.get(param) is not None:
+                    raise RuntimeError("Duplicate key: "+param)
+                else:
+                    dictionary[param] = category_dictionary[param]
+        return dictionary

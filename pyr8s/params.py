@@ -1,4 +1,4 @@
-{
+params = {
   "general": {
     "label": "General",
     "fields": {
@@ -30,7 +30,7 @@
         "label":    "Scalar",
         "doc":      "Force root age at 1.0 and ignore all constraints.",
         "type":     "bool",
-        "default":  false
+        "default":  False
       }
     }
   },
@@ -57,7 +57,7 @@
         "label":    "Round",
         "doc":      "Discard fractional part. If False, takes longer to diverge.",
         "type":     "bool",
-        "default":  true
+        "default":  True
       }
     }
   },
@@ -68,7 +68,7 @@
         "label":    "Manual",
         "doc":      "True uses original barrier method. Auto uses scipy, doesn't work",
         "type":     "bool",
-        "default":  true
+        "default":  True
       },
       "max_iterations": {
         "label":    "Max Iterations",
@@ -119,7 +119,7 @@
         "label":    "Logarithmic",
         "doc":      "Logarithmic rate differences.",
         "type":     "bool",
-        "default":  false
+        "default":  False
       }
     }
   },

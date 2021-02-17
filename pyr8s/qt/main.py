@@ -16,7 +16,7 @@ from ..param import qt as param_qt
 
 from . import utility
 from . import widgets
-from . import icons
+from . import resources
 
 class Main(QtWidgets.QDialog):
     """Main window, handles everything"""
@@ -382,9 +382,9 @@ class Main(QtWidgets.QDialog):
         """Draw all widgets"""
 
         self.header = widgets.Header()
-        self.header.logoTool = widgets.VectorPixmap(':/icons/pyr8s-logo.svg',
+        self.header.logoTool = widgets.VectorPixmap(':/resources/pyr8s-logo.svg',
             colormap=self.colormap_icon)
-        self.header.logoProject = QtGui.QPixmap(':/icons/itaxotools-micrologo.png')
+        self.header.logoProject = QtGui.QPixmap(':/resources/itaxotools-micrologo.png')
         self.header.description = (
             'Pyr8s - Computing timetrees' + '\n'
             'using non-parametric rate-smoothing'
@@ -397,7 +397,7 @@ class Main(QtWidgets.QDialog):
         self.line = widgets.Subheader()
 
         self.line.icon = QtWidgets.QLabel()
-        self.line.icon.setPixmap(widgets.VectorPixmap(':/icons/arrow-right.svg',
+        self.line.icon.setPixmap(widgets.VectorPixmap(':/resources/arrow-right.svg',
             colormap=self.colormap_icon_light))
         self.line.icon.setStyleSheet('border-style: none;')
 
@@ -419,7 +419,7 @@ class Main(QtWidgets.QDialog):
             self.treeConstraints.searchSelect(what)
             self.treeResults.searchSelect(what)
         self.searchWidget = widgets.SearchWidget()
-        pixmap = widgets.VectorPixmap(':/icons/search.svg',
+        pixmap = widgets.VectorPixmap(':/resources/search.svg',
             colormap=self.colormap_icon_light)
         self.searchWidget.setSearchAction(pixmap, search)
         layout = QtWidgets.QHBoxLayout()
@@ -445,6 +445,7 @@ class Main(QtWidgets.QDialog):
         self.splitter.setCollapsible(0,False)
         self.splitter.setCollapsible(1,False)
         self.splitter.setStyleSheet("QSplitter::handle { height: 8px; }")
+        self.splitter.setContentsMargins(8, 4, 8, 4)
 
         layoutFlags = QtWidgets.QHBoxLayout()
         layoutFlags.addWidget(self.labelFlagInfo)
@@ -456,13 +457,13 @@ class Main(QtWidgets.QDialog):
             QGroupBox {
                 color: palette(Shadow);
                 background: palette(Window);
-                border: 1px solid palette(Mid);
+                border-top: 1px solid palette(Mid);
                 padding: 5px 10px 5px 10px;
                 }
             QGroupBox:disabled {
                 color: palette(Mid);
                 background: palette(Window);
-                border: 1px solid palette(Mid);
+                border-top: 1px solid palette(Mid);
                 }
             """)
 
@@ -481,30 +482,30 @@ class Main(QtWidgets.QDialog):
         """Populate dialog actions"""
 
         self.actionOpen = QtWidgets.QAction('&Open', self)
-        self.actionOpen.setIcon(widgets.VectorIcon(':/icons/open.svg', self.colormap))
+        self.actionOpen.setIcon(widgets.VectorIcon(':/resources/open.svg', self.colormap))
         self.actionOpen.setShortcut(QtGui.QKeySequence.Open)
         self.actionOpen.setStatusTip('Open an existing file')
         self.actionOpen.triggered.connect(self.handleOpen)
 
         self.actionSave = QtWidgets.QAction('&Save', self)
-        self.actionSave.setIcon(widgets.VectorIcon(':/icons/save.svg', self.colormap))
+        self.actionSave.setIcon(widgets.VectorIcon(':/resources/save.svg', self.colormap))
         self.actionSave.setShortcut(QtGui.QKeySequence.Save)
         self.actionSave.setStatusTip('Save analysis state')
         self.actionSave.triggered.connect(self.handleSaveAnalysis)
 
         self.actionRun = QtWidgets.QAction('&Run', self)
-        self.actionRun.setIcon(widgets.VectorIcon(':/icons/run.svg', self.colormap))
+        self.actionRun.setIcon(widgets.VectorIcon(':/resources/run.svg', self.colormap))
         self.actionRun.setShortcut('Ctrl+R')
         self.actionRun.setStatusTip('Run rate analysis')
         self.actionRun.triggered.connect(self.handleRun)
 
         self.actionStop = QtWidgets.QAction('&Stop', self)
-        self.actionStop.setIcon(widgets.VectorIcon(':/icons/stop.svg', self.colormap))
+        self.actionStop.setIcon(widgets.VectorIcon(':/resources/stop.svg', self.colormap))
         self.actionStop.setStatusTip('Cancel analysis')
         self.actionStop.triggered.connect(self.handleCancel)
 
         self.actionExport = QtWidgets.QAction('&Export', self)
-        self.actionExport.setIcon(widgets.VectorIcon(':/icons/export.svg', self.colormap))
+        self.actionExport.setIcon(widgets.VectorIcon(':/resources/export.svg', self.colormap))
         self.actionExport.setStatusTip('Export results')
 
         self.actionExportChrono = QtWidgets.QAction('&Chronogram', self)

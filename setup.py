@@ -1,6 +1,5 @@
 """A setuptools based setup module."""
 
-# Always prefer setuptools over distutils
 from setuptools import setup, find_packages, Extension, Command
 from setuptools.command.build_py import build_py as _build_py
 import pathlib
@@ -33,47 +32,36 @@ class build_py(_build_py):
         self.run_command('build_qt')
         _build_py.run(self)
 
-# Get the long description from the README file
 long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(name='pyr8s',
-    version='0.3',
+    version='0.3.1',
     description='Calculate divergence times and rates of substitution for phylogenic trees',
     long_description=long_description,
-    url='https://github.com/stefanpatman/pyr8s',
+    long_description_content_type='text/markdown',
     author='Patmanidis Stefanos',
     author_email='stefanpatman91@gmail.com',
+    # package_dir={'': 'src'},
+    # packages=find_packages(where='src'),
+    packages=find_packages(),
+    python_requires='>=3.6, <4',
     install_requires=[
         'dendropy',
         'numpy',
         'scipy',
+        'pyqt5',
     ],
     extras_require={
         'dev': ['pyqt5ac'],
-        'gui': ['pyqt5'],
     },
     entry_points = {
         'console_scripts': [
             'pyr8s=pyr8s.run:main',
             'pyr8s-qt=pyr8s.qt.run:main'
             ],
-        'gui_scripts': [
-            # These won't work as long as sys.stdio is referred in main
-            # 'pyr8s_tk=pyr8s.run_tk:main',
-            # 'pyr8s_qt=pyr8s.run_qt:main'
-            ],
     },
     cmdclass = {
         'build_qt': CommandQtAutoCompile,
         'build_py': build_py
     },
-    license='All rights reserved',
-    packages=[
-        'pyr8s',
-        'pyr8s.param',
-        # 'pyr8s.tk',
-        'pyr8s.qt',
-    ],
-    include_package_data=True,
-    # zip_safe=True,
 )

@@ -6,7 +6,6 @@ Executable for PyInstaller
 $ python pyinstaller launcher.specs
 """
 
-import sys
 import multiprocessing
 import pyr8s.qt
 

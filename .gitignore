@@ -10,4 +10,4 @@ __pycache__/
 *~
 
 # qt auto-compiled resources
-src/pyr8s/qt/resources.py
+pyr8s/qt/resources.py

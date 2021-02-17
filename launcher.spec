@@ -30,4 +30,4 @@ exe = EXE(pyz,
           upx_exclude=[],
           runtime_tmpdir=None,
           console=False,
-          icon='src/pyr8s/qt/resources/pyr8s-icon.ico' )
+          icon='pyr8s/qt/resources/pyr8s-icon.ico' )

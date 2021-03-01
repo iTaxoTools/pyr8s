@@ -156,25 +156,22 @@ class TreePlus(dendropy.Tree):
         for node in remove:
             # Constraints passed to parents and children
             if node.fix is not None:
-                inherit_up = node.fix
-                inherit_down = node.fix
-            else:
-                inherit_up = node.max
-                inherit_down = node.min
+                node.max = node.fix
+                node.min = node.fix
             parent = node.parent_node
             for child in node.child_node_reversed_iter():
                 parent.add_child_after(node, child)
-                if inherit_down is not None:
+                if node.max is not None:
                     if child.max is not None:
-                        child.max = min(child.max, inherit_down)
+                        child.max = min(child.max, node.max)
                     if child.max is None and child.fix is None:
-                        child.max = inherit_down
-            parent.remove_child(node)
-            if inherit_up is not None:
+                        child.max = node.max
+            if node.min is not None:
                 if parent.min is not None:
-                    parent.min = max(parent.min, inherit_up)
+                    parent.min = max(parent.min, node.min)
                 if parent.min is None and parent.fix is None:
-                    parent.min = inherit_up
+                    parent.min = node.min
+            parent.remove_child(node)
 
         return collapsed_constraints
 

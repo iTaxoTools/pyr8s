@@ -43,6 +43,7 @@ from . import params
 ##############################################################################
 ### Helper function
 
+#? Does map() handle None?
 def apply_fun_to_list(function, lista):
     """
     Handle Nones when applying function to list
@@ -654,11 +655,11 @@ class RateAnalysis:
             low_difference = constrained_variables - constrained_low
             high_difference = constrained_high - constrained_variables
             # indexing like this is faster than getting the bool results
-            barrier_crossed = high_difference[(low_difference<0)|(high_difference<0)]
+            barrier_crossed = high_difference[(low_difference<=0)|(high_difference<=0)]
             if barrier_crossed.size != 0:
                 return largeval
-            penaly = 1/low_difference + 1/high_difference
-            return penaly.sum()
+            penalty = 1/low_difference + 1/high_difference
+            return penalty.sum()
 
         return barrier_penalty
 

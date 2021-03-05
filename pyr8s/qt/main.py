@@ -66,7 +66,7 @@ class Main(QtWidgets.QDialog):
                 widget.reject()
 
     def fail(self, exception):
-        # raise exception
+        raise exception
         self.closeMessages()
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())

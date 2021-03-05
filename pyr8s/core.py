@@ -78,6 +78,10 @@ class Array:
         Nodes are listed in preorder sequence.
         Numpy Arrays are used for calculation intensive parts.
         """
+        # Filter for ignoring terminal zero nodes
+        def ftz(node):
+            return not node.is_terminal_zero()
+
         # Keep a copy of given tree to return later
         self._tree = tree.clone(depth=1)
         _tree = self._tree
@@ -108,7 +112,6 @@ class Array:
             raise ValueError('Unrecognised branch length format: {}'.
                 format(format))
 
-
         # Ignore all constraints if scalar, fix root age to 1.0
         if scalar:
             for node in _tree.preorder_node_iter():
@@ -125,17 +128,17 @@ class Array:
         _tree.collapse()
         # _tree.print_plot()
         _tree.label_freeze()
-        _tree.index()
-        _tree.order()
+        _tree.index(ftz)
+        _tree.order(ftz)
         # _tree.print_plot()
-        if len(_tree.nodes()) < 2:
+        if len(_tree.nodes(ftz)) < 2:
             raise ValueError('Cannot continue since tree is just a root, ' +
                 'please check branch length parameters.')
 
         self.node = []
         self.order = []
         self.fix = []
-        for node in _tree.preorder_node_iter():
+        for node in _tree.preorder_node_iter(ftz):
             self.node.append(node)
             self.order.append(node.order)
             self.fix.append(node.fix)
@@ -145,13 +148,13 @@ class Array:
         high = apply_fun_to_list(min,
             [_tree.seed_node.max, _tree.seed_node.fix])
         self.high = [high]
-        for node in _tree.preorder_node_iter_noroot():
+        for node in _tree.preorder_node_iter_noroot(ftz):
             high = apply_fun_to_list(min,
                 [node.max, node.fix,
                 self.high[node.parent_node.index]])
             self.high.append(high)
         self.low = [None] * self.n
-        for node in _tree.postorder_node_iter_noroot():
+        for node in _tree.postorder_node_iter_noroot(ftz):
             low = apply_fun_to_list(max,
                 [0, node.min, node.fix, self.low[node.index]])
             self.low[node.index] = low
@@ -216,13 +219,13 @@ class Array:
 
         # Set branch lengths
         subs = [None]
-        for node in _tree.preorder_node_iter_noroot():
+        for node in _tree.preorder_node_iter_noroot(ftz):
             subs.append(node.subs)
         self.subs = np.array(subs, dtype=float)
 
         # This will be used by the optimization function
         self.parent_index = [0]
-        for node in _tree.preorder_node_iter_noroot():
+        for node in _tree.preorder_node_iter_noroot(ftz):
             self.parent_index.append(node.parent_node.index)
         self.parent_index = np.array(self.parent_index, dtype=int)
 
@@ -242,7 +245,7 @@ class Array:
 
         # Isolate indexes of low/high constrained nodes
         constrained = []
-        for i, node in enumerate(_tree.preorder_node_iter()):
+        for i, node in enumerate(_tree.preorder_node_iter(ftz)):
             if node.max is not None or node.min is not None:
                 constrained.append(i)
         self.constrained_index = np.array(constrained, dtype=int) # low/high
@@ -260,10 +263,18 @@ class Array:
         Return a copy of the original tree with set ages and local rates.
         """
         divider = self._multiplier
-        for i in range(self.n):
-            self.node[i].age = self.time[i]
-            #! PRETTY SURE this is wrong but have to match original....
-            self.node[i].rate = self.rate[i]/divider
+        for node in self._tree.preorder_node_iter():
+            if node.is_terminal_zero():
+                node.age = 0
+                node.rate = 0
+            else:
+                node.age = self.time[node.index]
+                #! PRETTY SURE this is wrong but have to match original....
+                node.rate = self.rate[node.index]/divider
+        # for i in range(self.n):
+        #     self.node[i].age = self.time[i]
+        #     #! PRETTY SURE this is wrong but have to match original....
+        #     self.node[i].rate = self.rate[i]/divider
         return self._tree
 
     def guess(self):

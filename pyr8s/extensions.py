@@ -86,6 +86,17 @@ class NodePlus(dendropy.Node):
             self._child_nodes.insert(index, child)
         return child
 
+    def is_terminal_zero(self):
+        """This special case is ignored by analysis array construction"""
+        return self.subs == 0 and self.is_leaf()
+
+    def all_children_terminal_zero(self):
+        """Checks if all children are terminal zeros"""
+        for node in self.child_node_iter():
+            if not node.is_terminal_zero():
+                return False
+        return True
+
 
 class TreePlus(dendropy.Tree):
 
@@ -138,7 +149,7 @@ class TreePlus(dendropy.Tree):
 
     def _collapse_inner(self):
         """
-        Remove edges with zero length.
+        Remove edges with zero length. Must be called after calc_subs().
         Return a list with any constrained nodes that were pruned.
         """
         remove = []
@@ -146,11 +157,18 @@ class TreePlus(dendropy.Tree):
 
         # Children before parent, ensures removal is done in proper order
         for node in self.postorder_node_iter_noroot():
-            #? Maybe consider a minimum length too
-            if node.edge_length is None or node.subs == 0:
+            if node.is_terminal_zero():
+                parent = node.parent_node
+                if node.fix != 0:
+                    raise RuntimeError('Terminal zero-length branches must have their node age fixed to 0: {}'.
+                        format(node.label))
+                elif parent.min is None:
+                    parent.min = 0
+            elif node.subs == 0:
                 remove.append(node)
-                if node.fix is not None or node.min is not None or node.max is not None:
-                    collapsed_constraints.append(node)
+                if any([node.fix, node.min, node.max]):
+                    if not node.all_children_terminal_zero():
+                        collapsed_constraints.append(node)
 
         # Remove the nodes, parents inherit children
         for node in remove:
@@ -200,13 +218,13 @@ class TreePlus(dendropy.Tree):
             if node.is_leaf() and not any([node.fix, node.max, node.min]):
                 node.fix = 0
 
-    def index(self):
+    def index(self, filter_fn=None):
         """Assign node indexes according to BF traversal order"""
-        for count, node in enumerate(self.preorder_node_iter()):
+        for count, node in enumerate(self.preorder_node_iter(filter_fn)):
             node.index = count
         self._indexed = True
 
-    def order(self):
+    def order(self, filter_fn=None):
         """
         Assign order to each node of tree
         where order is the max distance from the leaves
@@ -220,7 +238,7 @@ class TreePlus(dendropy.Tree):
                 return 0
 
             max_child_order = 0
-            for child in node.child_node_iter():
+            for child in node.child_node_iter(filter_fn):
                 some_order = _order_recurse(child)
                 max_child_order = max(max_child_order, some_order)
             max_child_order += 1
@@ -255,25 +273,27 @@ class TreePlus(dendropy.Tree):
             if round_flag == True:
                 node.edge_length = round(node.edge_length)
 
-    def preorder_node_iter_noroot(self):
+    def preorder_node_iter_noroot(self, filter_fn=None):
         """
-        See Tree.preorder_node_iter, except this takes no filter and excludes root
+        See Tree.preorder_node_iter, except this excludes root
         """
         stack = [n for n in reversed(self.seed_node._child_nodes)]
         while stack:
             node = stack.pop()
-            yield node
+            if filter_fn is None or filter_fn(node):
+                yield node
             stack.extend(n for n in reversed(node._child_nodes))
 
-    def postorder_node_iter_noroot(self):
+    def postorder_node_iter_noroot(self, filter_fn=None):
         """
-        See Tree.postorder_node_iter, except this takes no filter and excludes root
+        See Tree.postorder_node_iter, except this excludes root
         """
         stack = [(n, False) for n in reversed(self.seed_node._child_nodes)]
         while stack:
             node, state = stack.pop()
             if state:
-                yield node
+                if filter_fn is None or filter_fn(node):
+                    yield node
             else:
                 stack.append((node, True))
                 stack.extend([(n, False) for n in reversed(node._child_nodes)])

@@ -66,7 +66,7 @@ class Main(QtWidgets.QDialog):
                 widget.reject()
 
     def fail(self, exception):
-        raise exception
+        # raise exception
         self.closeMessages()
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())
@@ -687,6 +687,17 @@ class Main(QtWidgets.QDialog):
         except Exception as exception:
             self.fail(exception)
             return
+
+        if self.analysis.param.general.scalar:
+            msgBox = QtWidgets.QMessageBox(self)
+            msgBox.setWindowTitle(self.windowTitle())
+            msgBox.setIcon(QtWidgets.QMessageBox.Question)
+            msgBox.setText('Scalar mode activated, all time constraints will be ignored.')
+            msgBox.setStandardButtons(QtWidgets.QMessageBox.Cancel | QtWidgets.QMessageBox.Ok)
+            msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            confirm = msgBox.exec()
+            if confirm == QtWidgets.QMessageBox.Cancel:
+                return
 
         def done(result):
             with utility.StdioLogger():

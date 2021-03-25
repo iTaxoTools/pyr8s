@@ -1,9 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Parse the nexus file given through the console.
-"""
+"""Parse the nexus file given through the console"""
 
 import sys
 from . import parse

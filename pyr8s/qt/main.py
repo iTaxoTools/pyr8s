@@ -360,21 +360,21 @@ class Main(QtWidgets.QDialog):
 
         self.colormap = {
             widgets.VectorIcon.Normal: {
-                '#000000': color['black'],
-                '#ff0000': color['red'],
+                '#000': color['black'],
+                '#f00': color['red'],
                 },
             widgets.VectorIcon.Disabled: {
-                '#000000': color['gray'],
-                '#ff0000': color['orange'],
+                '#000': color['gray'],
+                '#f00': color['orange'],
                 },
             }
         self.colormap_icon =  {
-            '#000000': color['black'],
+            '#000': color['black'],
             '#ff0000': color['red'],
             '#ffa500': color['pink'],
             }
         self.colormap_icon_light =  {
-            '#000000': color['iron'],
+            '#000': color['iron'],
             '#ff0000': color['red'],
             '#ffa500': color['pink'],
             }

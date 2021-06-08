@@ -9,7 +9,7 @@
    </cc:Work>
   </rdf:RDF>
  </metadata>
- <g stroke="#000000" stroke-width="4">
+ <g stroke="#000" stroke-width="4">
   <circle cx="13.2" cy="13.2" r="11.2" fill="#fff" stroke-linejoin="round" style="paint-order:markers fill stroke"/>
   <path d="m30.6 30.6-10.2-10.2" fill="none"/>
  </g>

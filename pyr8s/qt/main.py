@@ -398,7 +398,7 @@ class Main(QtWidgets.QDialog):
         """Draw all widgets"""
 
         self.header = widgets.Header()
-        self.header.logoTool = widgets.VectorPixmap(':/resources/pyr8s-logo.svg',
+        self.header.logoTool = widgets.VectorPixmap(':/resources/logo-pyr8s.svg',
             colormap=self.colormap_icon)
         self.header.logoProject = QtGui.QPixmap(':/resources/itaxotools-micrologo.png')
         self.header.description = (

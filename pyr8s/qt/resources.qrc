@@ -2,8 +2,7 @@
 <RCC version="1.0">
   <qresource>
     <file>resources/itaxotools-micrologo.png</file>
-    <file>resources/pyr8s-logo.png</file>
-    <file>resources/pyr8s-logo.svg</file>
+    <file>resources/logo-pyr8s.svg</file>
     <file>resources/open.svg</file>
     <file>resources/save.svg</file>
     <file>resources/run.svg</file>

@@ -236,7 +236,10 @@ class UProcess(QtCore.QThread):
 
     def __getstate__(self):
         """Required for process spawning."""
-        state = self.__dict__
+        state = self.__dict__.copy()
+        state['logger'] = None
+        state['handleOut'] = self._loggerNone
+        state['handleErr'] = self._loggerNone
         return state
 
     def __setstate__(self, state):
@@ -270,6 +273,7 @@ class UProcess(QtCore.QThread):
     def setLogger(self, logger):
         """Send process output to given logger"""
         self.logger = logger
+        # return
         if logger is not None:
             self.handleOut = self._loggerOut
             self.handleErr = self._loggerErr

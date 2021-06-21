@@ -10,4 +10,7 @@ __pycache__/
 *~
 
 # qt auto-compiled resources
-pyr8s/qt/resources.py
+**/pyr8s/gui/resources.py
+
+Pipfile
+Pipfile.lock

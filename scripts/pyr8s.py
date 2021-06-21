@@ -1,14 +1,11 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Executable for PyInstaller
-$ python pyinstaller launcher.specs
-"""
+"""Launch the pyr8s GUI"""
 
 import multiprocessing
-import pyr8s.qt
+from itaxotools.pyr8s.gui import run
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
-    pyr8s.qt.main.show()
+    run.main()

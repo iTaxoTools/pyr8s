@@ -1,6 +1,10 @@
-DendroPy >= 4.4.0
-numpy >= 1.19.2
-scipy >= 1.5.3
-PyQt5>=5.15.2
-PyQt5-sip>=12.8.1
-pyqt5ac>=1.2.1
+DendroPy==4.5.2
+numpy==1.20.3
+pip==21.1.2
+PyQt5==5.15.4
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.9.0
+pyr8s==0.3.1
+scipy==1.7.0
+setuptools==57.0.0
+wheel==0.36.2

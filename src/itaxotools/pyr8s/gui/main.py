@@ -26,9 +26,9 @@ import logging
 import re
 import pickle
 
+from itaxotools.common.param import qt as param_qt
 from .. import core
 from .. import parse
-from ..param import qt as param_qt
 
 from . import utility
 from . import widgets

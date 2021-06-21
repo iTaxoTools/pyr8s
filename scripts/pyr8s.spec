@@ -3,7 +3,7 @@
 block_cipher = None
 
 # Could also use pyinstaller's Entrypoint()
-a = Analysis(['launcher.py'],
+a = Analysis(['pyr8s.py'],
              binaries=[],
              datas=[],
              hiddenimports=[],
@@ -30,4 +30,4 @@ exe = EXE(pyz,
           upx_exclude=[],
           runtime_tmpdir=None,
           console=False,
-          icon='pyr8s/qt/resources/pyr8s-icon.ico' )
+          icon='../src/itaxotools/pyr8s/gui/resources/pyr8s-icon.ico' )

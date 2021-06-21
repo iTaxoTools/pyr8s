@@ -50,8 +50,8 @@ import numpy as np
 from scipy import optimize
 from math import log
 
+from itaxotools.common import param
 from . import extensions
-from . import param
 from . import params
 
 

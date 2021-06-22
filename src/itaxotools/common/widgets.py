@@ -17,12 +17,12 @@
 #-----------------------------------------------------------------------------
 
 
-"""Custom widgets for PyQt5"""
+"""Custom widgets for PySide6"""
 
-import PyQt5.QtCore as QtCore
-import PyQt5.QtWidgets as QtWidgets
-import PyQt5.QtGui  as QtGui
-import PyQt5.QtSvg  as QtSvg
+from PySide6 import QtCore
+from PySide6 import QtWidgets
+from PySide6 import QtGui
+from PySide6 import QtSvg
 
 import re
 
@@ -106,7 +106,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
         # QtCore.QTimer.singleShot(0, lambda:
         #     self.header().setSectionResizeMode(0,
         #         QtWidgets.QHeaderView.Interactive))
-        widthScrollbar = QtWidgets.qApp.style().pixelMetric(
+        widthScrollbar = QtWidgets.QApplication.style().pixelMetric(
             QtWidgets.QStyle.PM_ScrollBarExtent)
         widthPadding = 30
         return widthTree+widthScrollbar+widthPadding
@@ -408,7 +408,7 @@ class SearchWidget(QtWidgets.QLineEdit):
         def search():
             function(self.text())
 
-        searchAction = QtWidgets.QAction(QtGui.QIcon(pixmap), 'Search', self)
+        searchAction = QtGui.QAction(QtGui.QIcon(pixmap), 'Search', self)
         searchAction.triggered.connect(search)
         self.returnPressed.connect(search)
         self.addAction(searchAction, QtWidgets.QLineEdit.TrailingPosition)
@@ -416,13 +416,13 @@ class SearchWidget(QtWidgets.QLineEdit):
 
 class SyncedWidget(QtWidgets.QWidget):
     """Sync height with other widgets"""
-    syncSignal = QtCore.pyqtSignal()
+    syncSignal = QtCore.Signal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.myhint = 0
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Minimum)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -446,11 +446,11 @@ class SyncedWidget(QtWidgets.QWidget):
         widget.syncSignal.connect(self.syncHandle)
 
 class UToolBar(QtWidgets.QToolBar, SyncedWidget):
-    syncSignal = QtCore.pyqtSignal()
+    syncSignal = QtCore.Signal()
     pass
 
 class UGroupBox(QtWidgets.QGroupBox, SyncedWidget):
-    syncSignal = QtCore.pyqtSignal()
+    syncSignal = QtCore.Signal()
     pass
 
 ##############################################################################
@@ -605,7 +605,7 @@ class Header(QtWidgets.QFrame):
                 }
             """)
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Maximum)
+            QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Maximum)
 
         self.labelDescription = QtWidgets.QLabel('DESCRIPTION')
         self.labelDescription.setAlignment(QtCore.Qt.AlignBottom)
@@ -639,7 +639,7 @@ class Header(QtWidgets.QFrame):
         self.toolbar = QtWidgets.QToolBar()
         self.toolbar.setIconSize(QtCore.QSize(32,32))
         self.toolbar.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+            QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
         self.toolbar.setToolButtonStyle(
             QtCore.Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         self.toolbar.setStyleSheet("""
@@ -750,7 +750,7 @@ class Subheader(QtWidgets.QFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Maximum)
+            QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Maximum)
         self.setStyleSheet("""
             QFrame {
                 background-color: palette(Midlight);

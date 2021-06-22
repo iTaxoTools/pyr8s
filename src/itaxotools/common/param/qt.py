@@ -17,23 +17,28 @@
 #-----------------------------------------------------------------------------
 
 
-"""Param Widgets for PyQt5"""
+"""Param Widgets for PySide6"""
 
-import PyQt5.QtCore as QtCore
-import PyQt5.QtWidgets as QtWidgets
-import PyQt5.QtGui as QtGui
+from PySide6 import QtCore
+from PySide6 import QtWidgets
+from PySide6 import QtGui
 
+import sys
 
-class ParamField(QtWidgets.QWidget):
+class ParamField():
+
     def __init__(self, parent, key, field):
-        super().__init__()
-
         parent.fields.append(self)
         self.key = key
         self.parent = parent
         self.field = field
-        self.set(value=field.value)
+        self.widget = None
         self.draw()
+        self.set(value=field.value)
+
+    def draw(self):
+        self.widget = QtWidgets.QWidget()
+        self.widget.setToolTip(self.field.doc)
 
     def set(self, value=None):
         if value is None:
@@ -43,38 +48,10 @@ class ParamField(QtWidgets.QWidget):
     def get(self):
         return self.value
 
-    def draw(self):
-        self.setToolTip(self.field.doc)
-        pass
 
-
-class ParamList(QtWidgets.QComboBox, ParamField):
+class PComboBox(QtWidgets.QComboBox):
 
     WIDTH = 100
-
-    def __init__(self, parent, key, field, validator=None):
-        super().__init__(parent, key, field)
-
-        for i, l in enumerate(field.data['labels']):
-            self.addItem(l, field.data['items'][i])
-
-        self.currentIndexChanged.connect(parent.parent.onChange)
-
-    def draw(self):
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-
-        label = QtWidgets.QLabel(self.field.label + ': ')
-        label.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
-
-        layout = self.parent.layout()
-        row = self.parent.nextRow()
-        layout.addWidget(label, row, 0)
-        layout.addWidget(self, row, 1)
-        self.setToolTip(self.field.doc)
-        label.setToolTip(self.field.doc)
 
     def wheelEvent(self, event):
         if self.hasFocus:
@@ -86,75 +63,109 @@ class ParamList(QtWidgets.QComboBox, ParamField):
         s = super().sizeHint()
         return QtCore.QSize(self.WIDTH, s.height())
 
-    def set(self, value=None):
-        if value is None:
-            value = self.field.default
-        i = self.findData(value)
-        self.setCurrentIndex(i)
 
-    def get(self):
-        return self.currentData()
-
-
-class ParamBool(QtWidgets.QCheckBox, ParamField):
+class ParamList(ParamField):
 
     def __init__(self, parent, key, field, validator=None):
         super().__init__(parent, key, field)
-        self.stateChanged.connect(parent.parent.onChange)
+
+        for i, l in enumerate(field.data['labels']):
+            self.widget.addItem(l, field.data['items'][i])
+
+        self.widget.currentIndexChanged.connect(parent.parent.onChange)
 
     def draw(self):
-        self.setText(self.field.label)
+        self.widget = PComboBox(parent=self.parent)
+        self.widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Preferred)
+        self.widget.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+        self.label = QtWidgets.QLabel(self.field.label + ': ')
+        self.label.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Preferred)
+
         layout = self.parent.layout()
         row = self.parent.nextRow()
-        layout.addWidget(self, row, 0, 1, 2)
-        self.setToolTip(self.field.doc)
+        layout.addWidget(self.label, row, 0)
+        layout.addWidget(self.widget, row, 1)
+        self.widget.setToolTip(self.field.doc)
+        self.label.setToolTip(self.field.doc)
 
     def set(self, value=None):
         if value is None:
             value = self.field.default
-        self.setChecked(value)
+        i = self.widget.findData(value)
+        self.widget.setCurrentIndex(i)
 
     def get(self):
-        return self.isChecked()
+        return self.widget.currentData()
 
 
-class ParamEntry(QtWidgets.QLineEdit, ParamField):
+class ParamBool(ParamField):
+
+    def __init__(self, parent, key, field, validator=None):
+        super().__init__(parent, key, field)
+        self.widget.stateChanged.connect(parent.parent.onChange)
+
+    def draw(self):
+        self.widget = QtWidgets.QCheckBox(parent=self.parent)
+        self.widget.setText(self.field.label)
+        layout = self.parent.layout()
+        row = self.parent.nextRow()
+        layout.addWidget(self.widget, row, 0, 1, 2)
+        self.widget.setToolTip(self.field.doc)
+
+    def set(self, value=None):
+        if value is None:
+            value = self.field.default
+        self.widget.setChecked(value)
+
+    def get(self):
+        return self.widget.isChecked()
+
+
+class PLineEdit(QtWidgets.QLineEdit):
 
     WIDTH = 100
-
-    def __init__(self, parent, key, field, validator=None):
-        super().__init__(parent, key, field)
-        if validator is not None:
-            self.setValidator(validator(self))
-        self.textChanged.connect(parent.parent.onChange)
-
-
-    def draw(self):
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
-
-        label = QtWidgets.QLabel(self.field.label + ': ')
-        label.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
-
-        layout = self.parent.layout()
-        row = self.parent.nextRow()
-        layout.addWidget(label, row, 0)
-        layout.addWidget(self, row, 1)
-        self.setToolTip(self.field.doc)
-        label.setToolTip(self.field.doc)
 
     def sizeHint(self):
         s = super().sizeHint()
         return QtCore.QSize(self.WIDTH, s.height())
 
+
+
+class ParamEntry(ParamField):
+
+    def __init__(self, parent, key, field, validator=None):
+        super().__init__(parent, key, field)
+        if validator is not None:
+            self.widget.setValidator(validator(self.widget))
+        self.widget.textChanged.connect(parent.parent.onChange)
+
+
+    def draw(self):
+        self.widget = PLineEdit(parent=self.parent)
+        self.widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Preferred)
+
+        self.label = QtWidgets.QLabel(self.field.label + ': ')
+        self.label.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Preferred)
+
+        layout = self.parent.layout()
+        row = self.parent.nextRow()
+        layout.addWidget(self.label, row, 0)
+        layout.addWidget(self.widget, row, 1)
+        self.widget.setToolTip(self.field.doc)
+        self.label.setToolTip(self.field.doc)
+
     def set(self, value=None):
         if value is None:
             value = self.field.default
-        self.setText(str(value))
+        self.widget.setText(str(value))
 
     def get(self):
-        return self.text()
+        return self.widget.text()
 
 
 class ParamInt(ParamEntry):
@@ -163,7 +174,7 @@ class ParamInt(ParamEntry):
         super().__init__(parent, key, field, validator=QtGui.QIntValidator)
 
     def get(self):
-        return int(self.text())
+        return int(self.widget.text())
 
 
 class ParamFloat(ParamEntry):
@@ -172,7 +183,7 @@ class ParamFloat(ParamEntry):
         super().__init__(parent, key, field, validator=QtGui.QDoubleValidator)
 
     def get(self):
-        return float(self.text())
+        return float(self.widget.text())
 
 
 class ParamCategory(QtWidgets.QGroupBox):
@@ -181,7 +192,7 @@ class ParamCategory(QtWidgets.QGroupBox):
         super().__init__(category.label)
 
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Maximum)
 
         parent.categories.append(self)
         self.key = key
@@ -206,7 +217,7 @@ class ParamCategory(QtWidgets.QGroupBox):
 
 class ParamContainer(QtWidgets.QWidget):
     """All Param widgets go here"""
-    paramChanged = QtCore.pyqtSignal(object)
+    paramChanged = QtCore.Signal(object)
     def __init__(self, param=None, doc=True, reset=True):
         super().__init__()
         self.categories = []
@@ -236,8 +247,10 @@ class ParamContainer(QtWidgets.QWidget):
         containerLayout.setContentsMargins(5, 5, 5, 5)
         container.setLayout(containerLayout)
         container.setSizePolicy(
-            QtWidgets.QSizePolicy.Ignored,
-            QtWidgets.QSizePolicy.ExpandFlag | QtWidgets.QSizePolicy.ShrinkFlag)
+            QtWidgets.QSizePolicy.Policy.Ignored,
+            QtWidgets.QSizePolicy.Policy(
+                QtWidgets.QSizePolicy.PolicyFlag.ExpandFlag | QtWidgets.QSizePolicy.PolicyFlag.ShrinkFlag
+            ))
 
         scroll = QtWidgets.QScrollArea()
         scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
@@ -246,7 +259,7 @@ class ParamContainer(QtWidgets.QWidget):
         scroll.setWidget(container)
         scroll.sizeHint = container.sizeHint
         scroll.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Maximum)
 
         self.scroll = scroll
         self.container = container
@@ -259,7 +272,7 @@ class ParamContainer(QtWidgets.QWidget):
         doc.setLayout(docLayout)
 
         doc.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Minimum)
 
         object = QtWidgets.QLabel("Hover parameters for quick help. Refer to the r8s manual for more.")
         object.setWordWrap(True)
@@ -277,7 +290,7 @@ class ParamContainer(QtWidgets.QWidget):
         box.setLayout(layout)
 
         box.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Maximum)
+            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Maximum)
 
         self.containerLayout.addWidget(box)
 
@@ -325,4 +338,3 @@ class ParamContainer(QtWidgets.QWidget):
     def onChange(self):
         """Emit signal"""
         self.paramChanged.emit(self.sender())
-        pass

@@ -1,4 +1,4 @@
 [build-system]
 # Require pyqt5ac for auto-compiling qt resource files
-requires = ["setuptools>=40.8.0", "wheel", "pyqt5ac"]
+requires = ["setuptools>=40.8.0", "wheel"]
 build-backend = "setuptools.build_meta"

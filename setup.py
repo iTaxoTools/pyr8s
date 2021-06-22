@@ -52,11 +52,8 @@ setup(name='pyr8s',
         'dendropy',
         'numpy',
         'scipy',
-        'pyqt5',
+        'pyside6',
     ],
-    extras_require={
-        'dev': ['pyqt5ac'],
-    },
     entry_points = {
         'console_scripts': [
             'pyr8s = itaxotools.pyr8s.run:main',

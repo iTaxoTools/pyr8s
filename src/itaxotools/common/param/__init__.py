@@ -6,6 +6,6 @@ Edit with Qt Widgets.
 __author__ = "Patmanidis Stefanos"
 __copyright__ = "Copyright (C) 2021 Patmanidis Stefanos"
 __license__ = "GPLv3"
-__version__ = "0.2"
+__version__ = "0.3"
 
 from .core import *

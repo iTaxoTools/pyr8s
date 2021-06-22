@@ -17,42 +17,58 @@
 #-----------------------------------------------------------------------------
 
 
-import PyQt5.QtCore as QtCore
-import PyQt5.QtWidgets as QtWidgets
-import PyQt5.QtGui as QtGui
+from PySide6 import QtCore
+from PySide6 import QtWidgets
+from PySide6 import QtStateMachine
+from PySide6 import QtGui
 
 import sys
-import logging
 import re
 import pickle
+import pathlib
 
 from itaxotools.common.param import qt as param_qt
+from itaxotools.common import utility
+from itaxotools.common import widgets
+
 from .. import core
 from .. import parse
 
-from . import utility
-from . import widgets
 from . import resources
+
 
 class Main(QtWidgets.QDialog):
     """Main window, handles everything"""
 
+    speak = QtCore.Signal(object)
+
+    @QtCore.Slot(object)
+    def say_some_words(self, words):
+        print(words)
+
     def __init__(self, parent=None, init=None):
         super(Main, self).__init__(parent)
 
-        logging.getLogger().setLevel(logging.DEBUG)
+        self.title = 'ASAPy'
         self.analysis = core.RateAnalysis()
 
-        self.setWindowTitle("pyr8s")
+        self.setWindowTitle(self.title)
+        self.setWindowIcon(QtGui.QIcon(':/resources/pyr8s-icon.ico'))
         self.resize(854,480)
+
+        self.launcher = None
         self.machine = None
         self.skin()
         self.draw()
         self.act()
-        self.stateInit()
+        self.cog()
 
         if init is not None:
             self.machine.started.connect(init)
+
+        self.speak.connect(self.say_some_words)
+        self.speak.connect(self.logw.appendTextInline)
+
 
     def __getstate__(self):
         return (self.analysis,)
@@ -82,7 +98,6 @@ class Main(QtWidgets.QDialog):
                 widget.reject()
 
     def fail(self, exception):
-        # raise exception
         self.closeMessages()
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())
@@ -92,8 +107,7 @@ class Main(QtWidgets.QDialog):
         msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
         msgBox.exec()
-        logger = logging.getLogger()
-        logger.error(str(exception))
+        self.logio.writeline(str(exception))
 
     def stateCheck(self, name):
         """Check if given state is currently running"""
@@ -103,18 +117,18 @@ class Main(QtWidgets.QDialog):
                     return True
         return False
 
-    def stateInit(self):
+    def cog(self):
         """Initialize state machine"""
-        self.machine = QtCore.QStateMachine(self)
+        self.machine = QtStateMachine.QStateMachine(self)
 
-        idle = QtCore.QState()
-        idle_none = QtCore.QState(idle)
-        idle_open = QtCore.QState(idle)
-        idle_done = QtCore.QState(idle)
-        idle_updated = QtCore.QState(idle)
-        idle_last = QtCore.QHistoryState(idle)
+        idle = QtStateMachine.QState()
+        idle_none = QtStateMachine.QState(idle)
+        idle_open = QtStateMachine.QState(idle)
+        idle_done = QtStateMachine.QState(idle)
+        idle_updated = QtStateMachine.QState(idle)
+        idle_last = QtStateMachine.QHistoryState(idle)
         idle.setInitialState(idle_none)
-        running = QtCore.QState()
+        running = QtStateMachine.QState()
 
         idle.setObjectName('STATE_IDLE')
         idle.assignProperty(self.paramWidget.container, 'enabled', True)
@@ -429,7 +443,7 @@ class Main(QtWidgets.QDialog):
             """)
         self.labelTree.setAlignment(QtCore.Qt.AlignCenter)
         self.labelTree.setSizePolicy(
-            QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Maximum)
+            QtWidgets.QSizePolicy.Policy.Maximum, QtWidgets.QSizePolicy.Policy.Maximum)
 
         def search(what):
             self.treeConstraints.searchSelect(what)
@@ -497,43 +511,43 @@ class Main(QtWidgets.QDialog):
     def act(self):
         """Populate dialog actions"""
 
-        self.actionOpen = QtWidgets.QAction('&Open', self)
+        self.actionOpen = QtGui.QAction('&Open', self)
         self.actionOpen.setIcon(widgets.VectorIcon(':/resources/open.svg', self.colormap))
         self.actionOpen.setShortcut(QtGui.QKeySequence.Open)
         self.actionOpen.setStatusTip('Open an existing file')
         self.actionOpen.triggered.connect(self.handleOpen)
 
-        self.actionSave = QtWidgets.QAction('&Save', self)
+        self.actionSave = QtGui.QAction('&Save', self)
         self.actionSave.setIcon(widgets.VectorIcon(':/resources/save.svg', self.colormap))
         self.actionSave.setShortcut(QtGui.QKeySequence.Save)
         self.actionSave.setStatusTip('Save analysis state')
         self.actionSave.triggered.connect(self.handleSaveAnalysis)
 
-        self.actionRun = QtWidgets.QAction('&Run', self)
+        self.actionRun = QtGui.QAction('&Run', self)
         self.actionRun.setIcon(widgets.VectorIcon(':/resources/run.svg', self.colormap))
         self.actionRun.setShortcut('Ctrl+R')
         self.actionRun.setStatusTip('Run rate analysis')
         self.actionRun.triggered.connect(self.handleRun)
 
-        self.actionStop = QtWidgets.QAction('&Stop', self)
+        self.actionStop = QtGui.QAction('&Stop', self)
         self.actionStop.setIcon(widgets.VectorIcon(':/resources/stop.svg', self.colormap))
         self.actionStop.setStatusTip('Cancel analysis')
         self.actionStop.triggered.connect(self.handleCancel)
 
-        self.actionExport = QtWidgets.QAction('&Export', self)
+        self.actionExport = QtGui.QAction('&Export', self)
         self.actionExport.setIcon(widgets.VectorIcon(':/resources/export.svg', self.colormap))
         self.actionExport.setStatusTip('Export results')
 
-        self.actionExportChrono = QtWidgets.QAction('&Chronogram', self)
+        self.actionExportChrono = QtGui.QAction('&Chronogram', self)
         self.actionExportChrono.setShortcut('Ctrl+E')
         self.actionExportChrono.setStatusTip('Export chronogram (ultrametric)')
         self.actionExportChrono.triggered.connect(self.handleExportChrono)
 
-        self.actionExportRato = QtWidgets.QAction('&Ratogram', self)
+        self.actionExportRato = QtGui.QAction('&Ratogram', self)
         self.actionExportRato.setStatusTip('Export ratogram')
         self.actionExportRato.triggered.connect(self.handleExportRato)
 
-        self.actionExportTable = QtWidgets.QAction('&Table', self)
+        self.actionExportTable = QtGui.QAction('&Table', self)
         self.actionExportTable.setStatusTip('Export ages and rates table')
         self.actionExportTable.triggered.connect(self.handleExportTable)
 
@@ -584,8 +598,8 @@ class Main(QtWidgets.QDialog):
     def createTabParams(self):
         tab = QtWidgets.QWidget()
         self.paramWidget = param_qt.ParamContainer(self.analysis.param)
-        self.paramWidget.paramChanged.connect(
-            lambda e: self.machine.postEvent(utility.NamedEvent('UPDATE')))
+        # self.paramWidget.paramChanged.connect(
+        #     lambda e: self.machine.postEvent(utility.NamedEvent('UPDATE')))
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -650,16 +664,13 @@ class Main(QtWidgets.QDialog):
     def createTabLogs(self):
         tab = QtWidgets.QWidget()
 
-        logWidget = utility.TextEditLogger()
+        self.logw = utility.TextEditLogger()
         fixedFont = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
-        logWidget.setFont(fixedFont)
-        # logWidget.handler.setFormatter(
-        #     logging.Formatter(
-        #         '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'))
-        logging.getLogger().addHandler(logWidget.handler)
+        self.logw.setFont(fixedFont)
+        self.logio = utility.TextEditIO(self.logw)
 
         layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(logWidget)
+        layout.addWidget(self.logw)
         layout.setContentsMargins(5, 5, 5, 5)
         tab.setLayout(layout)
 
@@ -716,7 +727,7 @@ class Main(QtWidgets.QDialog):
                 return
 
         def done(result):
-            with utility.StdioLogger():
+            with utility.redirect(sys, 'stdout', self.logio):
                 result.print()
                 print(result.chronogram.as_string(schema='newick'))
             self.analysis.results = result
@@ -728,7 +739,7 @@ class Main(QtWidgets.QDialog):
         self.launcher = utility.UProcess(self.handleRunWork)
         self.launcher.done.connect(done)
         self.launcher.fail.connect(fail)
-        self.launcher.setLogger(logging.getLogger())
+        self.launcher.setStream(self.logio)
         self.launcher.start()
         self.machine.postEvent(utility.NamedEvent('RUN'))
 
@@ -742,8 +753,9 @@ class Main(QtWidgets.QDialog):
         msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
         confirm = msgBox.exec()
         if confirm == QtWidgets.QMessageBox.Yes:
-            logging.getLogger().info('\nAnalysis aborted by user.')
-            self.launcher.quit()
+            self.logio.writeline('\nAnalysis aborted by user.')
+            if self.launcher is not None:
+                self.launcher.quit()
             self.machine.postEvent(utility.NamedEvent('CANCEL'))
 
     def handleOpen(self):
@@ -774,19 +786,19 @@ class Main(QtWidgets.QDialog):
         except Exception as exception:
             self.fail(exception)
         else:
-            logging.getLogger().info(
+            self.logio.writeline(
                 'Loaded analysis from: {}\n'.format(fileName))
 
     def handleOpenFile(self, fileName):
         """Load tree from a newick or nexus file"""
         try:
-            with utility.StdioLogger():
+            with utility.redirect(sys, 'stdout', self.logio):
                 self.analysis = parse.from_file(fileName)
             self.paramWidget.setParams(self.analysis.param)
         except Exception as exception:
             self.fail(exception)
         else:
-            logging.getLogger().info(
+            self.logio.writeline(
                 'Loaded tree from: {}\n'.format(fileName))
             self.machine.postEvent(utility.NamedEvent('OPEN',file=fileName))
 
@@ -805,7 +817,7 @@ class Main(QtWidgets.QDialog):
         except Exception as exception:
             self.fail(exception)
         else:
-            logging.getLogger().info(
+            self.logio.writeline(
                 'Saved analysis to file: {}\n'.format(fileName))
         pass
 
@@ -824,7 +836,7 @@ class Main(QtWidgets.QDialog):
         except Exception as exception:
             self.fail(exception)
         else:
-            logging.getLogger().info(
+            self.logio.writeline(
                 'Exported chronogram to file: {}\n'.format(fileName))
 
     def handleExportRato(self):
@@ -842,7 +854,7 @@ class Main(QtWidgets.QDialog):
         except Exception as exception:
             self.fail(exception)
         else:
-            logging.getLogger().info(
+            self.logio.writeline(
                 'Exported ratogram to file: {}\n'.format(fileName))
 
     def handleExportTable(self):
@@ -863,14 +875,18 @@ class Main(QtWidgets.QDialog):
         except Exception as exception:
             self.fail(exception)
         else:
-            logging.getLogger().info(
+            self.logio.writeline(
                 'Exported table to file: {}\n'.format(fileName))
 
 def show():
     """Entry point"""
     def init():
         if len(sys.argv) >= 2:
-            main.handleOpenFile(sys.argv[1])
+            file = pathlib.Path(sys.argv[1])
+            if file.suffix == '.r8s':
+                main.handleOpenAnalysis(str(file))
+            else:
+                main.handleOpenFile(str(file))
 
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle('Fusion')

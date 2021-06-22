@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-# Pyr8s - Divergence Time Estimation
+# Commons - Utility classes for iTaxoTools modules
 # Copyright (C) 2021  Patmanidis Stefanos
 #
 # This program is free software: you can redistribute it and/or modify
@@ -413,45 +413,6 @@ class SearchWidget(QtWidgets.QLineEdit):
         self.returnPressed.connect(search)
         self.addAction(searchAction, QtWidgets.QLineEdit.TrailingPosition)
 
-
-class SyncedWidget(QtWidgets.QWidget):
-    """Sync height with other widgets"""
-    syncSignal = QtCore.Signal()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.myhint = 0
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Minimum)
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if event.size().height() != event.oldSize().height():
-            self.syncSignal.emit()
-
-    def syncHandle(self):
-        other = self.sender().height()
-        # self.setMinimumHeight(other)
-        self.myhint = other
-
-    def minimumSizeHint(self):
-        size = super().minimumSizeHint()
-        height = max(self.myhint, size.height())
-        size.setHeight(height)
-        return size
-
-
-    def sync(self, widget):
-        self.syncSignal.connect(widget.syncHandle)
-        widget.syncSignal.connect(self.syncHandle)
-
-class UToolBar(QtWidgets.QToolBar, SyncedWidget):
-    syncSignal = QtCore.Signal()
-    pass
-
-class UGroupBox(QtWidgets.QGroupBox, SyncedWidget):
-    syncSignal = QtCore.Signal()
-    pass
 
 ##############################################################################
 ### Vector Graphics
@@ -953,5 +914,3 @@ class ToolDialog(QtWidgets.QDialog):
         msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
         self.msgShow(msgBox)
-        logger = logging.getLogger()
-        logger.error(str(exception))

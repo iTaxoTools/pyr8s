@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-# Pyr8s - Divergence Time Estimation
+# Commons - Utility classes for iTaxoTools modules
 # Copyright (C) 2021  Patmanidis Stefanos
 #
 # This program is free software: you can redistribute it and/or modify
@@ -65,23 +65,25 @@ def redirect(module=sys, stream='stdout', dest=None, mode='w'):
 
 class TextEditLogger(QtWidgets.QPlainTextEdit):
     """Thread-safe log display in a QPlainTextEdit"""
-    appendRecord = QtCore.Signal(object)
+    _appendSignal = QtCore.Signal(object)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setReadOnly(True)
-        self.appendRecord.connect(self.appendTextInline)
+        self._appendSignal.connect(self._appendTextInline)
 
     @QtCore.Slot(object)
-    def appendTextInline(self, text):
+    def _appendTextInline(self, text):
+        """Using signals ensures thread safety"""
         self.moveCursor(QtGui.QTextCursor.End);
         self.insertPlainText(text);
         self.moveCursor(QtGui.QTextCursor.End);
 
     def append(self, text):
-        self.appendRecord.emit(str(text))
+        """Call this to append text to the widget"""
+        self._appendSignal.emit(str(text))
 
-class TextEditIO(io.IOBase):
+class TextEditLoggerIO(io.IOBase):
     """File-like object that writes to TextEditLogger"""
 
     def __init__(self, widget):
@@ -224,10 +226,10 @@ class UThread(QtCore.QThread):
         ----------
         function : function
             The function to run on the new thread.
-        \*args : positional argument, optional
-            If given, it is passed on to the function.
+        \*args : positional arguments, optional
+            If given, they are passed on to the function.
         \*\*kwargs : keyword arguments, optional
-            If given, it is passed on to the function.
+            If given, they are passed on to the function.
         """
         super().__init__()
         self.function = function
@@ -249,6 +251,10 @@ class UThread(QtCore.QThread):
 
 
 class UWorker():
+    """
+    Used by UProcess to spawn a new process.
+    Holds pipe information for stdio redirection.
+    """
 
     def __getstate__(self):
         """Required for process spawning."""
@@ -260,24 +266,18 @@ class UWorker():
         self.__dict__ = state
 
     def __init__(self, dict):
-        self.pipeControl = dict['pipeControl']
-        self.pipeData = dict['pipeData']
-        self.pipeOut = dict['pipeOut']
-        self.pipeErr = dict['pipeErr']
-        self.pipeIn = dict['pipeIn']
+        dict['pipeIn'][1].close()
+        self.pipeControl = dict['pipeControl'][1]
+        self.pipeData = dict['pipeData'][1]
+        self.pipeOut = dict['pipeOut'][1]
+        self.pipeErr = dict['pipeErr'][1]
+        self.pipeIn = dict['pipeIn'][0]
 
     def target(self, function, *args, **kwargs):
         """
         This is executed as a new process.
         Alerts parent process via pipe.
         """
-        self.pipeIn[1].close()
-        self.pipeControl = self.pipeControl[1]
-        self.pipeData = self.pipeData[1]
-        self.pipeOut = self.pipeOut[1]
-        self.pipeErr = self.pipeErr[1]
-        self.pipeIn = self.pipeIn[0]
-
         out = PipeIO(self.pipeOut, 'w')
         err = PipeIO(self.pipeErr, 'w')
         inp = PipeIO(self.pipeIn, 'r')
@@ -287,8 +287,6 @@ class UWorker():
         sys.stderr = err
         sys.stdin = inp
 
-        print('PROCESS STDIO CONFIGURED SUCCESSFULLY')
-
         try:
             result = function(*args, **kwargs)
             self.pipeControl.send('RESULT')
@@ -296,6 +294,13 @@ class UWorker():
         except Exception as exception:
             self.pipeControl.send('EXCEPTION')
             self.pipeData.send(exception)
+        finally:
+            self.pipeControl.close()
+            self.pipeData.close()
+            self.pipeOut.close()
+            self.pipeErr.close()
+            self.pipeIn.close()
+
 
 class UProcess(QtCore.QThread):
     """
@@ -339,6 +344,7 @@ class UProcess(QtCore.QThread):
             If given, it is passed on to the function.
         """
         super().__init__()
+        self._quit = None
         self.stream = None
         self.pipeControl = multiprocessing.Pipe(duplex=True)
         self.pipeData = multiprocessing.Pipe(duplex=True)
@@ -353,15 +359,15 @@ class UProcess(QtCore.QThread):
     def setStream(self, stream):
         """Send process output to given file-like stream"""
         self.stream = stream
-        # return
+
         if stream is not None:
             self.handleOut = self._streamOut
             self.handleErr = self._streamOut
         else:
-            self.handleOut = self._loggerNone
-            self.handleErr = self._loggerNone
+            self.handleOut = self._streamNone
+            self.handleErr = self._streamNone
 
-    def _loggerNone(self, data):
+    def _streamNone(self, data):
         pass
 
     def _streamOut(self, data):
@@ -374,6 +380,7 @@ class UProcess(QtCore.QThread):
         Do not call this directly, call self.start() instead.
         Starts and watches the process.
         """
+        self._quit = False
         self.process.start()
         self.pipeData[1].close()
         self.pipeOut[1].close()
@@ -384,21 +391,32 @@ class UProcess(QtCore.QThread):
         self.pipeErr = self.pipeErr[0]
         self.pipeIn = self.pipeIn[1]
 
+        sentinel = self.process.sentinel
         waitList = {
+            sentinel: None,
             self.pipeControl: self.handleControl,
             self.pipeOut: self.handleOut,
             self.pipeErr: self.handleErr,
             }
-        while waitList:
+        while waitList and sentinel is not None:
             for pipe in multiprocessing.connection.wait(waitList.keys()):
-                try:
-                    data = pipe.recv()
-                except EOFError:
-                    waitList.pop(pipe)
+                if pipe == sentinel:
+                    # Process exited, break loop after handling pipes
+                    sentinel = None
                 else:
-                    waitList[pipe](data)
-        # Nothing left to do
-        return
+                    try:
+                        data = pipe.recv()
+                    except EOFError:
+                        waitList.pop(pipe)
+                    else:
+                        waitList[pipe](data)
+
+        # Make sure process ended smoothly
+        if self.process.exitcode != 0 and not self._quit:
+            self.handleErr('Internal error!')
+            exception = RuntimeError('Subprocess exited with error status ' +
+                str(self.process.exitcode))
+            self.fail.emit(exception)
 
     def handleControl(self, data):
         """Handle control pipe signals"""
@@ -421,6 +439,7 @@ class UProcess(QtCore.QThread):
 
     def quit(self):
         """Clean exit"""
+        self._quit = True
         if self.process is not None and self.process.is_alive():
             self.process.terminate()
         super().quit()

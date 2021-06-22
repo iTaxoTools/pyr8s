@@ -37,14 +37,8 @@ from .. import parse
 from . import resources
 
 
-class Main(QtWidgets.QDialog):
+class Main(widgets.ToolDialog):
     """Main window, handles everything"""
-
-    speak = QtCore.Signal(object)
-
-    @QtCore.Slot(object)
-    def say_some_words(self, words):
-        print(words)
 
     def __init__(self, parent=None, init=None):
         super(Main, self).__init__(parent)
@@ -66,9 +60,6 @@ class Main(QtWidgets.QDialog):
         if init is not None:
             self.machine.started.connect(init)
 
-        self.speak.connect(self.say_some_words)
-        self.speak.connect(self.logw.appendTextInline)
-
 
     def __getstate__(self):
         return (self.analysis,)
@@ -76,38 +67,13 @@ class Main(QtWidgets.QDialog):
     def __setstate__(self, state):
         (self.analysis,) = state
 
-    def reject(self):
-        """Called on dialog close or <ESC>"""
+    def onReject(self):
+        """If running, verify cancel"""
         if self.stateCheck('STATE_RUNNING'):
-            self.handleCancel()
-            return
-        msgBox = QtWidgets.QMessageBox(self)
-        msgBox.setWindowTitle(self.windowTitle())
-        msgBox.setIcon(QtWidgets.QMessageBox.Question)
-        msgBox.setText('Are you sure you want to quit?')
-        msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        msgBox.setDefaultButton(QtWidgets.QMessageBox.Yes)
-        confirm = msgBox.exec()
-        if confirm == QtWidgets.QMessageBox.Yes:
-            super().reject()
-
-    def closeMessages(self):
-        """Rejects any open QMessageBoxes"""
-        for widget in self.children():
-            if widget.__class__ == QtWidgets.QMessageBox:
-                widget.reject()
-
-    def fail(self, exception):
-        self.closeMessages()
-        msgBox = QtWidgets.QMessageBox(self)
-        msgBox.setWindowTitle(self.windowTitle())
-        msgBox.setIcon(QtWidgets.QMessageBox.Critical)
-        msgBox.setText('An exception occured:')
-        msgBox.setInformativeText(str(exception))
-        msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        msgBox.exec()
-        self.logio.writeline(str(exception))
+            self.handleStop()
+            return True
+        else:
+            return None
 
     def stateCheck(self, name):
         """Check if given state is currently running"""
@@ -147,6 +113,7 @@ class Main(QtWidgets.QDialog):
         idle_none.assignProperty(self.tabResults, 'enabled', False)
         idle_none.assignProperty(self.tabDiagram, 'enabled', False)
         idle_none.assignProperty(self.tabTable, 'enabled', False)
+        idle_none.assignProperty(self.actionOpen, 'enabled', True)
         idle_none.assignProperty(self.actionRun, 'enabled', False)
         idle_none.assignProperty(self.actionSave, 'enabled', False)
         idle_none.assignProperty(self.actionExport, 'enabled', False)
@@ -162,6 +129,7 @@ class Main(QtWidgets.QDialog):
         idle_open.assignProperty(self.tabResults, 'enabled', False)
         idle_open.assignProperty(self.tabDiagram, 'enabled', False)
         idle_open.assignProperty(self.tabTable, 'enabled', False)
+        idle_open.assignProperty(self.actionOpen, 'enabled', True)
         idle_open.assignProperty(self.actionRun, 'enabled', True)
         idle_open.assignProperty(self.actionSave, 'enabled', True)
         idle_open.assignProperty(self.actionExport, 'enabled', False)
@@ -181,6 +149,7 @@ class Main(QtWidgets.QDialog):
         idle_done.assignProperty(self.tabResults, 'enabled', True)
         idle_done.assignProperty(self.tabDiagram, 'enabled', True)
         idle_done.assignProperty(self.tabTable, 'enabled', True)
+        idle_done.assignProperty(self.actionOpen, 'enabled', True)
         idle_done.assignProperty(self.actionRun, 'enabled', True)
         idle_done.assignProperty(self.actionSave, 'enabled', True)
         idle_done.assignProperty(self.actionExport, 'enabled', True)
@@ -194,6 +163,7 @@ class Main(QtWidgets.QDialog):
         idle_done.onEntry = onEntry
 
         running.setObjectName('STATE_RUNNING')
+        running.assignProperty(self.actionOpen, 'enabled', False)
         running.assignProperty(self.actionRun, 'visible', False)
         running.assignProperty(self.actionStop, 'visible', True)
         running.assignProperty(self.paramWidget.container, 'enabled', False)
@@ -256,14 +226,13 @@ class Main(QtWidgets.QDialog):
             self.treeResults.clear()
             widgets.TreeWidgetNodeResults(
                 self.treeResults, self.analysis.results.tree.seed_node)
-            self.closeMessages()
             msgBox = QtWidgets.QMessageBox(self)
             msgBox.setWindowTitle(self.windowTitle())
             msgBox.setIcon(QtWidgets.QMessageBox.Information)
             msgBox.setText('Analysis complete.')
             msgBox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-            msgBox.exec()
+            self.msgShow(msgBox)
         transition.onTransition = onTransition
         transition.setTargetState(idle_done)
         running.addTransition(transition)
@@ -532,7 +501,7 @@ class Main(QtWidgets.QDialog):
         self.actionStop = QtGui.QAction('&Stop', self)
         self.actionStop.setIcon(widgets.VectorIcon(':/resources/stop.svg', self.colormap))
         self.actionStop.setStatusTip('Cancel analysis')
-        self.actionStop.triggered.connect(self.handleCancel)
+        self.actionStop.triggered.connect(self.handleStop)
 
         self.actionExport = QtGui.QAction('&Export', self)
         self.actionExport.setIcon(widgets.VectorIcon(':/resources/export.svg', self.colormap))
@@ -667,7 +636,7 @@ class Main(QtWidgets.QDialog):
         self.logw = utility.TextEditLogger()
         fixedFont = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
         self.logw.setFont(fixedFont)
-        self.logio = utility.TextEditIO(self.logw)
+        self.logio = utility.TextEditLoggerIO(self.logw)
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.logw)
@@ -722,7 +691,7 @@ class Main(QtWidgets.QDialog):
             msgBox.setText('Scalar mode activated, all time constraints will be ignored.')
             msgBox.setStandardButtons(QtWidgets.QMessageBox.Cancel | QtWidgets.QMessageBox.Ok)
             msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-            confirm = msgBox.exec()
+            confirm = self.msgShow(msgBox)
             if confirm == QtWidgets.QMessageBox.Cancel:
                 return
 
@@ -743,7 +712,7 @@ class Main(QtWidgets.QDialog):
         self.launcher.start()
         self.machine.postEvent(utility.NamedEvent('RUN'))
 
-    def handleCancel(self):
+    def handleStop(self):
         """Called by cancel button"""
         msgBox = QtWidgets.QMessageBox(self)
         msgBox.setWindowTitle(self.windowTitle())
@@ -751,7 +720,7 @@ class Main(QtWidgets.QDialog):
         msgBox.setText('Cancel ongoing analysis?')
         msgBox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         msgBox.setDefaultButton(QtWidgets.QMessageBox.No)
-        confirm = msgBox.exec()
+        confirm = self.msgShow(msgBox)
         if confirm == QtWidgets.QMessageBox.Yes:
             self.logio.writeline('\nAnalysis aborted by user.')
             if self.launcher is not None:

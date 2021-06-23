@@ -6,32 +6,6 @@ import pathlib
 
 here = pathlib.Path(__file__).parent.resolve()
 
-class CommandQtAutoCompile(Command):
-    """Custom command for auto-compiling Qt resource files"""
-    description = 'run pyqt5ac on all resource files'
-    user_options = []
-    def initialize_options(self):
-        """virtual overload"""
-        pass
-    def finalize_options(self):
-        """virtual overload"""
-        pass
-    def run(self):
-        """build_qt"""
-        try:
-            import pyqt5ac
-            pyqt5ac.main(ioPaths=[
-                [str(here/'**/qt/*.qrc'), '%%DIRNAME%%/%%FILENAME%%.py'],
-                ])
-        except ModuleNotFoundError as exception:
-            raise ModuleNotFoundError('Missing Qt auto-compiler, please try: pip install pyqt5ac')
-
-class build_py(_build_py):
-    """Overrides setuptools build to autocompile first"""
-    def run(self):
-        self.run_command('build_qt')
-        _build_py.run(self)
-
 long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(name='pyr8s',
@@ -43,7 +17,7 @@ setup(name='pyr8s',
     author_email='stefanpatman91@gmail.com',
     package_dir={'': 'src'},
     packages=find_namespace_packages(
-        # exclude=('itaxotools.common*',),
+        # exclude=('itaxotools.common*','itaxotools.resources*'),
         include=('itaxotools*',),
         where='src',
     ),
@@ -59,10 +33,6 @@ setup(name='pyr8s',
             'pyr8s = itaxotools.pyr8s.run:main',
             'pyr8s-qt = itaxotools.pyr8s.gui.run:main'
             ],
-    },
-    cmdclass = {
-        'build_qt': CommandQtAutoCompile,
-        'build_py': build_py
     },
     classifiers = [
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',

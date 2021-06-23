@@ -26,16 +26,24 @@ import sys
 import re
 import pickle
 import pathlib
+import importlib.resources
 
 from itaxotools.common.param import qt as param_qt
 from itaxotools.common import utility
 from itaxotools.common import widgets
+from itaxotools import resources
 
 from .. import core
 from .. import parse
 
-from . import resources
 from . import trees
+
+
+_resource_path = importlib.resources.files(resources)
+def get_resource(path):
+    return str(_resource_path / path)
+def get_icon(path):
+    return str(_resource_path / 'icons/svg' / path)
 
 
 class Main(widgets.ToolDialog):
@@ -48,7 +56,7 @@ class Main(widgets.ToolDialog):
         self.analysis = core.RateAnalysis()
 
         self.setWindowTitle(self.title)
-        self.setWindowIcon(QtGui.QIcon(':/resources/pyr8s-icon.ico'))
+        self.setWindowIcon(QtGui.QIcon(get_resource('icons/ico/pyr8s.ico')))
         self.resize(854,480)
 
         self.process = None
@@ -375,9 +383,9 @@ class Main(widgets.ToolDialog):
         """Draw all widgets"""
 
         self.header = widgets.Header()
-        self.header.logoTool = widgets.VectorPixmap(':/resources/logo-pyr8s.svg',
+        self.header.logoTool = widgets.VectorPixmap(get_resource('logos/svg/pyr8s.svg'),
             colormap=self.colormap_icon)
-        self.header.logoProject = QtGui.QPixmap(':/resources/itaxotools-micrologo.png')
+        self.header.logoProject = QtGui.QPixmap(get_resource('logos/png/itaxotools-micrologo.png'))
         self.header.description = (
             'Pyr8s - Computing timetrees' + '\n'
             'using non-parametric rate-smoothing'
@@ -390,7 +398,7 @@ class Main(widgets.ToolDialog):
         self.line = widgets.Subheader()
 
         self.line.icon = QtWidgets.QLabel()
-        self.line.icon.setPixmap(widgets.VectorPixmap(':/resources/arrow-right.svg',
+        self.line.icon.setPixmap(widgets.VectorPixmap(get_icon('arrow-right.svg'),
             colormap=self.colormap_icon_light))
         self.line.icon.setStyleSheet('border-style: none;')
 
@@ -412,7 +420,7 @@ class Main(widgets.ToolDialog):
             self.treeConstraints.searchSelect(what)
             self.treeResults.searchSelect(what)
         self.searchWidget = widgets.SearchWidget()
-        pixmap = widgets.VectorPixmap(':/resources/search.svg',
+        pixmap = widgets.VectorPixmap(get_icon('search.svg'),
             colormap=self.colormap_icon_light)
         self.searchWidget.setSearchAction(pixmap, search)
         layout = QtWidgets.QHBoxLayout()
@@ -478,30 +486,30 @@ class Main(widgets.ToolDialog):
         self.action = {}
 
         self.action['open'] = QtGui.QAction('&Open', self)
-        self.action['open'].setIcon(widgets.VectorIcon(':/resources/open.svg', self.colormap))
+        self.action['open'].setIcon(widgets.VectorIcon(get_icon('open.svg'), self.colormap))
         self.action['open'].setShortcut(QtGui.QKeySequence.Open)
         self.action['open'].setStatusTip('Open an existing file')
         self.action['open'].triggered.connect(self.handleOpen)
 
         self.action['save'] = QtGui.QAction('&Save', self)
-        self.action['save'].setIcon(widgets.VectorIcon(':/resources/save.svg', self.colormap))
+        self.action['save'].setIcon(widgets.VectorIcon(get_icon('save.svg'), self.colormap))
         self.action['save'].setShortcut(QtGui.QKeySequence.Save)
         self.action['save'].setStatusTip('Save analysis state')
         self.action['save'].triggered.connect(self.handleSaveAnalysis)
 
         self.action['run'] = QtGui.QAction('&Run', self)
-        self.action['run'].setIcon(widgets.VectorIcon(':/resources/run.svg', self.colormap))
+        self.action['run'].setIcon(widgets.VectorIcon(get_icon('run.svg'), self.colormap))
         self.action['run'].setShortcut('Ctrl+R')
         self.action['run'].setStatusTip('Run rate analysis')
         self.action['run'].triggered.connect(self.handleRun)
 
         self.action['stop'] = QtGui.QAction('&Stop', self)
-        self.action['stop'].setIcon(widgets.VectorIcon(':/resources/stop.svg', self.colormap))
+        self.action['stop'].setIcon(widgets.VectorIcon(get_icon('stop.svg'), self.colormap))
         self.action['stop'].setStatusTip('Cancel analysis')
         self.action['stop'].triggered.connect(self.handleStop)
 
         self.action['export'] = QtGui.QAction('&Export', self)
-        self.action['export'].setIcon(widgets.VectorIcon(':/resources/export.svg', self.colormap))
+        self.action['export'].setIcon(widgets.VectorIcon(get_icon('export.svg'), self.colormap))
         self.action['export'].setStatusTip('Export results')
 
         self.action['export_chrono'] = QtGui.QAction('&Chronogram', self)

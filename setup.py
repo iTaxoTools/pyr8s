@@ -33,6 +33,10 @@ setup(name='pyr8s',
             'pyr8s = itaxotools.pyr8s.run:main',
             'pyr8s-qt = itaxotools.pyr8s.gui.run:main'
             ],
+        'pyinstaller40': [
+          'hook-dirs = itaxotools.__pyinstaller:get_hook_dirs',
+          'tests = itaxotools.__pyinstaller:get_PyInstaller_tests'
+        ]
     },
     classifiers = [
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',

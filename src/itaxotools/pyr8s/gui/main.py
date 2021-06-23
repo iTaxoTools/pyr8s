@@ -158,6 +158,7 @@ class Main(widgets.ToolDialog):
         state.assignProperty(self.searchWidget, 'enabled', False)
         state.assignProperty(self.barFlags, 'enabled', True)
         state.assignProperty(self.labelFlagInfo, 'text', 'Please wait...')
+        state.assignProperty(self.labelFlagInfo, 'visible', True)
         state.assignProperty(self.labelFlagWarn, 'visible', False)
         def onEntry(event):
             self.pane['results'].setCurrentIndex(1)

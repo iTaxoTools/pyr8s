@@ -35,6 +35,7 @@ from .. import core
 from .. import parse
 
 from . import resources
+from . import trees
 
 
 class Main(widgets.ToolDialog):
@@ -50,7 +51,7 @@ class Main(widgets.ToolDialog):
         self.setWindowIcon(QtGui.QIcon(':/resources/pyr8s-icon.ico'))
         self.resize(854,480)
 
-        self.launcher = None
+        self.process = None
         self.machine = None
         self.skin()
         self.draw()
@@ -69,123 +70,115 @@ class Main(widgets.ToolDialog):
 
     def onReject(self):
         """If running, verify cancel"""
-        if self.stateCheck('STATE_RUNNING'):
+        if self.state['running'] in list(self.machine.configuration()):
             self.handleStop()
             return True
         else:
             return None
 
-    def stateCheck(self, name):
-        """Check if given state is currently running"""
-        if self.machine is not None:
-            for state in list(self.machine.configuration()):
-                if state.objectName() == name:
-                    return True
-        return False
-
     def cog(self):
         """Initialize state machine"""
-        self.machine = QtStateMachine.QStateMachine(self)
 
-        idle = QtStateMachine.QState()
-        idle_none = QtStateMachine.QState(idle)
-        idle_open = QtStateMachine.QState(idle)
-        idle_done = QtStateMachine.QState(idle)
-        idle_updated = QtStateMachine.QState(idle)
-        idle_last = QtStateMachine.QHistoryState(idle)
-        idle.setInitialState(idle_none)
-        running = QtStateMachine.QState()
+        self.state = {}
+        self.state['idle'] = QtStateMachine.QState()
+        self.state['idle_none'] = QtStateMachine.QState(self.state['idle'])
+        self.state['idle_open'] = QtStateMachine.QState(self.state['idle'])
+        self.state['idle_done'] = QtStateMachine.QState(self.state['idle'])
+        self.state['done_complete'] = QtStateMachine.QState(self.state['idle_done'])
+        self.state['done_updated'] = QtStateMachine.QState(self.state['idle_done'])
+        self.state['idle_last'] = QtStateMachine.QHistoryState(self.state['idle'])
+        self.state['running'] = QtStateMachine.QState()
+        self.state['idle'].setInitialState(self.state['idle_none'])
+        self.state['idle_done'].setInitialState(self.state['done_complete'])
 
-        idle.setObjectName('STATE_IDLE')
-        idle.assignProperty(self.paramWidget.container, 'enabled', True)
-        idle.assignProperty(self.actionStop, 'visible', False)
-        idle.assignProperty(self.actionRun, 'visible', True)
+        state = self.state['idle']
+        state.assignProperty(self.action['run'], 'visible', True)
+        state.assignProperty(self.action['stop'], 'visible', False)
+        state.assignProperty(self.action['open'], 'enabled', True)
         def onEntry(event):
             self.treeConstraints.setItemsDisabled(False)
             self.treeResults.setItemsDisabled(False)
             self.setFocus()
-        idle.onEntry = onEntry
+        state.onEntry = onEntry
 
-        idle_none.setObjectName('STATE_IDLE_NONE')
-        idle_none.assignProperty(self.searchWidget, 'enabled', False)
-        idle_none.assignProperty(self.tabConstraints, 'enabled', False)
-        idle_none.assignProperty(self.tabParams, 'enabled', False)
-        idle_none.assignProperty(self.tabResults, 'enabled', False)
-        idle_none.assignProperty(self.tabDiagram, 'enabled', False)
-        idle_none.assignProperty(self.tabTable, 'enabled', False)
-        idle_none.assignProperty(self.actionOpen, 'enabled', True)
-        idle_none.assignProperty(self.actionRun, 'enabled', False)
-        idle_none.assignProperty(self.actionSave, 'enabled', False)
-        idle_none.assignProperty(self.actionExport, 'enabled', False)
-        idle_none.assignProperty(self.barFlags, 'enabled', False)
-        idle_none.assignProperty(self.labelFlagInfo, 'text', 'Nothing to display.')
-        idle_none.assignProperty(self.labelFlagInfo, 'visible', True)
-        idle_none.assignProperty(self.labelFlagWarn, 'visible', False)
+        state = self.state['idle_none']
+        state.assignProperty(self.action['run'], 'enabled', False)
+        state.assignProperty(self.action['save'], 'enabled', False)
+        state.assignProperty(self.action['export'], 'enabled', False)
+        state.assignProperty(self.tab['constraints'], 'enabled', False)
+        state.assignProperty(self.tab['results'], 'enabled', False)
+        state.assignProperty(self.paramWidget.container, 'enabled', False)
+        state.assignProperty(self.searchWidget, 'enabled', True)
+        state.assignProperty(self.barFlags, 'enabled', False)
+        state.assignProperty(self.labelFlagInfo, 'text', 'Nothing to show')
+        state.assignProperty(self.labelFlagInfo, 'visible', True)
+        state.assignProperty(self.labelFlagWarn, 'visible', False)
 
-        idle_open.setObjectName('STATE_IDLE_OPEN')
-        idle_open.assignProperty(self.searchWidget, 'enabled', True)
-        idle_open.assignProperty(self.tabConstraints, 'enabled', True)
-        idle_open.assignProperty(self.tabParams, 'enabled', True)
-        idle_open.assignProperty(self.tabResults, 'enabled', False)
-        idle_open.assignProperty(self.tabDiagram, 'enabled', False)
-        idle_open.assignProperty(self.tabTable, 'enabled', False)
-        idle_open.assignProperty(self.actionOpen, 'enabled', True)
-        idle_open.assignProperty(self.actionRun, 'enabled', True)
-        idle_open.assignProperty(self.actionSave, 'enabled', True)
-        idle_open.assignProperty(self.actionExport, 'enabled', False)
-        idle_open.assignProperty(self.barFlags, 'enabled', True)
-        idle_open.assignProperty(self.labelFlagInfo, 'text', 'Ready to run rate analysis.')
-        idle_open.assignProperty(self.labelFlagInfo, 'visible', True)
-        idle_open.assignProperty(self.labelFlagWarn, 'visible', False)
+        state = self.state['idle_open']
+        state.assignProperty(self.action['run'], 'enabled', True)
+        state.assignProperty(self.action['save'], 'enabled', True)
+        state.assignProperty(self.action['export'], 'enabled', False)
+        state.assignProperty(self.tab['constraints'], 'enabled', True)
+        state.assignProperty(self.tab['results'], 'enabled', False)
+        state.assignProperty(self.paramWidget.container, 'enabled', True)
+        state.assignProperty(self.searchWidget, 'enabled', True)
+        state.assignProperty(self.barFlags, 'enabled', True)
+        state.assignProperty(self.labelFlagInfo, 'text', 'Ready to run rate analysis.')
+        state.assignProperty(self.labelFlagInfo, 'visible', True)
+        state.assignProperty(self.labelFlagWarn, 'visible', False)
         def onEntry(event):
-            self.tabContainerAnalysis.setCurrentIndex(0)
+            self.pane['analysis'].setCurrentIndex(0)
             self.setFocus()
-        idle_open.onEntry = onEntry
+        state.onEntry = onEntry
 
-        idle_done.setObjectName('STATE_IDLE_DONE')
-        idle_done.assignProperty(self.searchWidget, 'enabled', True)
-        idle_done.assignProperty(self.tabConstraints, 'enabled', True)
-        idle_done.assignProperty(self.tabParams, 'enabled', True)
-        idle_done.assignProperty(self.tabResults, 'enabled', True)
-        idle_done.assignProperty(self.tabDiagram, 'enabled', True)
-        idle_done.assignProperty(self.tabTable, 'enabled', True)
-        idle_done.assignProperty(self.actionOpen, 'enabled', True)
-        idle_done.assignProperty(self.actionRun, 'enabled', True)
-        idle_done.assignProperty(self.actionSave, 'enabled', True)
-        idle_done.assignProperty(self.actionExport, 'enabled', True)
-        idle_done.assignProperty(self.barFlags, 'enabled', True)
-        idle_done.assignProperty(self.labelFlagInfo, 'text', 'Analysis complete.')
-        idle_done.assignProperty(self.labelFlagInfo, 'visible', False)
-        idle_done.assignProperty(self.labelFlagWarn, 'visible', True)
-        def onEntry(event):
-            self.tabContainerAnalysis.setCurrentIndex(0)
-            self.tabContainerResults.setCurrentIndex(0)
-        idle_done.onEntry = onEntry
+        state = self.state['idle_done']
+        state.assignProperty(self.action['run'], 'enabled', True)
+        state.assignProperty(self.action['save'], 'enabled', True)
+        state.assignProperty(self.action['export'], 'enabled', True)
+        state.assignProperty(self.tab['constraints'], 'enabled', True)
+        state.assignProperty(self.tab['results'], 'enabled', True)
+        state.assignProperty(self.paramWidget.container, 'enabled', True)
+        state.assignProperty(self.searchWidget, 'enabled', True)
 
-        running.setObjectName('STATE_RUNNING')
-        running.assignProperty(self.actionOpen, 'enabled', False)
-        running.assignProperty(self.actionRun, 'visible', False)
-        running.assignProperty(self.actionStop, 'visible', True)
-        running.assignProperty(self.paramWidget.container, 'enabled', False)
-        running.assignProperty(self.barFlags, 'enabled', True)
-        running.assignProperty(self.labelFlagInfo, 'text', 'Please wait...')
-        running.assignProperty(self.labelFlagWarn, 'visible', False)
+        state = self.state['running']
+        state.assignProperty(self.action['run'], 'visible', False)
+        state.assignProperty(self.action['stop'], 'visible', True)
+        state.assignProperty(self.action['open'], 'enabled', False)
+        state.assignProperty(self.action['save'], 'enabled', False)
+        state.assignProperty(self.action['export'], 'enabled', False)
+        state.assignProperty(self.paramWidget.container, 'enabled', False)
+        state.assignProperty(self.searchWidget, 'enabled', False)
+        state.assignProperty(self.barFlags, 'enabled', True)
+        state.assignProperty(self.labelFlagInfo, 'text', 'Please wait...')
+        state.assignProperty(self.labelFlagWarn, 'visible', False)
         def onEntry(event):
-            self.tabContainerResults.setCurrentIndex(1)
+            self.pane['results'].setCurrentIndex(1)
             self.treeConstraints.setItemsDisabled(True)
             self.treeResults.setItemsDisabled(True)
-        running.onEntry = onEntry
+        state.onEntry = onEntry
 
-        idle_updated.assignProperty(self.barFlags, 'enabled', True)
-        idle_updated.assignProperty(self.labelFlagInfo, 'visible', False)
-        idle_updated.assignProperty(self.labelFlagWarn, 'visible', True)
-        idle_updated.assignProperty(self.labelFlagWarn, 'text',
+        state = self.state['done_complete']
+        state.assignProperty(self.barFlags, 'enabled', True)
+        state.assignProperty(self.labelFlagInfo, 'text', 'Analysis complete.')
+        state.assignProperty(self.labelFlagInfo, 'visible', False)
+        state.assignProperty(self.labelFlagWarn, 'visible', True)
+        def onEntry(event):
+            self.pane['analysis'].setCurrentIndex(0)
+            self.pane['results'].setCurrentIndex(0)
+        state.onEntry = onEntry
+
+        state = self.state['done_updated']
+        state.assignProperty(self.barFlags, 'enabled', True)
+        state.assignProperty(self.labelFlagInfo, 'visible', False)
+        state.assignProperty(self.labelFlagWarn, 'visible', True)
+        state.assignProperty(self.labelFlagWarn, 'text',
             'Parameters have changed, re-run analysis to update results.')
 
         transition = utility.NamedTransition('OPEN')
         def onTransition(event):
             fileInfo = QtCore.QFileInfo(event.kwargs['file'])
             labelText = fileInfo.baseName()
+            self.setWindowTitle(self.title + ' - ' + labelText)
             treeName = self.analysis.tree.label
             if treeName is not None:
                 if len(treeName) > 0 and treeName != labelText:
@@ -193,7 +186,7 @@ class Main(widgets.ToolDialog):
             self.labelTree.setText(labelText)
             self.treeResults.clear()
             self.treeConstraints.clear()
-            widgets.TreeWidgetNodeConstraints(
+            trees.TreeWidgetNodeConstraints(
                 self.treeConstraints, self.analysis.tree.seed_node)
             idealWidth = self.treeConstraints.idealWidth()
             width = min([self.width()/2, idealWidth])
@@ -201,30 +194,30 @@ class Main(widgets.ToolDialog):
             if self.analysis.results is not None:
                 self.machine.postEvent(utility.NamedEvent('LOAD'))
         transition.onTransition = onTransition
-        transition.setTargetState(idle_open)
-        idle.addTransition(transition)
+        transition.setTargetState(self.state['idle_open'])
+        self.state['idle'].addTransition(transition)
 
         transition = utility.NamedTransition('LOAD')
         def onTransition(event):
             warning = self.analysis.results.flags['warning']
             self.labelFlagWarn.setText(warning)
             self.treeResults.clear()
-            widgets.TreeWidgetNodeResults(
+            trees.TreeWidgetNodeResults(
                 self.treeResults, self.analysis.results.tree.seed_node)
         transition.onTransition = onTransition
-        transition.setTargetState(idle_done)
-        idle.addTransition(transition)
+        transition.setTargetState(self.state['idle_done'])
+        self.state['idle'].addTransition(transition)
 
         transition = utility.NamedTransition('RUN')
-        transition.setTargetState(running)
-        idle.addTransition(transition)
+        transition.setTargetState(self.state['running'])
+        self.state['idle'].addTransition(transition)
 
         transition = utility.NamedTransition('DONE')
         def onTransition(event):
             warning = self.analysis.results.flags['warning']
             self.labelFlagWarn.setText(warning)
             self.treeResults.clear()
-            widgets.TreeWidgetNodeResults(
+            trees.TreeWidgetNodeResults(
                 self.treeResults, self.analysis.results.tree.seed_node)
             msgBox = QtWidgets.QMessageBox(self)
             msgBox.setWindowTitle(self.windowTitle())
@@ -234,28 +227,29 @@ class Main(widgets.ToolDialog):
             msgBox.setDefaultButton(QtWidgets.QMessageBox.Ok)
             self.msgShow(msgBox)
         transition.onTransition = onTransition
-        transition.setTargetState(idle_done)
-        running.addTransition(transition)
+        transition.setTargetState(self.state['done_complete'])
+        self.state['running'].addTransition(transition)
 
         transition = utility.NamedTransition('UPDATE')
-        transition.setTargetState(idle_updated)
-        idle_done.addTransition(transition)
+        transition.setTargetState(self.state['done_updated'])
+        self.state['idle_done'].addTransition(transition)
 
         transition = utility.NamedTransition('FAIL')
         def onTransition(event):
-            self.tabContainerResults.setCurrentIndex(1)
+            self.pane['results'].setCurrentIndex(1)
             self.fail(event.args[0])
         transition.onTransition = onTransition
-        transition.setTargetState(idle_last)
-        running.addTransition(transition)
+        transition.setTargetState(self.state['idle_last'])
+        self.state['running'].addTransition(transition)
 
         transition = utility.NamedTransition('CANCEL')
-        transition.setTargetState(idle_last)
-        running.addTransition(transition)
+        transition.setTargetState(self.state['idle_last'])
+        self.state['running'].addTransition(transition)
 
-        self.machine.addState(idle)
-        self.machine.addState(running)
-        self.machine.setInitialState(idle)
+        self.machine = QtStateMachine.QStateMachine(self)
+        self.machine.addState(self.state['idle'])
+        self.machine.addState(self.state['running'])
+        self.machine.setInitialState(self.state['idle'])
         self.machine.start()
 
     def eventFilter(self, source, event):
@@ -389,8 +383,8 @@ class Main(widgets.ToolDialog):
             'using non-parametric rate-smoothing'
             )
         self.header.citation = (
-            'Pyr8s code by Stefanos Patmanidis' + '\n'
-            'Based on r8s written by Mike Sanderson'
+            'Pyr8s by Stefanos Patmanidis' + '\n'
+            'Based on r8s by Mike Sanderson'
         )
 
         self.line = widgets.Subheader()
@@ -433,6 +427,8 @@ class Main(widgets.ToolDialog):
         layout.setContentsMargins(4, 4, 4, 4)
         self.line.setLayout(layout)
 
+        self.pane = {}
+        self.tab = {}
         self.leftPane = self.createPaneEdit()
         self.rightPane  = self.createPaneResults()
 
@@ -479,67 +475,68 @@ class Main(widgets.ToolDialog):
 
     def act(self):
         """Populate dialog actions"""
+        self.action = {}
 
-        self.actionOpen = QtGui.QAction('&Open', self)
-        self.actionOpen.setIcon(widgets.VectorIcon(':/resources/open.svg', self.colormap))
-        self.actionOpen.setShortcut(QtGui.QKeySequence.Open)
-        self.actionOpen.setStatusTip('Open an existing file')
-        self.actionOpen.triggered.connect(self.handleOpen)
+        self.action['open'] = QtGui.QAction('&Open', self)
+        self.action['open'].setIcon(widgets.VectorIcon(':/resources/open.svg', self.colormap))
+        self.action['open'].setShortcut(QtGui.QKeySequence.Open)
+        self.action['open'].setStatusTip('Open an existing file')
+        self.action['open'].triggered.connect(self.handleOpen)
 
-        self.actionSave = QtGui.QAction('&Save', self)
-        self.actionSave.setIcon(widgets.VectorIcon(':/resources/save.svg', self.colormap))
-        self.actionSave.setShortcut(QtGui.QKeySequence.Save)
-        self.actionSave.setStatusTip('Save analysis state')
-        self.actionSave.triggered.connect(self.handleSaveAnalysis)
+        self.action['save'] = QtGui.QAction('&Save', self)
+        self.action['save'].setIcon(widgets.VectorIcon(':/resources/save.svg', self.colormap))
+        self.action['save'].setShortcut(QtGui.QKeySequence.Save)
+        self.action['save'].setStatusTip('Save analysis state')
+        self.action['save'].triggered.connect(self.handleSaveAnalysis)
 
-        self.actionRun = QtGui.QAction('&Run', self)
-        self.actionRun.setIcon(widgets.VectorIcon(':/resources/run.svg', self.colormap))
-        self.actionRun.setShortcut('Ctrl+R')
-        self.actionRun.setStatusTip('Run rate analysis')
-        self.actionRun.triggered.connect(self.handleRun)
+        self.action['run'] = QtGui.QAction('&Run', self)
+        self.action['run'].setIcon(widgets.VectorIcon(':/resources/run.svg', self.colormap))
+        self.action['run'].setShortcut('Ctrl+R')
+        self.action['run'].setStatusTip('Run rate analysis')
+        self.action['run'].triggered.connect(self.handleRun)
 
-        self.actionStop = QtGui.QAction('&Stop', self)
-        self.actionStop.setIcon(widgets.VectorIcon(':/resources/stop.svg', self.colormap))
-        self.actionStop.setStatusTip('Cancel analysis')
-        self.actionStop.triggered.connect(self.handleStop)
+        self.action['stop'] = QtGui.QAction('&Stop', self)
+        self.action['stop'].setIcon(widgets.VectorIcon(':/resources/stop.svg', self.colormap))
+        self.action['stop'].setStatusTip('Cancel analysis')
+        self.action['stop'].triggered.connect(self.handleStop)
 
-        self.actionExport = QtGui.QAction('&Export', self)
-        self.actionExport.setIcon(widgets.VectorIcon(':/resources/export.svg', self.colormap))
-        self.actionExport.setStatusTip('Export results')
+        self.action['export'] = QtGui.QAction('&Export', self)
+        self.action['export'].setIcon(widgets.VectorIcon(':/resources/export.svg', self.colormap))
+        self.action['export'].setStatusTip('Export results')
 
-        self.actionExportChrono = QtGui.QAction('&Chronogram', self)
-        self.actionExportChrono.setShortcut('Ctrl+E')
-        self.actionExportChrono.setStatusTip('Export chronogram (ultrametric)')
-        self.actionExportChrono.triggered.connect(self.handleExportChrono)
+        self.action['export_chrono'] = QtGui.QAction('&Chronogram', self)
+        self.action['export_chrono'].setShortcut('Ctrl+E')
+        self.action['export_chrono'].setStatusTip('Export chronogram (ultrametric)')
+        self.action['export_chrono'].triggered.connect(self.handleExportChrono)
 
-        self.actionExportRato = QtGui.QAction('&Ratogram', self)
-        self.actionExportRato.setStatusTip('Export ratogram')
-        self.actionExportRato.triggered.connect(self.handleExportRato)
+        self.action['export_rato'] = QtGui.QAction('&Ratogram', self)
+        self.action['export_rato'].setStatusTip('Export ratogram')
+        self.action['export_rato'].triggered.connect(self.handleExportRato)
 
-        self.actionExportTable = QtGui.QAction('&Table', self)
-        self.actionExportTable.setStatusTip('Export ages and rates table')
-        self.actionExportTable.triggered.connect(self.handleExportTable)
+        self.action['export_table'] = QtGui.QAction('&Table', self)
+        self.action['export_table'].setStatusTip('Export ages and rates table')
+        self.action['export_table'].triggered.connect(self.handleExportTable)
 
         exportButton = QtWidgets.QToolButton(self)
         exportButton.setPopupMode(QtWidgets.QToolButton.InstantPopup)
         exportButton.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
         exportMenu = QtWidgets.QMenu(exportButton)
-        exportMenu.addAction(self.actionExportChrono)
-        exportMenu.addAction(self.actionExportRato)
-        exportMenu.addAction(self.actionExportTable)
-        exportButton.setDefaultAction(self.actionExport)
+        exportMenu.addAction(self.action['export_chrono'])
+        exportMenu.addAction(self.action['export_rato'])
+        exportMenu.addAction(self.action['export_table'])
+        exportButton.setDefaultAction(self.action['export'])
         exportButton.setMenu(exportMenu)
 
-        self.header.toolbar.addAction(self.actionOpen)
-        self.header.toolbar.addAction(self.actionSave)
+        self.header.toolbar.addAction(self.action['open'])
+        self.header.toolbar.addAction(self.action['save'])
         self.header.toolbar.addWidget(exportButton)
-        self.header.toolbar.addAction(self.actionRun)
-        self.header.toolbar.addAction(self.actionStop)
+        self.header.toolbar.addAction(self.action['run'])
+        self.header.toolbar.addAction(self.action['stop'])
 
     def createTabConstraints(self):
         tab = QtWidgets.QWidget()
 
-        self.treeConstraints = widgets.TreeWidgetPhylogenetic()
+        self.treeConstraints = trees.TreeWidgetPhylogenetic()
         self.treeConstraints.onSelect = (lambda data:
             self.treeResults.searchSelect(data[0],
                 flag=QtCore.Qt.MatchExactly))
@@ -567,8 +564,8 @@ class Main(widgets.ToolDialog):
     def createTabParams(self):
         tab = QtWidgets.QWidget()
         self.paramWidget = param_qt.ParamContainer(self.analysis.param)
-        # self.paramWidget.paramChanged.connect(
-        #     lambda e: self.machine.postEvent(utility.NamedEvent('UPDATE')))
+        self.paramWidget.paramChanged.connect(
+            lambda e: self.machine.postEvent(utility.NamedEvent('UPDATE')))
 
         layout = QtWidgets.QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -580,15 +577,15 @@ class Main(widgets.ToolDialog):
     def createPaneEdit(self):
         pane = QtWidgets.QWidget()
 
-        self.tabContainerAnalysis = QtWidgets.QTabWidget()
+        self.pane['analysis'] = QtWidgets.QTabWidget()
 
-        self.tabConstraints = self.createTabConstraints()
-        self.tabParams = self.createTabParams()
-        self.tabContainerAnalysis.addTab(self.tabConstraints, "&Constraints")
-        self.tabContainerAnalysis.addTab(self.tabParams, "&Parameters")
+        self.tab['constraints'] = self.createTabConstraints()
+        self.tab['results'] = self.createTabParams()
+        self.pane['analysis'].addTab(self.tab['constraints'], "&Constraints")
+        self.pane['analysis'].addTab(self.tab['results'], "&Parameters")
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.tabContainerAnalysis)
+        layout.addWidget(self.pane['analysis'])
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
@@ -597,7 +594,7 @@ class Main(widgets.ToolDialog):
     def createTabResults(self):
         tab = QtWidgets.QWidget()
 
-        self.treeResults = widgets.TreeWidgetPhylogenetic()
+        self.treeResults = trees.TreeWidgetPhylogenetic()
         self.treeResults.onSelect = (lambda data:
             self.treeConstraints.searchSelect(data[0],
             flag=QtCore.Qt.MatchExactly))
@@ -648,16 +645,16 @@ class Main(widgets.ToolDialog):
     def createPaneResults(self):
         pane = QtWidgets.QWidget()
 
-        self.tabContainerResults = QtWidgets.QTabWidget()
+        self.pane['results'] = QtWidgets.QTabWidget()
 
         self.tabResults = self.createTabResults()
         self.tabDiagram = self.createTabTable()
         self.tabTable = self.createTabTable()
         self.tabLogs = self.createTabLogs()
-        self.tabContainerResults.addTab(self.tabResults, "&Results")
-        # self.tabContainerResults.addTab(self.tabDiagram , "&Diagram")
-        # self.tabContainerResults.addTab(self.tabTable, "&Table")
-        self.tabContainerResults.addTab(self.tabLogs, "&Logs")
+        self.pane['results'].addTab(self.tabResults, "&Results")
+        # self.pane['results'].addTab(self.tabDiagram , "&Diagram")
+        # self.pane['results'].addTab(self.tabTable, "&Table")
+        self.pane['results'].addTab(self.tabLogs, "&Logs")
 
         self.labelFlagInfo = QtWidgets.QLabel('No results to display.')
         self.labelFlagInfo.setAlignment(QtCore.Qt.AlignCenter)
@@ -665,7 +662,7 @@ class Main(widgets.ToolDialog):
         self.labelFlagWarn.setAlignment(QtCore.Qt.AlignCenter)
 
         layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.tabContainerResults)
+        layout.addWidget(self.pane['results'])
         layout.setContentsMargins(0, 0, 0, 0)
         pane.setLayout(layout)
 
@@ -705,11 +702,11 @@ class Main(widgets.ToolDialog):
         def fail(exception):
             self.machine.postEvent(utility.NamedEvent('FAIL', exception))
 
-        self.launcher = utility.UProcess(self.handleRunWork)
-        self.launcher.done.connect(done)
-        self.launcher.fail.connect(fail)
-        self.launcher.setStream(self.logio)
-        self.launcher.start()
+        self.process = utility.UProcess(self.handleRunWork)
+        self.process.done.connect(done)
+        self.process.fail.connect(fail)
+        self.process.setStream(self.logio)
+        self.process.start()
         self.machine.postEvent(utility.NamedEvent('RUN'))
 
     def handleStop(self):
@@ -723,8 +720,8 @@ class Main(widgets.ToolDialog):
         confirm = self.msgShow(msgBox)
         if confirm == QtWidgets.QMessageBox.Yes:
             self.logio.writeline('\nAnalysis aborted by user.')
-            if self.launcher is not None:
-                self.launcher.quit()
+            if self.process is not None:
+                self.process.quit()
             self.machine.postEvent(utility.NamedEvent('CANCEL'))
 
     def handleOpen(self):

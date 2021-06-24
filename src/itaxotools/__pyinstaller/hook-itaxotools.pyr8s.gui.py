@@ -1,7 +1,7 @@
 # Include all package data
 
 from PyInstaller.utils.hooks import collect_data_files
-datas = collect_data_files('itaxotools.resources')
+datas = collect_data_files('itaxotools.common.resources')
 
 # Until pyinstaller is updated on pypi, this is required
 import importlib.resources

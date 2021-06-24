@@ -30,4 +30,4 @@ exe = EXE(pyz,
           upx_exclude=[],
           runtime_tmpdir=None,
           console=False,
-          icon='../src/itaxotools/resources/icons/ico/pyr8s.ico' )
+          icon='../src/itaxotools/common/resources/icons/ico/pyr8s.ico' )

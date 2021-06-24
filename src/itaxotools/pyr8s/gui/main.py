@@ -31,7 +31,7 @@ import importlib.resources
 from itaxotools.common.param import qt as param_qt
 from itaxotools.common import utility
 from itaxotools.common import widgets
-from itaxotools import resources
+from itaxotools.common import resources
 
 from .. import core
 from .. import parse

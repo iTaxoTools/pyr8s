@@ -17,7 +17,7 @@ setup(name='pyr8s',
     author_email='stefanpatman91@gmail.com',
     package_dir={'': 'src'},
     packages=find_namespace_packages(
-        # exclude=('itaxotools.common*','itaxotools.resources*'),
+        # exclude=('itaxotools.common*',),
         include=('itaxotools*',),
         where='src',
     ),

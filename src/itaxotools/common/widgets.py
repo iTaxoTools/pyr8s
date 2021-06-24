@@ -28,6 +28,30 @@ import re
 
 
 ##############################################################################
+### Logging
+
+class TextEditLogger(QtWidgets.QPlainTextEdit):
+    """Thread-safe log display in a QPlainTextEdit"""
+    _appendSignal = QtCore.Signal(object)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setReadOnly(True)
+        self._appendSignal.connect(self._appendTextInline)
+
+    @QtCore.Slot(object)
+    def _appendTextInline(self, text):
+        """Using signals ensures thread safety"""
+        self.moveCursor(QtGui.QTextCursor.End);
+        self.insertPlainText(text);
+        self.moveCursor(QtGui.QTextCursor.End);
+
+    def append(self, text):
+        """Call this to append text to the widget"""
+        self._appendSignal.emit(str(text))
+
+
+##############################################################################
 ### Layout
 
 class TabWidget(QtWidgets.QGroupBox):
@@ -123,6 +147,7 @@ class VectorIcon(QtGui.QIcon):
         for mode in colormap_modes.keys():
             self.addPixmap(VectorPixmap(fileName,colormap=colormap_modes[mode]), mode)
 
+
 ##############################################################################
 ### Helpful widgets
 
@@ -191,6 +216,7 @@ class ScalingImage(QtWidgets.QLabel):
             self._polished = True
             self.updateGeometry()
         return super().event(ev)
+
 
 ##############################################################################
 ### Taxotool Layout
@@ -362,7 +388,6 @@ class Header(QtWidgets.QFrame):
     def logoProject(self, logo):
         self.labelLogoProject.logo = logo
 
-
 class Subheader(QtWidgets.QFrame):
     """A simple styled frame"""
     def __init__(self, *args, **kwargs):
@@ -377,7 +402,6 @@ class Subheader(QtWidgets.QFrame):
                 border-color: palette(Mid);
                 }
             """)
-
 
 class Panel(QtWidgets.QWidget):
     """

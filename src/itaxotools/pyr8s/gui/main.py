@@ -32,6 +32,7 @@ from itaxotools.common.param import qt as param_qt
 from itaxotools.common import utility
 from itaxotools.common import widgets
 from itaxotools.common import resources
+from itaxotools.common import io
 
 from .. import core
 from .. import parse
@@ -52,7 +53,7 @@ class Main(widgets.ToolDialog):
     def __init__(self, parent=None, init=None):
         super(Main, self).__init__(parent)
 
-        self.title = 'ASAPy'
+        self.title = 'pyr8s'
         self.analysis = core.RateAnalysis()
 
         self.setWindowTitle(self.title)
@@ -639,10 +640,10 @@ class Main(widgets.ToolDialog):
     def createTabLogs(self):
         tab = QtWidgets.QWidget()
 
-        self.logw = utility.TextEditLogger()
+        self.logw = widgets.TextEditLogger()
         fixedFont = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
         self.logw.setFont(fixedFont)
-        self.logio = utility.TextEditLoggerIO(self.logw)
+        self.logio = io.TextEditLoggerIO(self.logw)
 
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.logw)
@@ -702,7 +703,7 @@ class Main(widgets.ToolDialog):
                 return
 
         def done(result):
-            with utility.redirect(sys, 'stdout', self.logio):
+            with io.redirect(sys, 'stdout', self.logio):
                 result.print()
                 print(result.chronogram.as_string(schema='newick'))
             self.analysis.results = result
@@ -767,7 +768,7 @@ class Main(widgets.ToolDialog):
     def handleOpenFile(self, fileName):
         """Load tree from a newick or nexus file"""
         try:
-            with utility.redirect(sys, 'stdout', self.logio):
+            with io.redirect(sys, 'stdout', self.logio):
                 self.analysis = parse.from_file(fileName)
             self.paramWidget.setParams(self.analysis.param)
         except Exception as exception:

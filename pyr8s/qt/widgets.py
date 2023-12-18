@@ -178,7 +178,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             radius = self.radiusLeaf
             center = segment.center()
             painter.drawEllipse(center, radius, radius)
-            left = QtCore.QPoint(center.x()-segment.width()/2, center.y())
+            left = QtCore.QPoint(center.x()-int(segment.width()/2), center.y())
             leftMid = QtCore.QPoint(center.x()-radius, center.y())
             painter.drawLine(left, leftMid)
         else:
@@ -187,7 +187,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             painter.setBrush(QtCore.Qt.NoBrush)
             painter.drawEllipse(center, radius, radius)
             if isExpanded:
-                bottom = QtCore.QPoint(center.x(), center.y()+segment.height()/2+1)
+                bottom = QtCore.QPoint(center.x(), int(center.y()+segment.height()/2+1))
                 bottomMid = QtCore.QPoint(center.x(), center.y()+radius)
                 painter.drawLine(bottom, bottomMid)
             else:
@@ -195,7 +195,7 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
                 painter.drawEllipse(center, 1, 1)
             if parent is None:
                 return
-            left = QtCore.QPoint(center.x()-segment.width()/2, center.y())
+            left = QtCore.QPoint(center.x()-int(segment.width()/2), center.y())
             leftMid = QtCore.QPoint(center.x()-radius, center.y())
             painter.drawLine(left, leftMid)
 
@@ -205,14 +205,14 @@ class TreeWidgetPhylogenetic(QtWidgets.QTreeWidget):
             return
         if hasMoreSiblings:
             center = segment.center()
-            right = QtCore.QPoint(center.x()+segment.width()/2, center.y())
+            right = QtCore.QPoint(center.x()+int(segment.width()/2), center.y())
             painter.drawLine(center, right)
             top = QtCore.QPoint(center.x(), segment.top()+1)
             bottom = QtCore.QPoint(center.x(), segment.bottom()+1)
             painter.drawLine(top, bottom)
         else:
             center = segment.center()
-            right = QtCore.QPoint(center.x()+segment.width()/2, center.y())
+            right = QtCore.QPoint(center.x()+int(segment.width()/2), center.y())
             painter.drawLine(center, right)
             top = QtCore.QPoint(center.x(), segment.top()+1)
             painter.drawLine(top, center)
@@ -550,7 +550,7 @@ class ScalingImage(QtWidgets.QLabel):
             return
         h = self.height()
         w = h * self._ratio
-        self.setPixmap(self._logo.scaled(w, h,
+        self.setPixmap(self._logo.scaled(int(w), int(h),
             QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation))
 
     def minimumSizeHint(self):
@@ -559,7 +559,7 @@ class ScalingImage(QtWidgets.QLabel):
     def sizeHint(self):
         if self._polished is True and self._ratio != 0:
             h = self.height()
-            return QtCore.QSize(h * self._ratio, h)
+            return QtCore.QSize(int(h * self._ratio), int(h))
         else:
             return QtCore.QSize(1, 1)
 

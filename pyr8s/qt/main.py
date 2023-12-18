@@ -213,7 +213,7 @@ class Main(QtWidgets.QDialog):
                 self.treeConstraints, self.analysis.tree.seed_node)
             idealWidth = self.treeConstraints.idealWidth()
             width = min([self.width()/2, idealWidth])
-            self.splitter.setSizes([width, 1, self.width()/2])
+            self.splitter.setSizes([int(width), 1, int(self.width()/2)])
             if self.analysis.results is not None:
                 self.machine.postEvent(utility.NamedEvent('LOAD'))
         transition.onTransition = onTransition

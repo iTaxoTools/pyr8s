@@ -9,5 +9,7 @@ __pycache__/
 *.so
 *~
 
+Pipfile
+
 # qt auto-compiled resources
 pyr8s/qt/resources.py
